@@ -1,0 +1,17 @@
+// Instrucciones optimizadas para depuración
+// Los registros están inicialmente en 0, y usamos valores concretos fáciles de seguir
+//
+// Dirección | Instrucción | Descripción
+// -----------------------------------------
+20080005 // 0x00: addi $t0, $zero, 5     # $t0 = 5 (valor inicial conocido)
+2009000A // 0x04: addi $t1, $zero, 10    # $t1 = 10 (valor inicial conocido)
+200A00FF // 0x08: addi $t2, $zero, 255   # $t2 = 255 (valor visible para depuración)
+01095020 // 0x0C: add $t2, $t0, $t1      # $t2 = $t0 + $t1 = 15
+01095822 // 0x10: sub $t3, $t0, $t1      # $t3 = $t0 - $t1 = -5
+01095824 // 0x14: and $t3, $t0, $t1      # $t3 = $t0 & $t1
+01095825 // 0x18: or $t3, $t0, $t1       # $t3 = $t0 | $t1
+AC080020 // 0x1C: sw $t0, 32($zero)      # Guarda $t0 en memoria[32]
+8C0B0020 // 0x20: lw $t3, 32($zero)      # Carga el valor de memoria[32] en $t3 (debe ser 5)
+11090002 // 0x24: beq $t0, $t1, 2        # Si $t0==$t1, salta 2 instrucciones (no debería saltar)
+000A5880 // 0x28: sll $t3, $t2, 2        # $t3 = $t2 << 2 (desplazamiento lógico izquierda)
+012A602A // 0x2C: slt $t4, $t1, $t2      # $t4 = ($t1 < $t2) ? 1 : 0 (debe ser 1 porque $t1=10 < $t2=15)
