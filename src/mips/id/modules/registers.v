@@ -23,13 +23,17 @@ module registers_bank
   integer i;
 
   // Escritura / clear en flanco positivo del reloj
-  always @(posedge i_clk or posedge i_reset) begin
+  always @(posedge i_clk) begin
     if (i_reset) begin
       // Clear de todos los registros
       for (i = 0; i < REGISTERS_BANK_SIZE; i = i + 1)
         registers[i] <= {{REGISTERS_SIZE{1'b0}}};
     end
     else if (i_write_enable) begin
+      // Mensaje de depuración para ver la escritura
+      $display("DEBUG_REG: Escribiendo %0d en registro $%0d (enable=%b)", 
+               i_write_data, i_write_register, i_write_enable);
+      
       // Escritura condicionada y protección del registro 0
       registers[i_write_register] <= (i_write_register != 0) 
                                     ? i_write_data 

@@ -1,0 +1,18 @@
+// Memoria de instrucciones para testear el pipeline MIPS
+// Cada línea contiene una instrucción en formato hexadecimal de 32 bits
+// Instrucciones elegidas para minimizar riesgos de datos
+20010005  // addi $1, $0, 5       # $1 = 5
+2002000A  // addi $2, $0, 10      # $2 = 10 
+2003000F  // addi $3, $0, 15      # $3 = 15
+20040014  // addi $4, $0, 20      # $4 = 20
+00222820  // add $5, $1, $2       # $5 = $1 + $2 = 15
+00613022  // sub $6, $3, $1       # $6 = $3 - $1 = 10
+00433824  // and $7, $2, $3       # $7 = $2 & $3 = 10
+00244025  // or $8, $1, $4        # $8 = $1 | $4 = 21
+20090064  // addi $9, $0, 100     # $9 = 100 (dirección memoria)
+AD250000  // sw $5, 0($9)         # Mem[100] = $5 = 15
+AD260004  // sw $6, 4($9)         # Mem[104] = $6 = 10
+8D2A0000  // lw $10, 0($9)        # $10 = Mem[100] = 15
+8D2B0004  // lw $11, 4($9)        # $11 = Mem[104] = 10
+014B6020  // add $12, $10, $11    # $12 = $10 + $11 = 25
+00A66826  // xor $13, $5, $6      # $13 = $5 ^ $6 = 5

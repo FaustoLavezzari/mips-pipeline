@@ -16,7 +16,18 @@ module id_stage(
   output wire [31:0] o_read_data_2,        // Valor del registro rt
   output wire [31:0] o_sign_extended_imm,  // Inmediato con extensión de signo
   output wire [4:0]  o_rt,                 // Campo rt de la instrucción
-  output wire [4:0]  o_rd                  // Campo rd de la instrucción
+  output wire [4:0]  o_rd,                 // Campo rd de la instrucción
+  output wire [5:0]  o_function,           // Campo function de la instrucción
+  
+  // Señales de control para EX
+  output wire        o_alu_src,            // Selección del segundo operando de la ALU
+  output wire [1:0]  o_alu_op,             // Operación de la ALU
+  output wire        o_reg_dst,            // Selección del registro destino
+  output wire        o_reg_write,          // Habilitación de escritura en banco de registros
+  output wire        o_mem_read,           // Control de lectura de memoria
+  output wire        o_mem_write,          // Control de escritura en memoria
+  output wire        o_mem_to_reg,         // Selección entre ALU o memoria para WB
+  output wire        o_branch              // Indica si es una instrucción de salto
 );
 
   // Extraer los campos de la instrucción
@@ -29,9 +40,23 @@ module id_stage(
   // Extension de signo para el immediate
   assign o_sign_extended_imm = {{16{immediate[15]}}, immediate};
   
-  // Pasar campos rt y rd a la siguiente etapa
+  // Pasar campos rt, rd y function a la siguiente etapa
   assign o_rt = rt;
   assign o_rd = rd;
+  assign o_function = i_instruction[5:0];
+  
+  // Instanciar la unidad de control
+  control control_inst (
+    .opcode     (opcode),
+    .reg_dst    (o_reg_dst),
+    .reg_write  (o_reg_write),
+    .alu_src    (o_alu_src),
+    .alu_op     (o_alu_op),
+    .mem_read   (o_mem_read), 
+    .mem_write  (o_mem_write),
+    .mem_to_reg (o_mem_to_reg),
+    .branch     (o_branch)
+  );
   
   // Instanciar el banco de registros
   registers_bank reg_bank(

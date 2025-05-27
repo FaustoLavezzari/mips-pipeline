@@ -8,7 +8,7 @@ module if_id(
   output reg  [31:0] next_pc_out,
   output reg  [31:0] instr_out
 );
-  always @(posedge clk or posedge reset) begin
+  always @(posedge clk) begin
     if (reset) begin
       next_pc_out    <= 0;
       instr_out <= 0;
