@@ -1,5 +1,5 @@
-// filepath: /home/fausto/mips-pipeline/src/mips/latches/id_ie.v
 `timescale 1ns / 1ps
+`include "../mips_pkg.vh"
 
 module id_ie(
   input  wire        clk,
@@ -10,7 +10,6 @@ module id_ie(
   input  wire [31:0] sign_extended_imm_in,
   input  wire [4:0]  rt_in,
   input  wire [4:0]  rd_in,
-  input  wire [31:0] next_pc_in,
   input  wire [5:0]  function_in,
   
   // Señales de control de ID
@@ -29,7 +28,6 @@ module id_ie(
   output reg  [31:0] sign_extended_imm_out,
   output reg  [4:0]  rt_out,
   output reg  [4:0]  rd_out,
-  output reg  [31:0] next_pc_out,
   output reg  [5:0]  function_out,
   
   // Señales de control hacia EX
@@ -45,23 +43,22 @@ module id_ie(
   always @(posedge clk) begin
     if (reset) begin
       // Datos
-      read_data_1_out       <= 0;
-      read_data_2_out       <= 0;
-      sign_extended_imm_out <= 0;
-      rt_out                <= 0;
-      rd_out                <= 0;
-      next_pc_out          <= 0;
-      function_out         <= 0;
+      read_data_1_out       <= {`DATA_WIDTH{1'b0}};
+      read_data_2_out       <= {`DATA_WIDTH{1'b0}};
+      sign_extended_imm_out <= {`DATA_WIDTH{1'b0}};
+      rt_out                <= {`REG_ADDR_WIDTH{1'b0}};
+      rd_out                <= {`REG_ADDR_WIDTH{1'b0}};
+      function_out         <= 6'b0;
       
       // Señales de control
-      alu_src_out          <= 0;
-      alu_op_out           <= 0;
-      reg_dst_out          <= 0;
-      reg_write_out        <= 0;
-      mem_read_out         <= 0;
-      mem_write_out        <= 0;
-      mem_to_reg_out       <= 0;
-      branch_out           <= 0;
+      alu_src_out          <= `CTRL_ALU_SRC_REG;
+      alu_op_out           <= `ALU_OP_ADD;
+      reg_dst_out          <= `CTRL_REG_DST_RT;
+      reg_write_out        <= `CTRL_REG_WRITE_DIS;
+      mem_read_out         <= 1'b0;
+      mem_write_out        <= 1'b0;
+      mem_to_reg_out       <= `CTRL_MEM_TO_REG_ALU;
+      branch_out           <= `CTRL_BRANCH_DIS;
     end else begin
       // Datos
       read_data_1_out       <= read_data_1_in;
@@ -69,7 +66,6 @@ module id_ie(
       sign_extended_imm_out <= sign_extended_imm_in;
       rt_out                <= rt_in;
       rd_out                <= rd_in;
-      next_pc_out          <= next_pc_in;
       function_out         <= function_in;
       
       // Señales de control

@@ -1,10 +1,11 @@
 `timescale 1ns / 1ps
+`include "../../mips_pkg.vh"
 
 module registers_bank
   #(
     // Número de registros y ancho de cada uno
     parameter REGISTERS_BANK_SIZE = 32,
-    parameter REGISTERS_SIZE      = 32
+    parameter REGISTERS_SIZE      = `DATA_WIDTH
   )
   (
     input  wire                                    i_clk,          // reloj

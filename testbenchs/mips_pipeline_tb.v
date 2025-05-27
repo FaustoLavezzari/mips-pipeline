@@ -1,11 +1,12 @@
 `timescale 1ns / 1ps
+`include "../src/mips/mips_pkg.vh"
 
 module mips_pipeline_tb();
 
   // Señales para conectar al DUT (Device Under Test)
   reg clk;
   reg reset;
-  wire [31:0] result;
+  wire [`DATA_WIDTH-1:0] result;
   
   // Contadores y variables de apoyo
   integer cycle_count;
@@ -24,23 +25,23 @@ module mips_pipeline_tb();
   end
   
   // Monitoreo del banco de registros
-  wire [31:0] reg1 = dut.id_stage_inst.reg_bank.registers[1];  // $1
-  wire [31:0] reg2 = dut.id_stage_inst.reg_bank.registers[2];  // $2
-  wire [31:0] reg3 = dut.id_stage_inst.reg_bank.registers[3];  // $3
-  wire [31:0] reg4 = dut.id_stage_inst.reg_bank.registers[4];  // $4
-  wire [31:0] reg5 = dut.id_stage_inst.reg_bank.registers[5];  // $5
-  wire [31:0] reg6 = dut.id_stage_inst.reg_bank.registers[6];  // $6
-  wire [31:0] reg7 = dut.id_stage_inst.reg_bank.registers[7];  // $7
-  wire [31:0] reg8 = dut.id_stage_inst.reg_bank.registers[8];  // $8
-  wire [31:0] reg9 = dut.id_stage_inst.reg_bank.registers[9];  // $9
-  wire [31:0] reg10 = dut.id_stage_inst.reg_bank.registers[10]; // $10
-  wire [31:0] reg11 = dut.id_stage_inst.reg_bank.registers[11]; // $11
-  wire [31:0] reg12 = dut.id_stage_inst.reg_bank.registers[12]; // $12
-  wire [31:0] reg13 = dut.id_stage_inst.reg_bank.registers[13]; // $13
+  wire [`DATA_WIDTH-1:0] reg1 = dut.id_stage_inst.reg_bank.registers[1];  // $1
+  wire [`DATA_WIDTH-1:0] reg2 = dut.id_stage_inst.reg_bank.registers[2];  // $2
+  wire [`DATA_WIDTH-1:0] reg3 = dut.id_stage_inst.reg_bank.registers[3];  // $3
+  wire [`DATA_WIDTH-1:0] reg4 = dut.id_stage_inst.reg_bank.registers[4];  // $4
+  wire [`DATA_WIDTH-1:0] reg5 = dut.id_stage_inst.reg_bank.registers[5];  // $5
+  wire [`DATA_WIDTH-1:0] reg6 = dut.id_stage_inst.reg_bank.registers[6];  // $6
+  wire [`DATA_WIDTH-1:0] reg7 = dut.id_stage_inst.reg_bank.registers[7];  // $7
+  wire [`DATA_WIDTH-1:0] reg8 = dut.id_stage_inst.reg_bank.registers[8];  // $8
+  wire [`DATA_WIDTH-1:0] reg9 = dut.id_stage_inst.reg_bank.registers[9];  // $9
+  wire [`DATA_WIDTH-1:0] reg10 = dut.id_stage_inst.reg_bank.registers[10]; // $10
+  wire [`DATA_WIDTH-1:0] reg11 = dut.id_stage_inst.reg_bank.registers[11]; // $11
+  wire [`DATA_WIDTH-1:0] reg12 = dut.id_stage_inst.reg_bank.registers[12]; // $12
+  wire [`DATA_WIDTH-1:0] reg13 = dut.id_stage_inst.reg_bank.registers[13]; // $13
   
   // Monitoreo de memoria
-  wire [31:0] mem_100 = dut.mem_stage_inst.memory[25];  // Memoria[100] (100/4 = 25)
-  wire [31:0] mem_104 = dut.mem_stage_inst.memory[26];  // Memoria[104] (104/4 = 26)
+  wire [`DATA_WIDTH-1:0] mem_100 = dut.mem_stage_inst.memory[25];  // Memoria[100] (100/4 = 25)
+  wire [`DATA_WIDTH-1:0] mem_104 = dut.mem_stage_inst.memory[26];  // Memoria[104] (104/4 = 26)
   
   // Inicio de la simulación
   initial begin

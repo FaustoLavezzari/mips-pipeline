@@ -1,11 +1,12 @@
 `timescale 1ns / 1ps
+`include "../src/mips/mips_pkg.vh"
 
 module mips_simple_tb();
 
   // Señales para conectar al DUT
   reg clk;
   reg reset;
-  wire [31:0] result;
+  wire [`DATA_WIDTH-1:0] result;
   
   // Instancia del módulo MIPS
   mips dut (
@@ -25,16 +26,16 @@ module mips_simple_tb();
   
   // Función para mostrar el tipo de instrucción
   function [8*20:1] instr_type;
-    input [31:0] instr;
+    input [`DATA_WIDTH-1:0] instr;
     reg [5:0] opcode;
     begin
       opcode = instr[31:26];
       case(opcode)
-        6'b000000: instr_type = "R-type";
-        6'b001000: instr_type = "addi";
-        6'b100011: instr_type = "lw";
-        6'b101011: instr_type = "sw";
-        default:   instr_type = "desconocida";
+        `OPCODE_R_TYPE: instr_type = "R-type";
+        `OPCODE_ADDI:   instr_type = "addi";
+        `OPCODE_LW:     instr_type = "lw";
+        `OPCODE_SW:     instr_type = "sw";
+        default:        instr_type = "desconocida";
       endcase
     end
   endfunction
@@ -52,8 +53,8 @@ module mips_simple_tb();
     #15;
     reset = 0;
 
-    // Ejecutar por 20 ciclos
-    #200;
+    // Ejecutar por 40 ciclos (aumentado debido a los NOPs)
+    #400;
     $finish;
   end
   
@@ -121,16 +122,16 @@ module mips_simple_tb();
     end
   end
   
-  // Verificación final después de 20 ciclos
+  // Verificación final después de 40 ciclos (aumentado debido a los NOPs)
   always @(posedge clk) begin
-    if (!reset && cycle_count == 20) begin
+    if (!reset && cycle_count == 40) begin
       $display("\n==== VERIFICACIÓN FINAL (Ciclo %0d) ====", cycle_count);
       $display("Registros finales:");
       $display("$1=%0d (Esperado: 5)", 
                dut.id_stage_inst.reg_bank.registers[1]);
       $display("$2=%0d (Esperado: 10)", 
                dut.id_stage_inst.reg_bank.registers[2]);
-      $display("$3=%0d (Esperado: 15)", 
+      $display("$3=%0d (Esperado: 100)", 
                dut.id_stage_inst.reg_bank.registers[3]);
       $display("$4=%0d (Esperado: 20)", 
                dut.id_stage_inst.reg_bank.registers[4]);
@@ -138,11 +139,11 @@ module mips_simple_tb();
                dut.id_stage_inst.reg_bank.registers[5]);
       $display("$6=%0d (Esperado: 10)", 
                dut.id_stage_inst.reg_bank.registers[6]);
-      $display("$7=%0d (Esperado: 10)", 
+      $display("$7=%0d (Esperado: 0)", // $7 = $2 & $3 = 10 & 100 = 0
                dut.id_stage_inst.reg_bank.registers[7]);
       $display("$8=%0d (Esperado: 21)", 
                dut.id_stage_inst.reg_bank.registers[8]);
-      $display("$9=%0d (Esperado: 100)", 
+      $display("$9=%0d (Esperado: 0)", // No se usa $9 en el nuevo código
                dut.id_stage_inst.reg_bank.registers[9]);
       $display("$10=%0d (Esperado: 15)", 
                dut.id_stage_inst.reg_bank.registers[10]);
@@ -163,14 +164,13 @@ module mips_simple_tb();
       // Verificar resultado
       if (dut.id_stage_inst.reg_bank.registers[1] == 5 &&
           dut.id_stage_inst.reg_bank.registers[2] == 10 &&
-          dut.id_stage_inst.reg_bank.registers[3] == 15 &&
+          dut.id_stage_inst.reg_bank.registers[3] == 100 &&
           dut.id_stage_inst.reg_bank.registers[4] == 20 &&
           dut.id_stage_inst.reg_bank.registers[5] == 15 &&
           dut.id_stage_inst.reg_bank.registers[6] == 10 &&
-          dut.id_stage_inst.reg_bank.registers[7] == 10 &&
+          dut.id_stage_inst.reg_bank.registers[7] == 0 &&   // $7 = $2 & $3 = 10 & 100 = 0
           dut.id_stage_inst.reg_bank.registers[8] == 21 &&
-          dut.id_stage_inst.reg_bank.registers[9] == 100 &&
-          dut.id_stage_inst.reg_bank.registers[10] == 15 &&
+          dut.id_stage_inst.reg_bank.registers[10] == 15 && // $9 no importa
           dut.id_stage_inst.reg_bank.registers[11] == 10 &&
           dut.id_stage_inst.reg_bank.registers[12] == 25 &&
           dut.id_stage_inst.reg_bank.registers[13] == 5 &&

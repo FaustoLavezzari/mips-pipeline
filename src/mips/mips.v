@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "mips_pkg.vh"
 
 module mips(
   input  wire        clk,
@@ -69,13 +70,12 @@ module mips(
   wire [31:0] ex_sign_extended_imm;
   wire [4:0]  ex_rt;
   wire [4:0]  ex_rd;
-  wire [31:0] ex_next_pc;
   wire [5:0]  ex_function;
-  wire        ex_alu_src;
-  wire [1:0]  ex_alu_op;
-  wire        ex_reg_dst;
   
   // ========== Señales de control entre ID/EX y EX ==========
+  wire        i_ex_alu_src;
+  wire [1:0]  i_ex_alu_op;
+  wire        i_ex_reg_dst;
   wire        i_ex_reg_write;
   wire        i_ex_mem_read;
   wire        i_ex_mem_write;
@@ -134,7 +134,6 @@ module mips(
     .sign_extended_imm_in (id_sign_extended_imm),
     .rt_in                (id_rt),
     .rd_in                (id_rd),
-    .next_pc_in           (id_next_pc),
     .function_in          (id_function),
     .alu_src_in           (id_alu_src),
     .alu_op_in            (id_alu_op),
@@ -149,12 +148,10 @@ module mips(
     .sign_extended_imm_out(ex_sign_extended_imm),
     .rt_out               (ex_rt),
     .rd_out               (ex_rd),
-    .next_pc_out          (ex_next_pc),
     .function_out         (ex_function),
-    .alu_src_out          (ex_alu_src),
-    .alu_op_out           (ex_alu_op),
-    .reg_dst_out          (ex_reg_dst),
-    // Las señales de control ahora solo van a la etapa EX
+    .alu_src_out          (i_ex_alu_src),
+    .alu_op_out           (i_ex_alu_op),
+    .reg_dst_out          (i_ex_reg_dst),
     .reg_write_out        (i_ex_reg_write),
     .mem_read_out         (i_ex_mem_read),
     .mem_write_out        (i_ex_mem_write),
@@ -172,9 +169,9 @@ module mips(
     .i_function          (ex_function),
     .i_rt                (ex_rt),
     .i_rd                (ex_rd),
-    .i_alu_src           (ex_alu_src),
-    .i_alu_op            (ex_alu_op),
-    .i_reg_dst           (ex_reg_dst),
+    .i_alu_src           (i_ex_alu_src),
+    .i_alu_op            (i_ex_alu_op),
+    .i_reg_dst           (i_ex_reg_dst),
     .i_reg_write         (i_ex_reg_write),
     .i_mem_read          (i_ex_mem_read),
     .i_mem_write         (i_ex_mem_write),

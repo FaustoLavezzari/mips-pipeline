@@ -1,8 +1,9 @@
 `timescale 1ns / 1ps
+`include "../../mips_pkg.vh"
 
 module add4
   #(
-    parameter WIDTH = 32
+    parameter WIDTH = `DATA_WIDTH
   )
   (
     input  wire [WIDTH-1:0] in,

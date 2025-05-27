@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "../mips_pkg.vh"
 
 module mem_wb(
   input  wire        clk,
@@ -21,11 +22,11 @@ module mem_wb(
 
   always @(posedge clk) begin
     if (reset) begin
-      alu_result_out     <= 32'b0;
-      read_data_out      <= 32'b0;
-      write_register_out <= 5'b0;
-      reg_write_out      <= 1'b0;
-      mem_to_reg_out     <= 1'b0;
+      alu_result_out     <= {`DATA_WIDTH{1'b0}};
+      read_data_out      <= {`DATA_WIDTH{1'b0}};
+      write_register_out <= {`REG_ADDR_WIDTH{1'b0}};
+      reg_write_out      <= `CTRL_REG_WRITE_DIS;
+      mem_to_reg_out     <= `CTRL_MEM_TO_REG_ALU;
     end else begin
       alu_result_out     <= alu_result_in;
       read_data_out      <= read_data_in;

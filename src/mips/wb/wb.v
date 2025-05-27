@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "../mips_pkg.vh"
 
 module wb_stage(
   input  wire        clk,
