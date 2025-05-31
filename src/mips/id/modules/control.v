@@ -10,7 +10,8 @@ module control(
   output reg        mem_write,   // Control de escritura en memoria
   output reg        mem_to_reg,  // Selección entre ALU o memoria para WB
   output reg        reg_write,   // Habilitación de escritura en banco de registros
-  output reg        branch       // Indica si es una instrucción de salto
+  output reg        branch,      // Indica si es una instrucción de salto
+  output wire       branch_prediction // Indica si se predice tomar el salto (1) o no (0)
 );
 
   always @(*) begin
@@ -132,5 +133,8 @@ module control(
       end
     endcase
   end
+
+  // Always Not Taken: Siempre predecimos que el salto no se toma
+  assign branch_prediction = 1'b0;
 
 endmodule

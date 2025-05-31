@@ -35,6 +35,8 @@ module mips_simple_tb();
         `OPCODE_ADDI:   instr_type = "addi";
         `OPCODE_LW:     instr_type = "lw";
         `OPCODE_SW:     instr_type = "sw";
+        `OPCODE_BEQ:    instr_type = "beq";
+        `OPCODE_BNE:    instr_type = "bne";
         default:        instr_type = "desconocida";
       endcase
     end
@@ -53,8 +55,8 @@ module mips_simple_tb();
     #15;
     reset = 0;
 
-    // Ejecutar por 40 ciclos (aumentado debido a los NOPs)
-    #400;
+    // Ejecutar por 75 ciclos + margen extra para completar todas las instrucciones
+    #950;
     $finish;
   end
   
@@ -83,6 +85,21 @@ module mips_simple_tb();
                dut.ex_write_register,
                dut.ex_reg_write);
                
+      // Mostrar información de branch prediction
+      if (dut.id_branch) begin
+        $display("BRANCH: opcode=%6b, prediction=%0b (always not taken), target=%0h", 
+                 dut.id_opcode, 
+                 dut.id_branch_prediction, 
+                 dut.id_branch_target_addr);
+      end
+      
+      // Mostrar información de verificación de saltos
+      if (dut.i_ex_branch) begin
+        $display("BRANCH CHECK: actually taken=%0b, mispredicted=%0b", 
+                 dut.ex_branch_taken, 
+                 dut.ex_mispredicted);
+      end
+               
       $display("MEM: ALUResult=%0d, MemWrite=%0b, MemRead=%0b, RegWrite=%0b", 
                dut.mem_alu_result,
                dut.mem_mem_write,
@@ -109,10 +126,12 @@ module mips_simple_tb();
                  dut.id_stage_inst.reg_bank.registers[8],
                  dut.id_stage_inst.reg_bank.registers[9],
                  dut.id_stage_inst.reg_bank.registers[10]);
-        $display("$11=%0d, $12=%0d, $13=%0d",
+        $display("$11=%0d, $12=%0d, $13=%0d, $14=%0d, $15=%0d",
                  dut.id_stage_inst.reg_bank.registers[11],
                  dut.id_stage_inst.reg_bank.registers[12],
-                 dut.id_stage_inst.reg_bank.registers[13]);
+                 dut.id_stage_inst.reg_bank.registers[13],
+                 dut.id_stage_inst.reg_bank.registers[14],
+                 dut.id_stage_inst.reg_bank.registers[15]);
         
         // Mostrar memoria relevante
         $display("Memoria: Mem[100]=%0d, Mem[104]=%0d",
@@ -122,9 +141,9 @@ module mips_simple_tb();
     end
   end
   
-  // Verificación final después de 40 ciclos (aumentado debido a los NOPs)
+  // Verificación final después de 70 ciclos (aumentado para permitir la ejecución completa de todas las instrucciones)
   always @(posedge clk) begin
-    if (!reset && cycle_count == 40) begin
+    if (!reset && cycle_count == 90) begin
       $display("\n==== VERIFICACIÓN FINAL (Ciclo %0d) ====", cycle_count);
       $display("Registros finales:");
       $display("$1=%0d (Esperado: 5)", 
@@ -143,7 +162,7 @@ module mips_simple_tb();
                dut.id_stage_inst.reg_bank.registers[7]);
       $display("$8=%0d (Esperado: 21)", 
                dut.id_stage_inst.reg_bank.registers[8]);
-      $display("$9=%0d (Esperado: 0)", // No se usa $9 en el nuevo código
+      $display("$9=%0d (Esperado: 1)", // Usado para los saltos
                dut.id_stage_inst.reg_bank.registers[9]);
       $display("$10=%0d (Esperado: 15)", 
                dut.id_stage_inst.reg_bank.registers[10]);
@@ -153,6 +172,10 @@ module mips_simple_tb();
                dut.id_stage_inst.reg_bank.registers[12]);
       $display("$13=%0d (Esperado: 5)", 
                dut.id_stage_inst.reg_bank.registers[13]);
+      $display("$14=%0d (Esperado: 7)", // Registro usado para verificar saltos no tomados y tomados
+               dut.id_stage_inst.reg_bank.registers[14]);
+      $display("$15=%0d (Esperado: 20)", // Registro usado para verificar saltos
+               dut.id_stage_inst.reg_bank.registers[15]);
                
       // Verificar memoria
       $display("\nMemoria final:");
@@ -170,10 +193,13 @@ module mips_simple_tb();
           dut.id_stage_inst.reg_bank.registers[6] == 10 &&
           dut.id_stage_inst.reg_bank.registers[7] == 0 &&   // $7 = $2 & $3 = 10 & 100 = 0
           dut.id_stage_inst.reg_bank.registers[8] == 21 &&
-          dut.id_stage_inst.reg_bank.registers[10] == 15 && // $9 no importa
+          dut.id_stage_inst.reg_bank.registers[9] == 1 &&   // $9 = 1 (para saltos)
+          dut.id_stage_inst.reg_bank.registers[10] == 15 && 
           dut.id_stage_inst.reg_bank.registers[11] == 10 &&
           dut.id_stage_inst.reg_bank.registers[12] == 25 &&
           dut.id_stage_inst.reg_bank.registers[13] == 5 &&
+          dut.id_stage_inst.reg_bank.registers[14] == 7 &&  // $14 = 7 (después de saltos)
+          dut.id_stage_inst.reg_bank.registers[15] == 20 && // $15 = 20 (después de saltos)
           dut.mem_stage_inst.memory[25] == 15 &&
           dut.mem_stage_inst.memory[26] == 10) begin
         $display("\n¡PRUEBA EXITOSA! Todos los resultados son correctos.");

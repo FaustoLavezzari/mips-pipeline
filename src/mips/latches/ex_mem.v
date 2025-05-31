@@ -31,7 +31,7 @@ module ex_mem(
       alu_result_out     <= {`DATA_WIDTH{1'b0}};
       read_data_2_out    <= {`DATA_WIDTH{1'b0}};
       write_register_out <= {`REG_ADDR_WIDTH{1'b0}};
-      reg_write_out     <= `CTRL_REG_WRITE_DIS;  // Reset de la señal reg_write
+      reg_write_out     <= `CTRL_REG_WRITE_DIS;  // Reset de la señal reg_write - importante para evitar escrituras incorrectas
       mem_read_out      <= 1'b0;                // Reset de la señal mem_read
       mem_write_out     <= 1'b0;                // Reset de la señal mem_write
       mem_to_reg_out    <= `CTRL_MEM_TO_REG_ALU; // Reset de la señal mem_to_reg

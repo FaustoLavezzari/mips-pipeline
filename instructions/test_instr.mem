@@ -28,3 +28,66 @@ AC660004  // sw $6, 4($3)         # Mem[104] = $6 = 10
 014B6020  // add $12, $10, $11    # $12 = $10 + $11 = 25
 00000000  // nop                  # Instrucción nula
 00A66826  // xor $13, $5, $6      # $13 = $5 ^ $6 = 5
+00000000  // nop                  # Instrucción nula
+00000000  // nop                  # Instrucción nula
+
+// Instrucciones de salto para probar la predicción
+20090001  // addi $9, $0, 1       # $9 = 1 (para comparar en salto)
+00000000  // nop                  # Instrucción nula
+200E0003  // addi $14, $0, 3      # $14 = 3 (valor inicial)
+00000000  // nop                  # Instrucción nula
+00000000  // nop                  # Instrucción nula
+00000000  // nop                  # Instrucción nula
+20090001  // addi $9, $0, 1       # $9 = 1 (redundante, solo por seguridad)
+00000000  // nop                  # Instrucción nula 1
+00000000  // nop                  # Instrucción nula 2 (adicional)
+00000000  // nop                  # Instrucción nula 3 (adicional)
+112A0003  // beq $9, $10, 3       # Saltar si $9 == $10 (no se tomará porque $9=1, $10=15)
+00000000  // nop                  # Instrucción nula (evitar riesgo de datos) 
+00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
+21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 4 (se ejecutará porque beq no salta)
+00000000  // nop                  # Instrucción nula
+00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
+00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
+21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 5 (se ejecutará porque beq no salta)
+00000000  // nop                  # Instrucción nula
+
+200F0005  // addi $15, $0, 5      # $15 = 5 (para comparar en salto)
+00000000  // nop                  # Instrucción nula
+00000000  // nop                  # Instrucción nula (adicional)
+21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 6
+00000000  // nop                  # Instrucción nula 1
+00000000  // nop                  # Instrucción nula 2 (adicional)
+00000000  // nop                  # Instrucción nula 3 (adicional)
+11E80001  // beq $15, $8, 1       # Saltar si $15 == $8 (no se tomará porque $15=6, $8=21)
+00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
+00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
+21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 7 (se ejecutará porque beq no salta)
+00000000  // nop                  # Instrucción nula
+00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
+00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
+
+21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 8
+00000000  // nop                  # Instrucción nula
+00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
+200F0014  // addi $15, $0, 20     # $15 = 20 (escribir directamente 20)
+00000000  // nop                  # Instrucción nula 1
+00000000  // nop                  # Instrucción nula 2
+00000000  // nop                  # Instrucción nula 3
+11E40003  // beq $15, $4, 3       # Saltar si $15 == $4 (se tomará porque $15=20, $4=20)
+21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 21 (no se ejecutará si beq salta)
+00000000  // nop                  # Instrucción nula
+21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 22 (no se ejecutará si beq salta)
+00000000  // nop                  # Instrucción nula
+
+// Importante: Aguardar varios ciclos tras el salto para asegurar limpieza del pipeline
+00000000  // nop                  # Instrucción nula (estabilización post-salto)
+00000000  // nop                  # Instrucción nula (estabilización post-salto)
+00000000  // nop                  # Instrucción nula (estabilización post-salto)
+00000000  // nop                  # Instrucción nula (estabilización post-salto)
+21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 6 (se ejecutará cuando el salto se tome)
+00000000  // nop                  # Instrucción nula
+00000000  // nop                  # Instrucción nula
+00000000  // nop                  # Instrucción nula
+21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 7
+00000000  // nop                  # Instrucción nula

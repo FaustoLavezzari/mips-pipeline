@@ -4,6 +4,7 @@
 module id_ie(
   input  wire        clk,
   input  wire        reset,
+  input  wire        flush,         // Nueva señal para invalidar el latch cuando hay misprediction
   // Datos de la etapa ID
   input  wire [31:0] read_data_1_in,
   input  wire [31:0] read_data_2_in,
@@ -11,6 +12,7 @@ module id_ie(
   input  wire [4:0]  rt_in,
   input  wire [4:0]  rd_in,
   input  wire [5:0]  function_in,
+  input  wire [5:0]  opcode_in,
   
   // Señales de control de ID
   input  wire        alu_src_in,
@@ -22,6 +24,10 @@ module id_ie(
   input  wire        mem_to_reg_in,
   input  wire        branch_in,
   
+  // Señales para branch prediction
+  input  wire        branch_prediction_in,
+  input  wire [31:0] branch_target_addr_in,
+  
   // Salidas hacia la etapa EX
   output reg  [31:0] read_data_1_out,
   output reg  [31:0] read_data_2_out,
@@ -29,6 +35,7 @@ module id_ie(
   output reg  [4:0]  rt_out,
   output reg  [4:0]  rd_out,
   output reg  [5:0]  function_out,
+  output reg  [5:0]  opcode_out,
   
   // Señales de control hacia EX
   output reg         alu_src_out,
@@ -38,27 +45,34 @@ module id_ie(
   output reg         mem_read_out,
   output reg         mem_write_out,
   output reg         mem_to_reg_out,
-  output reg         branch_out
+  output reg         branch_out,
+  
+  // Señales para branch prediction
+  output reg         branch_prediction_out,
+  output reg [31:0]  branch_target_addr_out
 );
   always @(posedge clk) begin
-    if (reset) begin
-      // Datos
+    if (reset || flush) begin
+      // Datos - Insertar NOPs cuando hay flush
       read_data_1_out       <= {`DATA_WIDTH{1'b0}};
       read_data_2_out       <= {`DATA_WIDTH{1'b0}};
       sign_extended_imm_out <= {`DATA_WIDTH{1'b0}};
       rt_out                <= {`REG_ADDR_WIDTH{1'b0}};
       rd_out                <= {`REG_ADDR_WIDTH{1'b0}};
       function_out         <= 6'b0;
+      opcode_out           <= 6'b0;
       
-      // Señales de control
+      // Señales de control - Desactivar todas en caso de flush
       alu_src_out          <= `CTRL_ALU_SRC_REG;
       alu_op_out           <= `ALU_OP_ADD;
       reg_dst_out          <= `CTRL_REG_DST_RT;
-      reg_write_out        <= `CTRL_REG_WRITE_DIS;
+      reg_write_out        <= `CTRL_REG_WRITE_DIS; // Importante: desactivar escritura
       mem_read_out         <= 1'b0;
       mem_write_out        <= 1'b0;
       mem_to_reg_out       <= `CTRL_MEM_TO_REG_ALU;
       branch_out           <= `CTRL_BRANCH_DIS;
+      branch_prediction_out <= 1'b0;
+      branch_target_addr_out <= {`DATA_WIDTH{1'b0}};
     end else begin
       // Datos
       read_data_1_out       <= read_data_1_in;
@@ -67,6 +81,7 @@ module id_ie(
       rt_out                <= rt_in;
       rd_out                <= rd_in;
       function_out         <= function_in;
+      opcode_out           <= opcode_in;
       
       // Señales de control
       alu_src_out         <= alu_src_in;
@@ -77,6 +92,8 @@ module id_ie(
       mem_write_out       <= mem_write_in;
       mem_to_reg_out      <= mem_to_reg_in;
       branch_out          <= branch_in;
+      branch_prediction_out <= branch_prediction_in;
+      branch_target_addr_out <= branch_target_addr_in;
     end
   end
 endmodule

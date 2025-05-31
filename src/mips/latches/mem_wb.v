@@ -25,7 +25,7 @@ module mem_wb(
       alu_result_out     <= {`DATA_WIDTH{1'b0}};
       read_data_out      <= {`DATA_WIDTH{1'b0}};
       write_register_out <= {`REG_ADDR_WIDTH{1'b0}};
-      reg_write_out      <= `CTRL_REG_WRITE_DIS;
+      reg_write_out      <= `CTRL_REG_WRITE_DIS;  // Deshabilitar la escritura en reset
       mem_to_reg_out     <= `CTRL_MEM_TO_REG_ALU;
     end else begin
       alu_result_out     <= alu_result_in;

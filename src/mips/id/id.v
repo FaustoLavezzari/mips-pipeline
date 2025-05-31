@@ -19,6 +19,7 @@ module id_stage(
   output wire [4:0]  o_rt,                 // Campo rt de la instrucción
   output wire [4:0]  o_rd,                 // Campo rd de la instrucción
   output wire [5:0]  o_function,           // Campo function de la instrucción
+  output wire [5:0]  o_opcode,             // Código de operación de la instrucción
   
   // Señales de control para EX
   output wire        o_alu_src,            // Selección del segundo operando de la ALU
@@ -28,7 +29,11 @@ module id_stage(
   output wire        o_mem_read,           // Control de lectura de memoria
   output wire        o_mem_write,          // Control de escritura en memoria
   output wire        o_mem_to_reg,         // Selección entre ALU o memoria para WB
-  output wire        o_branch              // Indica si es una instrucción de salto
+  output wire        o_branch,             // Indica si es una instrucción de salto
+  
+  // Nuevas salidas para branch prediction
+  output wire        o_branch_prediction,   // Indica si se predice un salto (1) o no (0)
+  output wire [31:0] o_branch_target_addr  // Dirección de destino del salto
 );
 
   // Extraer los campos de la instrucción
@@ -41,10 +46,15 @@ module id_stage(
   // Extension de signo para el immediate
   assign o_sign_extended_imm = {{16{immediate[15]}}, immediate};
   
+  // Calcular la dirección destino del salto: PC+4 + (immediate << 2)
+  wire [31:0] shifted_imm = o_sign_extended_imm << 2;
+  assign o_branch_target_addr = i_next_pc + shifted_imm;
+  
   // Pasar campos rt, rd y function a la siguiente etapa
   assign o_rt = rt;
   assign o_rd = rd;
   assign o_function = i_instruction[5:0];
+  assign o_opcode = opcode;  // Pasar también el opcode para distinguir entre instrucciones
   
   // Instanciar la unidad de control
   control control_inst (
@@ -56,7 +66,8 @@ module id_stage(
     .mem_read   (o_mem_read), 
     .mem_write  (o_mem_write),
     .mem_to_reg (o_mem_to_reg),
-    .branch     (o_branch)
+    .branch     (o_branch),
+    .branch_prediction (o_branch_prediction)
   );
   
   // Instanciar el banco de registros
