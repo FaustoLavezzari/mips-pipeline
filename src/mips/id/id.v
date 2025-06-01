@@ -43,9 +43,13 @@ module id_stage(
   wire [4:0] rt     = i_instruction[20:16];
   wire [4:0] rd     = i_instruction[15:11];
   wire [15:0] immediate = i_instruction[15:0];
+  wire [25:0] target = i_instruction[25:0]; // Campo target para instrucciones J y JAL
   
   // Extension de signo para el immediate
   assign o_sign_extended_imm = {{16{immediate[15]}}, immediate};
+  
+  // Para instrucciones J/JAL, también necesitamos el target completo
+  wire [31:0] jump_target = {i_next_pc[31:28], target, 2'b00};
   
   // Calcular la dirección destino del salto: PC+4 + (immediate << 2)
   wire [31:0] shifted_imm = o_sign_extended_imm << 2;

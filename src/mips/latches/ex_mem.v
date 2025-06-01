@@ -16,6 +16,10 @@ module ex_mem(
   input  wire        mem_write_in,      // Control de escritura en memoria
   input  wire        mem_to_reg_in,     // Selecciona entre ALU o memoria para WB
   
+  // Señales para instrucciones JAL/JALR
+  input  wire [31:0] pc_plus_4_in,      // PC+4 para JAL/JALR
+  input  wire        is_jal_in,         // Indica si es instrucción JAL/JALR
+  
   // Salidas hacia la etapa MEM
   output reg  [31:0] alu_result_out,    // Resultado de la ALU
   output reg  [31:0] read_data_2_out,   // Valor del registro rt
@@ -23,7 +27,11 @@ module ex_mem(
   output reg         reg_write_out,     // Señal de escritura en registros
   output reg         mem_read_out,      // Control de lectura de memoria
   output reg         mem_write_out,     // Control de escritura en memoria
-  output reg         mem_to_reg_out     // Selecciona entre ALU o memoria para WB
+  output reg         mem_to_reg_out,    // Selecciona entre ALU o memoria para WB
+  
+  // Salidas para instrucciones JAL/JALR
+  output reg  [31:0] pc_plus_4_out,     // PC+4 para JAL/JALR
+  output reg         is_jal_out         // Indica si es instrucción JAL/JALR
 );
 
   always @(posedge clk) begin
@@ -35,6 +43,8 @@ module ex_mem(
       mem_read_out      <= 1'b0;                // Reset de la señal mem_read
       mem_write_out     <= 1'b0;                // Reset de la señal mem_write
       mem_to_reg_out    <= `CTRL_MEM_TO_REG_ALU; // Reset de la señal mem_to_reg
+      pc_plus_4_out     <= {`DATA_WIDTH{1'b0}}; // Reset de PC+4
+      is_jal_out        <= 1'b0;              // Reset de la señal JAL
     end else begin
       alu_result_out     <= alu_result_in;
       read_data_2_out    <= read_data_2_in;
@@ -43,6 +53,8 @@ module ex_mem(
       mem_read_out      <= mem_read_in;    // Propagar la señal mem_read
       mem_write_out     <= mem_write_in;   // Propagar la señal mem_write
       mem_to_reg_out    <= mem_to_reg_in;  // Propagar la señal mem_to_reg
+      pc_plus_4_out     <= pc_plus_4_in;  // Propagar PC+4 para JAL
+      is_jal_out        <= is_jal_in;     // Propagar señal JAL
     end
   end
 

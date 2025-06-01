@@ -120,6 +120,28 @@ module control(
         branch     = `CTRL_BRANCH_EN;       // Es salto
       end
       
+      `OPCODE_J: begin
+        reg_dst    = `CTRL_REG_DST_RT;      // No importa (no escribe en registros)
+        alu_src    = `CTRL_ALU_SRC_REG;     // No importa
+        alu_op     = `ALU_OP_ADD;           // No importa
+        mem_read   = 1'b0;
+        mem_write  = 1'b0;
+        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa
+        reg_write  = `CTRL_REG_WRITE_DIS;   // No escribe en registros
+        branch     = `CTRL_BRANCH_EN;       // Tratar como branch para control hazard
+      end
+      
+      `OPCODE_JAL: begin
+        reg_dst    = `CTRL_REG_DST_RT;      // No importa (usará $31 directamente)
+        alu_src    = `CTRL_ALU_SRC_REG;     // No importa
+        alu_op     = `ALU_OP_ADD;           // No importa
+        mem_read   = 1'b0;
+        mem_write  = 1'b0;
+        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa (usará PC+4)
+        reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en $31 (ra)
+        branch     = `CTRL_BRANCH_EN;       // Tratar como branch para control hazard
+      end
+      
       default: begin
         // Valores por defecto para instrucciones no implementadas
         reg_dst    = `CTRL_REG_DST_RT;

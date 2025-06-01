@@ -14,6 +14,7 @@ module ex_stage(
   input  wire [4:0]  i_rd,              // Registro RD
   input  wire [4:0]  i_rs,              // Registro RS (para forwarding)
   input  wire [5:0]  i_opcode,          // Código de operación para distinguir entre BEQ y BNE
+  input  wire [31:0] i_next_pc,         // PC+4 para instrucciones JAL/JALR
   
   // Señales para forwarding (anticipación de datos)
   input  wire [4:0]  i_mem_write_register, // Registro destino en etapa MEM
@@ -49,7 +50,11 @@ module ex_stage(
   
   // Salidas para corrección de predicciones
   output wire        o_branch_taken,     // Indica si el salto se toma realmente
-  output wire        o_mispredicted      // Indica si hubo un error en la predicción
+  output wire        o_mispredicted,     // Indica si hubo un error en la predicción
+  
+  // Salidas para instrucciones JAL/JALR
+  output wire [31:0] o_pc_plus_4,       // PC+4 para JAL/JALR
+  output wire        o_is_jal           // Indica si es una instrucción JAL/JALR
 );
 
   // Datos intermedios
@@ -146,5 +151,15 @@ module ex_stage(
   
   // Error de predicción si la predicción no coincide con el resultado real
   assign o_mispredicted = i_branch && (o_branch_taken != i_branch_prediction);
+  
+  // Detectar instrucciones JAL y JALR
+  wire is_jal = (i_opcode == `OPCODE_JAL);
+  wire is_jalr = (i_opcode == `OPCODE_R_TYPE && i_function == `FUNC_JALR);
+  
+  // Señal para instrucciones JAL/JALR
+  assign o_is_jal = is_jal || is_jalr;
+  
+  // Propagar PC+4 para instrucciones JAL/JALR
+  assign o_pc_plus_4 = i_next_pc;
 
 endmodule

@@ -15,6 +15,15 @@
 `define OPCODE_BEQ      6'b000100
 `define OPCODE_BNE      6'b000101
 `define OPCODE_J        6'b000010
+`define OPCODE_JAL      6'b000011  // Jump And Link
+// Instrucciones de carga adicionales
+`define OPCODE_LB       6'b100000  // Load Byte
+`define OPCODE_LH       6'b100001  // Load Halfword
+`define OPCODE_LWU      6'b100111  // Load Word Unsigned
+`define OPCODE_LBU      6'b100100  // Load Byte Unsigned
+`define OPCODE_LHU      6'b100101  // Load Halfword Unsigned
+`define OPCODE_LUI      6'b001111  // Load Upper Immediate
+`define OPCODE_HALT     6'b111111  // HALT instrucción (código personalizado)
 
 // Function codes para instrucciones R-type
 `define FUNC_ADD    6'b100000
@@ -27,6 +36,9 @@
 `define FUNC_NOR    6'b100111
 `define FUNC_SLT    6'b101010
 `define FUNC_SLTU   6'b101011
+// Códigos de función adicionales
+`define FUNC_JR     6'b001000   // Jump Register
+`define FUNC_JALR   6'b001001   // Jump And Link Register
 
 // ALU Operations
 `define ALU_OP_WIDTH    2

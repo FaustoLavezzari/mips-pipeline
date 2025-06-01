@@ -15,6 +15,7 @@ module id_ie(
   input  wire [4:0]  rd_in,
   input  wire [5:0]  function_in,
   input  wire [5:0]  opcode_in,
+  input  wire [31:0] next_pc_in,          // PC+4 para instrucciones JAL/JALR
   
   // Señales de control de ID
   input  wire        alu_src_in,
@@ -39,6 +40,7 @@ module id_ie(
   output reg  [4:0]  rd_out,
   output reg  [5:0]  function_out,
   output reg  [5:0]  opcode_out,
+  output reg  [31:0] next_pc_out,         // PC+4 para instrucciones JAL/JALR
   
   // Señales de control hacia EX
   output reg         alu_src_out,
@@ -56,7 +58,7 @@ module id_ie(
 );
   always @(posedge clk) begin
     if (reset || flush) begin
-      // Datos - Insertar NOPs cuando hay flush
+      // Datos - Insertar NOPs cuando hay flush o reset
       read_data_1_out       <= {`DATA_WIDTH{1'b0}};
       read_data_2_out       <= {`DATA_WIDTH{1'b0}};
       sign_extended_imm_out <= {`DATA_WIDTH{1'b0}};
@@ -65,8 +67,9 @@ module id_ie(
       rd_out                <= {`REG_ADDR_WIDTH{1'b0}};
       function_out          <= 6'b0;
       opcode_out            <= 6'b0;
+      next_pc_out           <= {`DATA_WIDTH{1'b0}};
       
-      // Señales de control - Desactivar todas en caso de flush
+      // Señales de control - Desactivar todas en caso de flush o reset
       alu_src_out          <= `CTRL_ALU_SRC_REG;
       alu_op_out           <= `ALU_OP_ADD;
       reg_dst_out          <= `CTRL_REG_DST_RT;
@@ -88,6 +91,7 @@ module id_ie(
       rd_out                <= rd_in;
       function_out          <= function_in;
       opcode_out            <= opcode_in;
+      next_pc_out           <= next_pc_in;
       
       // Señales de control
       alu_src_out         <= alu_src_in;

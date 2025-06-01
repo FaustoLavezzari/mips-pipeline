@@ -51,6 +51,9 @@ module forwarding_unit (
         !(i_mem_reg_write && (i_mem_rd != 0) && (i_mem_rd == i_ex_rt))) begin
       o_forward_b = 2'b10;
     end
+    
+    // Caso especial: Forwarding para instrucciones que comparan valores (BEQ, BNE)
+    // El forwarding debe ser preciso para evitar errores en predicción de saltos
   end
 
 endmodule

@@ -15,12 +15,10 @@
 
 // TEST 2: Forwarding desde MEM a EX (MEM-EX)
 20050005  // addi $5, $0, 5       # $5 = 5
-00000000  // nop                  # Instrucción nula
 00A63020  // add $6, $5, $6       # $6 = $5 + $6 = 5 + 0 = 5 (dependencia MEM-EX)
 
 // TEST 3: Sin forwarding (usando valores originales, con NOPs)
 00433824  // and $7, $2, $3       # $7 = $2 & $3 = 10 & 15 = 10
-00000000  // nop                  # Instrucción nula
 00244025  // or $8, $1, $4        # $8 = $1 | $4 = 5 | 35 = 39
 
 // Store/Load hazard tests
@@ -28,13 +26,11 @@ AC830000  // sw $3, 0($4)         # Mem[35] = $3 = 15
 AC840004  // sw $4, 4($4)         # Mem[39] = $4 = 35 (forwarding de $4)
 8CA90000  // lw $9, 0($5)         # $9 = Mem[$5+0] = Mem[5] (no valor relevante)
 8C6A0000  // lw $10, 0($3)        # $10 = Mem[$3+0] = Mem[15] (no valor relevante)
-00000000  // nop                  # Nop para evitar el riesgo load-use
 012A5020  // add $10, $9, $10     # $10 = $9 + $10 (forwarding desde MEM)
 
 // Recuperar valor original de $3 para las pruebas siguientes
 20030064  // addi $3, $0, 100     # $3 = 100 (restauramos dirección memoria)
-00000000  // nop                  # Primer nop para permitir la escritura de $3 en el banco de registros
-00000000  // nop                  # Segundo nop para asegurar que $3 está disponible
+
 
 // Almacenar y leer valores para usarlos más adelante
 AC650000  // sw $5, 0($3)         # Mem[100] = $5 = 5

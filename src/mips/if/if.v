@@ -13,6 +13,10 @@ module if_stage(
   input  wire       i_branch_taken,          // Indica si el salto se toma realmente
   input  wire [31:0] i_ex_branch_target,     // Dirección destino desde EX
   
+  // Entradas para manejo de stalls
+  input  wire       i_halt,                  // Señal de HALT para detener el PC
+  input  wire       i_stall,                 // Señal de stall para detener el PC
+  
   output wire [31:0] o_next_pc,
   output wire [31:0] o_instr
 );
@@ -42,6 +46,8 @@ module if_stage(
     .next_pc       (pc_next),
     .branch_target (branch_target),
     .take_branch   (take_branch),
+    .halt          (i_halt),
+    .stall         (i_stall),
     .pc            (pc)
   );
 
