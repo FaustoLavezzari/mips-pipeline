@@ -34,6 +34,10 @@ module control(
         mem_write  = 1'b0;
         mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+        branch     = `CTRL_BRANCH_DIS;      // No es instrucción de salto
+        
+        // Debug: mostrar tipo R identificado
+        $display("Control: R-Type detectado, function=0x%h", opcode);
       end
       
       `OPCODE_ADDI, `OPCODE_ADDIU: begin

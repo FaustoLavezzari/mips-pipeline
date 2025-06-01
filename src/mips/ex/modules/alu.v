@@ -22,6 +22,11 @@ module alu(
       `ALU_SRL: result = a >> b[4:0];
       default: result = a + b; // Por defecto suma
     endcase
+    
+    // Debug: mostrar las operaciones OR para facilitar depuración
+    if (alu_control == `ALU_OR) begin
+      $display("ALU OR: %d | %d = %d", a, b, result);
+    end
   end
 
 endmodule

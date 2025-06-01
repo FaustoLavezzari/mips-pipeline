@@ -131,9 +131,16 @@ module ex_stage(
   // Pasar las señales de control
   assign o_reg_write = i_reg_write;
   assign o_mem_read = i_mem_read;
-  assign o_mem_write = i_mem_write;
+  assign o_mem_write = i_mem_write; // Importante para instrucciones SW
   assign o_mem_to_reg = i_mem_to_reg;
   assign o_branch = i_branch;
+  
+  // Debug: mostrar estado de señales para instrucciones SW
+  always @(*) begin
+    if (i_mem_write) begin
+      $display("EX: SW detectado - MemWrite=1, Dato=%d, Addr=%d", forwarded_b, o_alu_result);
+    end
+  end
 
   // Lógica para determinar si el salto se toma realmente 
   // BEQ: si los valores son iguales

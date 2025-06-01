@@ -55,6 +55,7 @@ module ex_mem(
       mem_to_reg_out    <= mem_to_reg_in;  // Propagar la señal mem_to_reg
       pc_plus_4_out     <= pc_plus_4_in;  // Propagar PC+4 para JAL
       is_jal_out        <= is_jal_in;     // Propagar señal JAL
+      
     end
   end
 

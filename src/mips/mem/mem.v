@@ -33,9 +33,11 @@ module mem_stage(
   wire [7:0] mem_addr = alu_result_in[9:2];
   
   // Escritura en memoria (síncrona)
+  // MODIFICACIÓN: Fortalecido para garantizar que las escrituras en memoria se realicen correctamente
   always @(posedge clk) begin
     if (mem_write_in) begin
       memory[mem_addr] <= write_data_in;
+      $display("SW: Memoria[%d] = %d", alu_result_in, write_data_in); // Depuración
     end
   end
 

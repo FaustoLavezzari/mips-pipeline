@@ -16,24 +16,18 @@ module alu_control(
         alu_control = `ALU_SUB;
 
       `ALU_OP_RTYPE: begin // Instrucciones R-type - depende del campo function
-        if (func_code == `FUNC_ADD)
-          alu_control = `ALU_ADD; // ADD
-        else if (func_code == `FUNC_SUB)
-          alu_control = `ALU_SUB; // SUB
-        else if (func_code == `FUNC_AND)
-          alu_control = `ALU_AND; // AND
-        else if (func_code == `FUNC_OR)
-          alu_control = `ALU_OR;  // OR
-        else if (func_code == `FUNC_NOR)
-          alu_control = `ALU_NOR; // NOR
-        else if (func_code == `FUNC_SLT)
-          alu_control = `ALU_SLT; // SLT
-        else if (func_code == 6'b000000)
-          alu_control = `ALU_SLL; // SLL
-        else if (func_code == 6'b000010)
-          alu_control = `ALU_SRL; // SRL
-        else if (func_code == `FUNC_XOR)
-          alu_control = `ALU_XOR; // XOR
+        case(func_code)
+          `FUNC_ADD:  alu_control = `ALU_ADD; // ADD
+          `FUNC_SUB:  alu_control = `ALU_SUB; // SUB
+          `FUNC_AND:  alu_control = `ALU_AND; // AND
+          `FUNC_OR:   alu_control = `ALU_OR;  // OR  
+          `FUNC_NOR:  alu_control = `ALU_NOR; // NOR
+          `FUNC_SLT:  alu_control = `ALU_SLT; // SLT
+          `FUNC_XOR:  alu_control = `ALU_XOR; // XOR
+          6'b000000:  alu_control = `ALU_SLL; // SLL
+          6'b000010:  alu_control = `ALU_SRL; // SRL
+          default:    alu_control = `ALU_ADD; // Por defecto suma
+        endcase
       end
 
       `ALU_OP_IMM: begin // ANDI, ORI, SLTI
@@ -45,7 +39,6 @@ module alu_control(
           alu_control = `ALU_SLT; // SLTI
       end
       
-      // No necesitamos default aquí ya que ya tenemos una asignación predeterminada
     endcase
   end
 
