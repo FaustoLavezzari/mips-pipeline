@@ -51,9 +51,6 @@ module mips_simple_tb();
     // Mostrar encabezado
     $display("\n==== MIPS Pipeline Simple Testbench con Forwarding Unit ====\n");
     $display("Este testbench evalúa el funcionamiento del pipeline MIPS");
-    $display("incluyendo la unidad de forwarding para resolver riesgos de datos.");
-    $display("Se prueban los casos de forwarding MEM-EX y otras dependencias resolubles.");
-    $display("NOTA: Se han evitado riesgos irresolvibles como load-use y EX-EX que requerirían stalls.\n");
     
     // Liberar el reset después de unos ciclos
     #15;
@@ -233,7 +230,6 @@ module mips_simple_tb();
         $display("(Principalmente: load-use hazards y dependencias EX-EX que requieren stalls)");
       end else begin
         $display("\n¡PRUEBA FALLIDA! Algunos resultados no coinciden con los valores esperados.");
-        $display("\nRevisa los valores de los registros y memoria para identificar problemas en la unidad de forwarding.");
       end
     end
   end

@@ -35,7 +35,6 @@ AC840004  // sw $4, 4($4)         # Mem[39] = $4 = 35 (forwarding de $4)
 20030064  // addi $3, $0, 100     # $3 = 100 (restauramos dirección memoria)
 00000000  // nop                  # Primer nop para permitir la escritura de $3 en el banco de registros
 00000000  // nop                  # Segundo nop para asegurar que $3 está disponible
-00000000  // nop                  # Tercer nop para permitir la propagación completa del valor
 
 // Almacenar y leer valores para usarlos más adelante
 AC650000  // sw $5, 0($3)         # Mem[100] = $5 = 5

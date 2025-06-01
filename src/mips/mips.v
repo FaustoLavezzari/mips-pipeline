@@ -97,6 +97,22 @@ module mips(
   wire        i_ex_mem_to_reg;
   wire        i_ex_branch;
 
+  // ========== Hazard detection signals ==========
+  wire       pipeline_stall;  // Signal to stall pipeline
+  wire       pipeline_flush;  // Signal to flush pipeline
+  
+  // ========== Instancia de la unidad de detección de riesgos ==========
+  hazard_detection hazard_detection_unit(
+    .i_if_id_rs            (id_rs),           // RS from ID stage
+    .i_if_id_rt            (id_rt),           // RT from ID stage 
+    .i_id_ex_rt            (ex_rt),           // RT from EX stage
+    .i_id_ex_mem_read      (i_ex_mem_read),   // MemRead signal in EX stage
+    .i_branch_taken        (ex_branch_taken),      // Branch taken signal
+    .i_branch_mispredicted (ex_mispredicted), // Branch misprediction
+    .o_stall              (pipeline_stall),   // Stall signal
+    .o_flush              (pipeline_flush)     // Flush signal
+  );
+
   // ========== Instancia de la etapa IF ==========
   if_stage if_stage_inst(
     .clk                (clk),
@@ -116,7 +132,8 @@ module mips(
   if_id if_id_reg(
     .clk         (clk),
     .reset       (reset),
-    .flush       (ex_mispredicted),   // Flush cuando hay una predicción incorrecta
+    .flush       (pipeline_flush),    // Connect flush signal
+    .stall       (pipeline_stall),    // Connect stall signal
     .next_pc_in  (if_next_pc),
     .instr_in    (if_instr),
     .next_pc_out (id_next_pc),
@@ -156,7 +173,8 @@ module mips(
   id_ie id_ie_reg(
     .clk                  (clk),
     .reset                (reset),
-    .flush                (ex_mispredicted), // Conectar la señal de flush a ex_mispredicted
+    .flush                (pipeline_flush), // Connect flush signal
+    .stall                (pipeline_stall), // Connect stall signal 
     .read_data_1_in       (id_read_data_1),
     .read_data_2_in       (id_read_data_2),
     .sign_extended_imm_in (id_sign_extended_imm),

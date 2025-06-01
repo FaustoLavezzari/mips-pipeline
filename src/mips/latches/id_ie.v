@@ -5,6 +5,7 @@ module id_ie(
   input  wire        clk,
   input  wire        reset,
   input  wire        flush,         // Nueva señal para invalidar el latch cuando hay misprediction
+  input  wire        stall,         // Señal de control para manejar stalls
   // Datos de la etapa ID
   input  wire [31:0] read_data_1_in,
   input  wire [31:0] read_data_2_in,
@@ -62,8 +63,8 @@ module id_ie(
       rs_out                <= {`REG_ADDR_WIDTH{1'b0}}; // Limpiar RS
       rt_out                <= {`REG_ADDR_WIDTH{1'b0}};
       rd_out                <= {`REG_ADDR_WIDTH{1'b0}};
-      function_out         <= 6'b0;
-      opcode_out           <= 6'b0;
+      function_out          <= 6'b0;
+      opcode_out            <= 6'b0;
       
       // Señales de control - Desactivar todas en caso de flush
       alu_src_out          <= `CTRL_ALU_SRC_REG;
@@ -76,7 +77,8 @@ module id_ie(
       branch_out           <= `CTRL_BRANCH_DIS;
       branch_prediction_out <= 1'b0;
       branch_target_addr_out <= {`DATA_WIDTH{1'b0}};
-    end else begin
+    end
+    else if (!stall) begin  // Solo actualizar registros si no hay stall
       // Datos
       read_data_1_out       <= read_data_1_in;
       read_data_2_out       <= read_data_2_in;
@@ -84,8 +86,8 @@ module id_ie(
       rs_out                <= rs_in;               // Propagar RS
       rt_out                <= rt_in;
       rd_out                <= rd_in;
-      function_out         <= function_in;
-      opcode_out           <= opcode_in;
+      function_out          <= function_in;
+      opcode_out            <= opcode_in;
       
       // Señales de control
       alu_src_out         <= alu_src_in;
