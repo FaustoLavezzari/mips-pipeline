@@ -1,0 +1,67 @@
+`timescale 1ns / 1ps
+
+module forwarding_unit (
+  // Registros fuente en la etapa EX
+  input  wire [4:0] i_ex_rs,         // Registro fuente 1 en EX
+  input  wire [4:0] i_ex_rt,         // Registro fuente 2 en EX
+  
+  // Información del registro destino en MEM
+  input  wire [4:0] i_mem_rd,        // Registro destino en MEM
+  input  wire       i_mem_reg_write, // Señal de escritura en registro en MEM
+  
+  // Información del registro destino en WB
+  input  wire [4:0] i_wb_rd,         // Registro destino en WB
+  input  wire       i_wb_reg_write,  // Señal de escritura en registro en WB
+  
+  // Señales de control de forwarding
+  output reg [1:0]  o_forward_a,     // Control de forwarding para operando A
+  output reg [1:0]  o_forward_b      // Control de forwarding para operando B
+);
+
+  // Codificación para señales de control:
+  // 00: No hay forwarding, usar valor del registro
+  // 01: Forwarding desde etapa MEM
+  // 10: Forwarding desde etapa WB
+
+  always @* begin
+    // Inicializar señales por defecto
+    o_forward_a = 2'b00;
+    o_forward_b = 2'b00;
+    
+    // Debug para todos los registros de operaciones store/load, independientemente del valor de i_ex_rs
+    $display("DEBUG_FORWARDING_ALL_RS: Ciclo=%0t, i_ex_rs=%0d, i_ex_rt=%0d, i_mem_rd=%0d, i_wb_rd=%0d", 
+             $time, i_ex_rs, i_ex_rt, i_mem_rd, i_wb_rd);
+             
+    // Depuración especial para seguimiento de $3
+    if (i_ex_rs == 3) begin
+      $display("DEBUG_FORWARDING_REG3_RS: Ciclo=%0t, i_ex_rs=%0d, i_mem_rd=%0d, i_wb_rd=%0d, mem_write=%b, wb_write=%b", 
+               $time, i_ex_rs, i_mem_rd, i_wb_rd, i_mem_reg_write, i_wb_reg_write);
+    end
+    
+    // EX/MEM Forwarding (prioridad más alta)
+    // Para el operando A (RS) - usado para calcular direcciones en LW/SW
+    if (i_mem_reg_write && (i_mem_rd != 0) && (i_mem_rd == i_ex_rs)) begin
+      o_forward_a = 2'b01;
+      if (i_ex_rs == 3) $display("DEBUG_FORWARDING_REG3_ACTIVE: Forward desde MEM a RS=$3");
+    end
+    // Para el operando B (RT)
+    if (i_mem_reg_write && (i_mem_rd != 0) && (i_mem_rd == i_ex_rt)) begin
+      o_forward_b = 2'b01;
+    end
+    
+    // MEM/WB Forwarding (prioridad más baja)
+    // Para el operando A (RS)
+    if (i_wb_reg_write && (i_wb_rd != 0) && (i_wb_rd == i_ex_rs) && 
+        // Asegurarse que no haya sido ya resuelto por EX/MEM
+        !(i_mem_reg_write && (i_mem_rd != 0) && (i_mem_rd == i_ex_rs))) begin
+      o_forward_a = 2'b10;
+    end
+    // Para el operando B (RT)
+    if (i_wb_reg_write && (i_wb_rd != 0) && (i_wb_rd == i_ex_rt) && 
+        // Asegurarse que no haya sido ya resuelto por EX/MEM
+        !(i_mem_reg_write && (i_mem_rd != 0) && (i_mem_rd == i_ex_rt))) begin
+      o_forward_b = 2'b10;
+    end
+  end
+
+endmodule

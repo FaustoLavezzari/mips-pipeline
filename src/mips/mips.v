@@ -54,6 +54,7 @@ module mips(
   wire [31:0] id_read_data_1;
   wire [31:0] id_read_data_2;
   wire [31:0] id_sign_extended_imm;
+  wire [4:0]  id_rs;              // Añadido para forwarding
   wire [4:0]  id_rt;
   wire [4:0]  id_rd;
   wire [5:0]  id_function;
@@ -71,12 +72,12 @@ module mips(
   
   // ========== Señales para branch prediction ==========
   wire        id_branch_prediction;
-  wire [31:0] id_branch_target_addr;
 
   // ========== Señales del latch ID/EX ==========
   wire [31:0] ex_read_data_1;
   wire [31:0] ex_read_data_2;
   wire [31:0] ex_sign_extended_imm;
+  wire [4:0]  ex_rs;              // Añadido para forwarding
   wire [4:0]  ex_rt;
   wire [4:0]  ex_rd;
   wire [5:0]  ex_function;
@@ -134,6 +135,7 @@ module mips(
     .o_read_data_1      (id_read_data_1),
     .o_read_data_2      (id_read_data_2),
     .o_sign_extended_imm(id_sign_extended_imm),
+    .o_rs               (id_rs),              // Registro RS para forwarding
     .o_rt               (id_rt),
     .o_rd               (id_rd),
     .o_function         (id_function),
@@ -158,6 +160,7 @@ module mips(
     .read_data_1_in       (id_read_data_1),
     .read_data_2_in       (id_read_data_2),
     .sign_extended_imm_in (id_sign_extended_imm),
+    .rs_in                (id_rs),            // Registro RS para forwarding
     .rt_in                (id_rt),
     .rd_in                (id_rd),
     .function_in          (id_function),
@@ -175,6 +178,7 @@ module mips(
     .read_data_1_out      (ex_read_data_1),
     .read_data_2_out      (ex_read_data_2),
     .sign_extended_imm_out(ex_sign_extended_imm),
+    .rs_out               (ex_rs),            // Registro RS para forwarding
     .rt_out               (ex_rt),
     .rd_out               (ex_rd),
     .function_out         (ex_function),
@@ -199,9 +203,19 @@ module mips(
     .i_read_data_2       (ex_read_data_2),
     .i_sign_extended_imm (ex_sign_extended_imm),
     .i_function          (ex_function),
+    .i_rs                (ex_rs),            // Registro RS para forwarding
     .i_rt                (ex_rt),
     .i_rd                (ex_rd),
     .i_opcode            (ex_opcode),
+    
+    // Señales para forwarding (anticipación de datos)
+    .i_mem_write_register(mem_write_register), // Registro destino en MEM
+    .i_mem_reg_write     (mem_reg_write),      // RegWrite en MEM
+    .i_mem_alu_result    (mem_alu_result),     // Resultado ALU en MEM
+    .i_wb_write_register (wb_write_register_out), // Registro destino en WB
+    .i_wb_reg_write      (wb_reg_write_out),      // RegWrite en WB
+    .i_wb_write_data     (wb_write_data),         // Dato de WB
+    
     .i_alu_src           (i_ex_alu_src),
     .i_alu_op            (i_ex_alu_op),
     .i_reg_dst           (i_ex_reg_dst),

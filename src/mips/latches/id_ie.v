@@ -9,6 +9,7 @@ module id_ie(
   input  wire [31:0] read_data_1_in,
   input  wire [31:0] read_data_2_in,
   input  wire [31:0] sign_extended_imm_in,
+  input  wire [4:0]  rs_in,              // Registro RS (añadido para forwarding)
   input  wire [4:0]  rt_in,
   input  wire [4:0]  rd_in,
   input  wire [5:0]  function_in,
@@ -32,6 +33,7 @@ module id_ie(
   output reg  [31:0] read_data_1_out,
   output reg  [31:0] read_data_2_out,
   output reg  [31:0] sign_extended_imm_out,
+  output reg  [4:0]  rs_out,              // Registro RS (añadido para forwarding)
   output reg  [4:0]  rt_out,
   output reg  [4:0]  rd_out,
   output reg  [5:0]  function_out,
@@ -57,6 +59,7 @@ module id_ie(
       read_data_1_out       <= {`DATA_WIDTH{1'b0}};
       read_data_2_out       <= {`DATA_WIDTH{1'b0}};
       sign_extended_imm_out <= {`DATA_WIDTH{1'b0}};
+      rs_out                <= {`REG_ADDR_WIDTH{1'b0}}; // Limpiar RS
       rt_out                <= {`REG_ADDR_WIDTH{1'b0}};
       rd_out                <= {`REG_ADDR_WIDTH{1'b0}};
       function_out         <= 6'b0;
@@ -78,6 +81,7 @@ module id_ie(
       read_data_1_out       <= read_data_1_in;
       read_data_2_out       <= read_data_2_in;
       sign_extended_imm_out <= sign_extended_imm_in;
+      rs_out                <= rs_in;               // Propagar RS
       rt_out                <= rt_in;
       rd_out                <= rd_in;
       function_out         <= function_in;

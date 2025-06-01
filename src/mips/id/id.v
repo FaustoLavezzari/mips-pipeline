@@ -16,6 +16,7 @@ module id_stage(
   output wire [31:0] o_read_data_1,        // Valor del registro rs
   output wire [31:0] o_read_data_2,        // Valor del registro rt
   output wire [31:0] o_sign_extended_imm,  // Inmediato con extensión de signo
+  output wire [4:0]  o_rs,                 // Campo rs de la instrucción (para forwarding)
   output wire [4:0]  o_rt,                 // Campo rt de la instrucción
   output wire [4:0]  o_rd,                 // Campo rd de la instrucción
   output wire [5:0]  o_function,           // Campo function de la instrucción
@@ -50,7 +51,8 @@ module id_stage(
   wire [31:0] shifted_imm = o_sign_extended_imm << 2;
   assign o_branch_target_addr = i_next_pc + shifted_imm;
   
-  // Pasar campos rt, rd y function a la siguiente etapa
+  // Pasar campos rs, rt, rd y function a la siguiente etapa
+  assign o_rs = rs;               // Pasar rs para forwarding
   assign o_rt = rt;
   assign o_rd = rd;
   assign o_function = i_instruction[5:0];

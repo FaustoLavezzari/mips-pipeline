@@ -12,7 +12,7 @@ module ex_stage(
   input  wire [5:0]  i_function,        // Campo function de la instrucción
   input  wire [4:0]  i_rt,              // Registro RT
   input  wire [4:0]  i_rd,              // Registro RD
-  input  wire [4:0]  i_rs,              // Registro RS (agregado para forwarding)
+  input  wire [4:0]  i_rs,              // Registro RS (para forwarding)
   input  wire [5:0]  i_opcode,          // Código de operación para distinguir entre BEQ y BNE
   
   // Señales para forwarding (anticipación de datos)
@@ -57,6 +57,68 @@ module ex_stage(
   wire [3:0]  alu_control;    // Señal de control para la ALU
   wire [4:0]  write_reg_rt_rd; // Registro destino (entre rt y rd)
   
+  // Señales para la unidad de forwarding
+  wire [1:0] forward_a;  // Control para operando A (RS)
+  wire [1:0] forward_b;  // Control para operando B (RT)
+  
+  // Valores forwarded para los operandos
+  reg [31:0] forwarded_a;  // Valor efectivo para el operando A
+  reg [31:0] forwarded_b;  // Valor efectivo para el operando B
+  
+  // Instancia de la unidad de forwarding
+  forwarding_unit forwarding_inst (
+    .i_ex_rs        (i_rs),                 // RS en EX
+    .i_ex_rt        (i_rt),                 // RT en EX
+    .i_mem_rd       (i_mem_write_register), // Registro destino en MEM
+    .i_mem_reg_write(i_mem_reg_write),      // RegWrite en MEM
+    .i_wb_rd        (i_wb_write_register),  // Registro destino en WB
+    .i_wb_reg_write (i_wb_reg_write),       // RegWrite en WB
+    .o_forward_a    (forward_a),            // Control para operando A
+    .o_forward_b    (forward_b)             // Control para operando B
+  );
+  
+  // Lógica de multiplexor para el operando A (RS)
+  always @(*) begin
+    case (forward_a)
+      2'b00: forwarded_a = i_read_data_1;        // No forwarding
+      2'b01: forwarded_a = i_mem_alu_result;     // Desde MEM
+      2'b10: forwarded_a = i_wb_write_data;      // Desde WB
+      default: forwarded_a = i_read_data_1;      // Default: no forwarding
+    endcase
+    
+    // Debug para instrucciones de store - mostrar de dónde viene el valor de RS
+    if (i_mem_write) begin
+      $display("DEBUG_STORE_ADDR: RS(base)=%0d, imm=%0d, forwarded_a=%0d, forward_a=%b, rs=%0d, rt=%0d, alu_src=%b", 
+               i_read_data_1, i_sign_extended_imm, forwarded_a, forward_a, i_rs, i_rt, i_alu_src);
+      
+      // Debug de los valores de los registros en MEM y WB para identificar problemas
+      $display("DEBUG_FORWARD_VALUES: i_mem_write_register=%0d, i_mem_alu_result=%0d, i_wb_write_register=%0d, i_wb_write_data=%0d",
+               i_mem_write_register, i_mem_alu_result, i_wb_write_register, i_wb_write_data);
+      
+      // Depuración específica para instrucciones que usan $3 como registro base
+      if (i_rs == 3) begin
+        $display("DEBUG_STORE_ADDR_REG3: Ciclo=%0t, RS=$3, valor=%0d, forwarded=%0d, forward_a=%b", 
+                 $time, i_read_data_1, forwarded_a, forward_a);
+      end
+    end
+  end
+  
+  // Lógica de multiplexor para el operando B (RT)
+  always @(*) begin
+    case (forward_b)
+      2'b00: forwarded_b = i_read_data_2;        // No forwarding
+      2'b01: forwarded_b = i_mem_alu_result;     // Desde MEM
+      2'b10: forwarded_b = i_wb_write_data;      // Desde WB
+      default: forwarded_b = i_read_data_2;      // Default: no forwarding
+    endcase
+    
+    // Debug para instrucciones de store - mostrar el valor almacenado
+    if (i_mem_write) begin
+      $display("DEBUG_STORE_DATA: RT(data)=%0d, forwarded_b=%0d, forward_b=%b", 
+               i_read_data_2, forwarded_b, forward_b);
+    end
+  end
+  
   // Instancia del controlador de la ALU
   alu_control alu_control_inst (
     .func_code   (i_function),
@@ -64,22 +126,31 @@ module ex_stage(
     .alu_control (alu_control)
   );
 
-  // Instancia de la ALU
+  // Multiplexor final para el segundo operando de la ALU
+  // Selecciona entre el RT forwardeado y el inmediato extendido
+  assign alu_input_2 = (i_alu_src) ? i_sign_extended_imm : forwarded_b;
+  
+  // Debug adicional para operaciones de memoria (especialmente store)
+  always @(*) begin
+    if (i_mem_write || i_mem_read) begin
+      $display("DEBUG_ADDRESS_CALC: opcode=%b, rs=%0d, forwarded_a=%0d, alu_input_2=%0d, alu_control=%b",
+               i_opcode, i_rs, forwarded_a, alu_input_2, alu_control);
+    end
+  end
+
+  // Instancia de la ALU - usar forwarded_a como operando A
   alu alu_inst (
-    .a           (i_read_data_1),
-    .b           (alu_input_2),
+    .a           (forwarded_a),            // Operando A con forwarding
+    .b           (alu_input_2),            // Operando B (ya sea RT forwardeado o inmediato)
     .alu_control (alu_control),
     .result      (o_alu_result)
   );
   
-  // MUX para seleccionar entre rt y el inmediato como segundo operando de la ALU
-  assign alu_input_2 = (i_alu_src) ? i_sign_extended_imm : i_read_data_2;
-  
   // MUX para seleccionar entre rt y rd como registro destino
   assign o_write_register = (i_reg_dst) ? i_rd : i_rt;
   
-  // Pasar el valor de read_data_2 directamente como salida (para instrucciones store)
-  assign o_read_data_2 = i_read_data_2;
+  // Usar el valor RT forwardeado para instrucciones store
+  assign o_read_data_2 = forwarded_b;
 
   // Pasar las señales de control
   assign o_reg_write = i_reg_write;
@@ -91,7 +162,8 @@ module ex_stage(
   // Lógica para determinar si el salto se toma realmente 
   // BEQ: si los valores son iguales
   // BNE: si los valores son diferentes
-  wire is_equal = (i_read_data_1 == i_read_data_2);
+  // Usamos los valores forwardeados para una comparación precisa
+  wire is_equal = (forwarded_a == forwarded_b);
   // Identificar si la instrucción es BEQ o BNE según el opcode
   wire is_beq = (i_opcode == `OPCODE_BEQ);
   wire is_bne = (i_opcode == `OPCODE_BNE);

@@ -1,79 +1,76 @@
 // Memoria de instrucciones para testear el pipeline MIPS
 // Cada línea contiene una instrucción en formato hexadecimal de 32 bits
-// Instrucciones reescritas para eliminar riesgos de datos
+// Secuencia original modificada para probar forwarding unit
 20010005  // addi $1, $0, 5       # $1 = 5
-2002000A  // addi $2, $0, 10      # $2 = 10
+2002000A  // addi $2, $0, 10      # $2 = 10 
 20030064  // addi $3, $0, 100     # $3 = 100 (dirección memoria)
 20040014  // addi $4, $0, 20      # $4 = 20
-2005000F  // addi $5, $0, 15      # $5 = 15 (en vez de add)
-00000000  // nop                  # Instrucción nula
-2006000A  // addi $6, $0, 10      # $6 = 10 (en vez de sub)
-00000000  // nop                  # Instrucción nula
-00433824  // and $7, $2, $3       # $7 = $2 & $3
-00000000  // nop                  # Instrucción nula
-00244025  // or $8, $1, $4        # $8 = $1 | $4 = 21
-00000000  // nop                  # Instrucción nula
-AC650000  // sw $5, 0($3)         # Mem[100] = $5 = 15
-00000000  // nop                  # Instrucción nula
-AC660004  // sw $6, 4($3)         # Mem[104] = $6 = 10
-00000000  // nop                  # Instrucción nula
-8C6A0000  // lw $10, 0($3)        # $10 = Mem[100] = 15
-00000000  // nop                  # Instrucción nula
-00000000  // nop                  # Instrucción nula adicional
-8C6B0004  // lw $11, 4($3)        # $11 = Mem[104] = 10
-00000000  // nop                  # Instrucción nula
-00000000  // nop                  # Instrucción nula adicional
-00000000  // nop                  # Instrucción nula adicional
-00000000  // nop                  # Instrucción nula adicional
-014B6020  // add $12, $10, $11    # $12 = $10 + $11 = 25
-00000000  // nop                  # Instrucción nula
-00A66826  // xor $13, $5, $6      # $13 = $5 ^ $6 = 5
-00000000  // nop                  # Instrucción nula
-00000000  // nop                  # Instrucción nula
+2005000F  // addi $5, $0, 15      # $5 = 15
 
-// Instrucciones de salto para probar la predicción
+// TEST 1: Forwarding desde MEM a EX (no de EX a EX que requeriría stall)
+00221820  // add $3, $1, $2       # $3 = $1 + $2 = 15 (sobreescribe el valor anterior de $3)
+00000000  // nop                  # Instrucción nula para evitar riesgo EX-EX irresolvible
+00642020  // add $4, $3, $4       # $4 = $3 + $4 = 15 + 20 = 35 (forwarding desde MEM)
+
+// TEST 2: Forwarding desde MEM a EX (MEM-EX)
+20050005  // addi $5, $0, 5       # $5 = 5
+00000000  // nop                  # Instrucción nula
+00A63020  // add $6, $5, $6       # $6 = $5 + $6 = 5 + 0 = 5 (dependencia MEM-EX)
+
+// TEST 3: Sin forwarding (usando valores originales, con NOPs)
+00433824  // and $7, $2, $3       # $7 = $2 & $3 = 10 & 15 = 10
+00000000  // nop                  # Instrucción nula
+00244025  // or $8, $1, $4        # $8 = $1 | $4 = 5 | 35 = 39
+
+// Store/Load hazard tests
+AC830000  // sw $3, 0($4)         # Mem[35] = $3 = 15
+AC840004  // sw $4, 4($4)         # Mem[39] = $4 = 35 (forwarding de $4)
+8CA90000  // lw $9, 0($5)         # $9 = Mem[$5+0] = Mem[5] (no valor relevante)
+8C6A0000  // lw $10, 0($3)        # $10 = Mem[$3+0] = Mem[15] (no valor relevante)
+00000000  // nop                  # Nop para evitar el riesgo load-use
+012A5020  // add $10, $9, $10     # $10 = $9 + $10 (forwarding desde MEM)
+
+// Recuperar valor original de $3 para las pruebas siguientes
+20030064  // addi $3, $0, 100     # $3 = 100 (restauramos dirección memoria)
+00000000  // nop                  # Primer nop para permitir la escritura de $3 en el banco de registros
+00000000  // nop                  # Segundo nop para asegurar que $3 está disponible
+00000000  // nop                  # Tercer nop para permitir la propagación completa del valor
+
+// Almacenar y leer valores para usarlos más adelante
+AC650000  // sw $5, 0($3)         # Mem[100] = $5 = 5
+AC660004  // sw $6, 4($3)         # Mem[104] = $6 = 5
+00000000  // nop                  # Nop adicional para asegurar que las escrituras completan
+8C6B0000  // lw $11, 0($3)        # $11 = Mem[100] = 5
+00000000  // nop                  # Nop para evitar el riesgo load-use (no forwadeable)
+01666020  // add $12, $11, $6     # $12 = $11 + $6 = 5 + 5 = 10 (ahora con MEM-EX forwarding)
+8C6B0004  // lw $11, 4($3)        # $11 = Mem[104] = 5
+00A66826  // xor $13, $5, $6      # $13 = $5 ^ $6 = 5 ^ 5 = 0
+
+// Instrucciones de salto para probar la predicción (y forwarding en branches)
 20090001  // addi $9, $0, 1       # $9 = 1 (para comparar en salto)
-00000000  // nop                  # Instrucción nula
 200E0003  // addi $14, $0, 3      # $14 = 3 (valor inicial)
-00000000  // nop                  # Instrucción nula
-00000000  // nop                  # Instrucción nula
+00000000  // nop                  # Nop para evitar dependencia EX-EX
+21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 4 (forwarding desde MEM)
+00000000  // nop                  # Nop para evitar dependencia EX-EX
+21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 5 (forwarding desde MEM)
 00000000  // nop                  # Instrucción nula
 20090001  // addi $9, $0, 1       # $9 = 1 (redundante, solo por seguridad)
-00000000  // nop                  # Instrucción nula 1
-00000000  // nop                  # Instrucción nula 2 (adicional)
-00000000  // nop                  # Instrucción nula 3 (adicional)
-112A0003  // beq $9, $10, 3       # Saltar si $9 == $10 (no se tomará porque $9=1, $10=15)
-00000000  // nop                  # Instrucción nula (evitar riesgo de datos) 
-00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
-21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 4 (se ejecutará porque beq no salta)
+112A0003  // beq $9, $10, 3       # Saltar si $9 == $10 (no se tomará, $9=1, $10 tiene otro valor)
+21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 6 (se ejecutará porque beq no salta)
 00000000  // nop                  # Instrucción nula
-00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
-00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
-21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 5 (se ejecutará porque beq no salta)
+21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 7 (se ejecutará porque beq no salta)
 00000000  // nop                  # Instrucción nula
 
 200F0005  // addi $15, $0, 5      # $15 = 5 (para comparar en salto)
-00000000  // nop                  # Instrucción nula
-00000000  // nop                  # Instrucción nula (adicional)
-21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 6
-00000000  // nop                  # Instrucción nula 1
-00000000  // nop                  # Instrucción nula 2 (adicional)
-00000000  // nop                  # Instrucción nula 3 (adicional)
-11E80001  // beq $15, $8, 1       # Saltar si $15 == $8 (no se tomará porque $15=6, $8=21)
-00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
-00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
-21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 7 (se ejecutará porque beq no salta)
-00000000  // nop                  # Instrucción nula
-00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
-00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
-
-21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 8
-00000000  // nop                  # Instrucción nula
-00000000  // nop                  # Instrucción nula (evitar riesgo de datos)
+00000000  // nop                  # Nop para evitar dependencia EX-EX
+21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 6 (forwarding desde MEM)
+00000000  // nop                  # Nop para evitar riesgo en el branch
+11E80001  // beq $15, $8, 1       # Saltar si $15 == $8 (no se tomará porque $15=6, $8=39)
+21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 7 (se ejecuta porque beq no salta)
+00000000  // nop                  # Nop para evitar dependencia EX-EX
+21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 8 (forwarding desde MEM)
 200F0014  // addi $15, $0, 20     # $15 = 20 (escribir directamente 20)
-00000000  // nop                  # Instrucción nula 1
-00000000  // nop                  # Instrucción nula 2
-00000000  // nop                  # Instrucción nula 3
+20040014  // addi $4, $0, 20      # $4 = 20 (volver al valor original para las pruebas de salto)
 11E40003  // beq $15, $4, 3       # Saltar si $15 == $4 (se tomará porque $15=20, $4=20)
 21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 21 (no se ejecutará si beq salta)
 00000000  // nop                  # Instrucción nula
@@ -83,11 +80,8 @@ AC660004  // sw $6, 4($3)         # Mem[104] = $6 = 10
 // Importante: Aguardar varios ciclos tras el salto para asegurar limpieza del pipeline
 00000000  // nop                  # Instrucción nula (estabilización post-salto)
 00000000  // nop                  # Instrucción nula (estabilización post-salto)
-00000000  // nop                  # Instrucción nula (estabilización post-salto)
-00000000  // nop                  # Instrucción nula (estabilización post-salto)
-21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 6 (se ejecutará cuando el salto se tome)
-00000000  // nop                  # Instrucción nula
-00000000  // nop                  # Instrucción nula
-00000000  // nop                  # Instrucción nula
+200E0005  // addi $14, $0, 5      # $14 = 5 (resetear el valor de $14 directamente)
+00000000  // nop                  # Nop para permitir la actualización de $14 en registros
+21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 6
+00000000  // nop                  # Nop para evitar riesgo EX-EX
 21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 7
-00000000  // nop                  # Instrucción nula
