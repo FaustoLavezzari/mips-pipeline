@@ -1,5 +1,6 @@
 // Memoria de instrucciones para testear el pipeline MIPS
 // Cada línea contiene una instrucción en formato hexadecimal de 32 bits
+
 // Secuencia original modificada para probar forwarding unit
 20010005  // addi $1, $0, 5       # $1 = 5
 2002000A  // addi $2, $0, 10      # $2 = 10 

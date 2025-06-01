@@ -28,13 +28,5 @@ module wb_stage(
   // Lógica de selección MUX
   wire [31:0] write_data_out;
   assign write_data_out = (i_mem_to_reg) ? i_read_data : i_alu_result;
-  
-  // Debug específico para el registro $3
-  always @(posedge clk) begin
-    if (i_reg_write && i_write_register == 3) begin
-      $display("DEBUG_REG_3: Ciclo=%0t, Escribiendo %0d en registro $3 (enable=%b)", 
-               $time, write_data_out, i_reg_write);
-    end
-  end
 
 endmodule

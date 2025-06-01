@@ -310,11 +310,5 @@ module mips(
   // ========== Asignaciones adicionales ==========
   // El resultado final es el dato que se escribe en los registros
   assign result = wb_write_data;
-  
-  // Debugging - mostrar valores de señales críticas
-  initial begin
-    $monitor("t=%0t | RegWrite=%b, WriteReg=%d, WriteData=%0d", 
-             $time, wb_reg_write_out, wb_write_register_out, wb_write_data);
-  end
 
 endmodule

@@ -28,21 +28,10 @@ module forwarding_unit (
     o_forward_a = 2'b00;
     o_forward_b = 2'b00;
     
-    // Debug para todos los registros de operaciones store/load, independientemente del valor de i_ex_rs
-    $display("DEBUG_FORWARDING_ALL_RS: Ciclo=%0t, i_ex_rs=%0d, i_ex_rt=%0d, i_mem_rd=%0d, i_wb_rd=%0d", 
-             $time, i_ex_rs, i_ex_rt, i_mem_rd, i_wb_rd);
-             
-    // Depuración especial para seguimiento de $3
-    if (i_ex_rs == 3) begin
-      $display("DEBUG_FORWARDING_REG3_RS: Ciclo=%0t, i_ex_rs=%0d, i_mem_rd=%0d, i_wb_rd=%0d, mem_write=%b, wb_write=%b", 
-               $time, i_ex_rs, i_mem_rd, i_wb_rd, i_mem_reg_write, i_wb_reg_write);
-    end
-    
     // EX/MEM Forwarding (prioridad más alta)
     // Para el operando A (RS) - usado para calcular direcciones en LW/SW
     if (i_mem_reg_write && (i_mem_rd != 0) && (i_mem_rd == i_ex_rs)) begin
       o_forward_a = 2'b01;
-      if (i_ex_rs == 3) $display("DEBUG_FORWARDING_REG3_ACTIVE: Forward desde MEM a RS=$3");
     end
     // Para el operando B (RT)
     if (i_mem_reg_write && (i_mem_rd != 0) && (i_mem_rd == i_ex_rt)) begin

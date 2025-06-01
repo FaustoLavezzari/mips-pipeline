@@ -85,22 +85,6 @@ module ex_stage(
       2'b10: forwarded_a = i_wb_write_data;      // Desde WB
       default: forwarded_a = i_read_data_1;      // Default: no forwarding
     endcase
-    
-    // Debug para instrucciones de store - mostrar de dónde viene el valor de RS
-    if (i_mem_write) begin
-      $display("DEBUG_STORE_ADDR: RS(base)=%0d, imm=%0d, forwarded_a=%0d, forward_a=%b, rs=%0d, rt=%0d, alu_src=%b", 
-               i_read_data_1, i_sign_extended_imm, forwarded_a, forward_a, i_rs, i_rt, i_alu_src);
-      
-      // Debug de los valores de los registros en MEM y WB para identificar problemas
-      $display("DEBUG_FORWARD_VALUES: i_mem_write_register=%0d, i_mem_alu_result=%0d, i_wb_write_register=%0d, i_wb_write_data=%0d",
-               i_mem_write_register, i_mem_alu_result, i_wb_write_register, i_wb_write_data);
-      
-      // Depuración específica para instrucciones que usan $3 como registro base
-      if (i_rs == 3) begin
-        $display("DEBUG_STORE_ADDR_REG3: Ciclo=%0t, RS=$3, valor=%0d, forwarded=%0d, forward_a=%b", 
-                 $time, i_read_data_1, forwarded_a, forward_a);
-      end
-    end
   end
   
   // Lógica de multiplexor para el operando B (RT)
@@ -112,11 +96,6 @@ module ex_stage(
       default: forwarded_b = i_read_data_2;      // Default: no forwarding
     endcase
     
-    // Debug para instrucciones de store - mostrar el valor almacenado
-    if (i_mem_write) begin
-      $display("DEBUG_STORE_DATA: RT(data)=%0d, forwarded_b=%0d, forward_b=%b", 
-               i_read_data_2, forwarded_b, forward_b);
-    end
   end
   
   // Instancia del controlador de la ALU
@@ -129,14 +108,6 @@ module ex_stage(
   // Multiplexor final para el segundo operando de la ALU
   // Selecciona entre el RT forwardeado y el inmediato extendido
   assign alu_input_2 = (i_alu_src) ? i_sign_extended_imm : forwarded_b;
-  
-  // Debug adicional para operaciones de memoria (especialmente store)
-  always @(*) begin
-    if (i_mem_write || i_mem_read) begin
-      $display("DEBUG_ADDRESS_CALC: opcode=%b, rs=%0d, forwarded_a=%0d, alu_input_2=%0d, alu_control=%b",
-               i_opcode, i_rs, forwarded_a, alu_input_2, alu_control);
-    end
-  end
 
   // Instancia de la ALU - usar forwarded_a como operando A
   alu alu_inst (
