@@ -167,7 +167,7 @@ module mips_simple_tb();
                dut.id_stage_inst.reg_bank.registers[2]);
       $display("$3=%0d (Esperado: 100)", // Se restaura a 100 después de cambios para forwarding
                dut.id_stage_inst.reg_bank.registers[3]);
-      $display("$4=%0d (Esperado: 35)", // No se restaura a 20, se queda con el valor 35 de forwarding
+      $display("$4=%0d (Esperado: 20)", // Se restaura a 20 después de cambios para forwarding
                dut.id_stage_inst.reg_bank.registers[4]);
       $display("$5=%0d (Esperado: 5)", // Valor cambiado para pruebas de forwarding
                dut.id_stage_inst.reg_bank.registers[5]);
@@ -209,7 +209,7 @@ module mips_simple_tb();
       if (dut.id_stage_inst.reg_bank.registers[1] == 5 &&
           dut.id_stage_inst.reg_bank.registers[2] == 10 &&
           dut.id_stage_inst.reg_bank.registers[3] == 100 &&    // Restaurado a 100
-          dut.id_stage_inst.reg_bank.registers[4] == 35 &&     // No se restaura a 20, queda en 35
+          dut.id_stage_inst.reg_bank.registers[4] == 20 &&     // Restaurado a 20
           dut.id_stage_inst.reg_bank.registers[5] == 5 &&      // Cambiado a 5 para forwarding
           dut.id_stage_inst.reg_bank.registers[6] == 5 &&      // $6 = $5 + $6(0) = 5 + 0 = 5
           dut.id_stage_inst.reg_bank.registers[7] == 10 &&     // $7 = $2 & $3 = 10 & 15 = 10 (cuando $3=15)

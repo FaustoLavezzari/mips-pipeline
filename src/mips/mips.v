@@ -110,8 +110,12 @@ module mips(
   // ========== Hazard detection signals ==========
   wire       pipeline_stall;    // Signal to stall pipeline
   wire       pipeline_flush;    // Signal to flush pipeline
+  wire       early_stage_flush; // Signal to flush only early pipeline stages (IF/ID, ID/EX)
   wire       control_hazard;    // Signal for control hazard propagation
   wire       halt_detected;     // Signal for HALT instruction detected
+  
+  // Solo aplicamos flush a etapas tempranas, no a MEM/WB
+  assign early_stage_flush = pipeline_flush;
   
   // ========== Instancia de la unidad de detección de riesgos ==========
   hazard_detection hazard_detection_unit(
@@ -151,7 +155,7 @@ module mips(
   if_id if_id_reg(
     .clk         (clk),
     .reset       (reset),
-    .flush       (pipeline_flush),    // Connect flush signal
+    .flush       (early_stage_flush), // Usamos early_stage_flush ya que IF/ID siempre debe limpiarse
     .stall       (pipeline_stall),    // Connect stall signal
     .next_pc_in  (if_next_pc),
     .instr_in    (if_instr),
@@ -192,7 +196,7 @@ module mips(
   id_ie id_ie_reg(
     .clk                  (clk),
     .reset                (reset),
-    .flush                (pipeline_flush), // Connect flush signal
+    .flush                (early_stage_flush), // Usamos early_stage_flush para ID/EX
     .read_data_1_in       (id_read_data_1),
     .read_data_2_in       (id_read_data_2),
     .sign_extended_imm_in (id_sign_extended_imm),
@@ -282,7 +286,7 @@ module mips(
   ex_mem ex_mem_reg(
     .clk                 (clk),
     .reset               (reset),
-    .flush               (pipeline_flush),      // Añadimos la señal de flush para limpiar el registro en caso de saltos mal predichos
+    .flush               (1'b0),      // No hacemos flush de EX/MEM, las instrucciones que ya alcanzaron EX deben completarse
     .alu_result_in       (ex_alu_result),
     .read_data_2_in      (ex_write_data),
     .write_register_in   (ex_write_register),
@@ -329,7 +333,7 @@ module mips(
   mem_wb mem_wb_reg(
     .clk                 (clk),
     .reset               (reset),
-    .flush               (pipeline_flush),      // Añadimos la señal de flush para limpiar el registro en caso de saltos mal predichos
+    .flush               (1'b0),      // No hacemos flush de MEM/WB para permitir que las instrucciones completen
     .alu_result_in       (mem_alu_result_out),
     .read_data_in        (mem_read_data),
     .write_register_in   (mem_write_register_out),

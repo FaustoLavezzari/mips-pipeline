@@ -26,7 +26,7 @@ module mem_wb(
 );
 
   always @(posedge clk) begin
-    if (reset || flush) begin
+    if (reset) begin
       // En caso de reset o flush, limpiamos todos los valores
       alu_result_out     <= {`DATA_WIDTH{1'b0}};
       read_data_out      <= {`DATA_WIDTH{1'b0}};
