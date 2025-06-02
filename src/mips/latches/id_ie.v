@@ -5,7 +5,6 @@ module id_ie(
   input  wire        clk,
   input  wire        reset,
   input  wire        flush,         // Nueva señal para invalidar el latch cuando hay misprediction
-  input  wire        stall,         // Señal de control para manejar stalls
   // Datos de la etapa ID
   input  wire [31:0] read_data_1_in,
   input  wire [31:0] read_data_2_in,
@@ -81,7 +80,7 @@ module id_ie(
       branch_prediction_out <= 1'b0;
       branch_target_addr_out <= {`DATA_WIDTH{1'b0}};
     end
-    else if (!stall) begin  // Solo actualizar registros si no hay stall
+    else begin  // Actualizar registros siempre que no haya reset o flush
       // Datos
       read_data_1_out       <= read_data_1_in;
       read_data_2_out       <= read_data_2_in;

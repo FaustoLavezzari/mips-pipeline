@@ -113,6 +113,7 @@ module ex_stage(
   // Multiplexor final para el segundo operando de la ALU
   // Selecciona entre el RT forwardeado y el inmediato extendido
   assign alu_input_2 = (i_alu_src) ? i_sign_extended_imm : forwarded_b;
+  
 
   // Instancia de la ALU - usar forwarded_a como operando A
   alu alu_inst (
@@ -134,13 +135,6 @@ module ex_stage(
   assign o_mem_write = i_mem_write; // Importante para instrucciones SW
   assign o_mem_to_reg = i_mem_to_reg;
   assign o_branch = i_branch;
-  
-  // Debug: mostrar estado de señales para instrucciones SW
-  always @(*) begin
-    if (i_mem_write) begin
-      $display("EX: SW detectado - MemWrite=1, Dato=%d, Addr=%d", forwarded_b, o_alu_result);
-    end
-  end
 
   // Lógica para determinar si el salto se toma realmente 
   // BEQ: si los valores son iguales

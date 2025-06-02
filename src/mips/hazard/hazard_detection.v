@@ -20,7 +20,7 @@ module hazard_detection(
     // its destination register is used by current instruction as source
     wire load_use_hazard = i_id_ex_mem_read && 
                           ((i_id_ex_rt != 5'b0) && 
-                           (i_id_ex_rt == i_if_id_rs));
+                           ((i_id_ex_rt == i_if_id_rs) || (i_id_ex_rt == i_if_id_rt)));
     
     // Detect control hazard from branch misprediction
     wire is_branch_hazard = i_branch_taken && i_branch_mispredicted;
@@ -36,9 +36,9 @@ module hazard_detection(
     // Combined control hazard
     wire control_hazard = is_branch_hazard || is_jump;
     
-    // Generate stall signal - only stall for load-use hazard
+    // Generate stall signal - stall for load-use hazard and RAW hazards
     // and make sure we're not stalling during a control hazard
-    assign o_stall = load_use_hazard && !control_hazard;
+    assign o_stall = (load_use_hazard ) && !control_hazard;
     
     // Flush pipeline for control hazards
     assign o_flush = control_hazard;

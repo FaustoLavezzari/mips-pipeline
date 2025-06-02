@@ -7,7 +7,6 @@
 20030064  // addi $3, $0, 100     # $3 = 100 (dirección memoria)
 20040014  // addi $4, $0, 20      # $4 = 20
 2005000F  // addi $5, $0, 15      # $5 = 15
-00000000  // nop                  # Para separar grupos de instrucciones
 
 // TEST 1: Forwarding desde MEM a EX (no de EX a EX que requeriría stall)
 00221820  // add $3, $1, $2       # $3 = $1 + $2 = 15 (sobreescribe el valor anterior de $3)

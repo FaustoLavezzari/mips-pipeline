@@ -5,9 +5,9 @@ module mips(
   input  wire        clk,
   input  wire        reset,
   output wire [31:0] result,
-  output wire        halt     // Nueva señal de salida para indicar HALT
-);
+  output wire        halt    // Nueva señal de s  // ========== Instancia del registro ID/IE ==========
 
+);
   //  == Señales para las etapas ==========
   wire [31:0] ex_alu_result;
   wire [31:0] ex_write_data;
@@ -193,7 +193,6 @@ module mips(
     .clk                  (clk),
     .reset                (reset),
     .flush                (pipeline_flush), // Connect flush signal
-    .stall                (pipeline_stall), // Connect stall signal 
     .read_data_1_in       (id_read_data_1),
     .read_data_2_in       (id_read_data_2),
     .sign_extended_imm_in (id_sign_extended_imm),
@@ -283,6 +282,7 @@ module mips(
   ex_mem ex_mem_reg(
     .clk                 (clk),
     .reset               (reset),
+    .flush               (pipeline_flush),      // Añadimos la señal de flush para limpiar el registro en caso de saltos mal predichos
     .alu_result_in       (ex_alu_result),
     .read_data_2_in      (ex_write_data),
     .write_register_in   (ex_write_register),
@@ -329,6 +329,7 @@ module mips(
   mem_wb mem_wb_reg(
     .clk                 (clk),
     .reset               (reset),
+    .flush               (pipeline_flush),      // Añadimos la señal de flush para limpiar el registro en caso de saltos mal predichos
     .alu_result_in       (mem_alu_result_out),
     .read_data_in        (mem_read_data),
     .write_register_in   (mem_write_register_out),

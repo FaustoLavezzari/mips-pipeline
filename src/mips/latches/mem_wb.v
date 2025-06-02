@@ -4,6 +4,7 @@
 module mem_wb(
   input  wire        clk,
   input  wire        reset,
+  input  wire        flush,            // Señal para limpiar el registro en caso de salto mal predicho
   
   // Entradas desde la etapa MEM
   input  wire [31:0] alu_result_in,     // Resultado de la ALU
@@ -25,15 +26,17 @@ module mem_wb(
 );
 
   always @(posedge clk) begin
-    if (reset) begin
+    if (reset || flush) begin
+      // En caso de reset o flush, limpiamos todos los valores
       alu_result_out     <= {`DATA_WIDTH{1'b0}};
       read_data_out      <= {`DATA_WIDTH{1'b0}};
       write_register_out <= {`REG_ADDR_WIDTH{1'b0}};
-      reg_write_out      <= `CTRL_REG_WRITE_DIS;  // Deshabilitar la escritura en reset
+      reg_write_out      <= `CTRL_REG_WRITE_DIS;  // Deshabilitar la escritura en reset o flush
       mem_to_reg_out     <= `CTRL_MEM_TO_REG_ALU;
       pc_plus_4_out      <= {`DATA_WIDTH{1'b0}};
       is_jal_out         <= 1'b0;
     end else begin
+      // Operación normal - actualizar registros con valores de entrada
       alu_result_out     <= alu_result_in;
       read_data_out      <= read_data_in;
       write_register_out <= write_register_in;

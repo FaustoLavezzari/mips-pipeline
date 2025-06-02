@@ -29,11 +29,19 @@ module mem_stage(
   // Memoria de datos (256 palabras de 32 bits)
   reg [31:0] memory [0:255];
   
-  // Cálculo del índice para acceder a la memoria (dirección divida por 4)
-  wire [7:0] mem_addr = alu_result_in[9:2];
+  // Cálculo del índice para acceder a la memoria (dirección dividida por 4)
+  // Usar más bits para direccionar correctamente toda la memoria
+  wire [31:0] mem_addr_full = alu_result_in >> 2; // División por 4
+  wire [7:0] mem_addr = mem_addr_full[7:0]; // Mantener compatibilidad con la definición de memoria
   
-  // Escritura en memoria (síncrona)
-  // MODIFICACIÓN: Fortalecido para garantizar que las escrituras en memoria se realicen correctamente
+  // Debug: mostrar el cálculo de dirección de memoria 
+  always @(*) begin
+    if (mem_write_in || mem_read_in) begin
+      $display("MEM ADDRESS: original=%d, ajustada=%d, índice=%d", 
+               alu_result_in, mem_addr_full, mem_addr);
+    end
+  end
+  
   always @(posedge clk) begin
     if (mem_write_in) begin
       memory[mem_addr] <= write_data_in;

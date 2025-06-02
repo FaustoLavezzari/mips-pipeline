@@ -4,6 +4,7 @@
 module ex_mem(
   input  wire        clk,
   input  wire        reset,
+  input  wire        flush,             // Señal para limpiar el registro en caso de salto mal predicho
   
   // Entradas desde la etapa EX
   input  wire [31:0] alu_result_in,     // Resultado de la ALU
@@ -35,7 +36,8 @@ module ex_mem(
 );
 
   always @(posedge clk) begin
-    if (reset) begin
+    if (reset || flush) begin
+      // En caso de reset o flush, limpiamos todos los valores
       alu_result_out     <= {`DATA_WIDTH{1'b0}};
       read_data_2_out    <= {`DATA_WIDTH{1'b0}};
       write_register_out <= {`REG_ADDR_WIDTH{1'b0}};

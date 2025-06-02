@@ -38,8 +38,13 @@ module registers_bank
     end
   end
 
-  // Lecturas asíncronas
-  assign o_read_data_1 = registers[i_read_register_1];
-  assign o_read_data_2 = registers[i_read_register_2];
+  // Lecturas asíncronas con bypassing
+  // Implementación de bypassing: si estamos leyendo el mismo registro que estamos escribiendo
+  // en el mismo ciclo, se entrega el nuevo valor directamente (forwarding interno)
+  assign o_read_data_1 = (i_write_enable && (i_read_register_1 == i_write_register) && (i_read_register_1 != 0)) ? 
+                          i_write_data : registers[i_read_register_1];
+  
+  assign o_read_data_2 = (i_write_enable && (i_read_register_2 == i_write_register) && (i_read_register_2 != 0)) ? 
+                          i_write_data : registers[i_read_register_2];
 
 endmodule

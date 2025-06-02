@@ -14,58 +14,22 @@ module forwarding_unit (
   input  wire       i_wb_reg_write,  // Señal de escritura en registro en WB
   
   // Señales de control de forwarding
-  output reg [1:0]  o_forward_a,     // Control de forwarding para operando A
-  output reg [1:0]  o_forward_b      // Control de forwarding para operando B
+  output wire [1:0]  o_forward_a,    // Control de forwarding para operando A
+  output wire [1:0]  o_forward_b     // Control de forwarding para operando B
 );
 
-  // Codificación para señales de control:
-  // 00: No hay forwarding, usar valor del registro
-  // 01: Forwarding desde etapa MEM (EX/MEM) - mayor prioridad
-  // 10: Forwarding desde etapa WB (MEM/WB) - menor prioridad
+  // Codificación para señales de control (igual que el short_circuit.v del repositorio):
+  // 00: No hay forwarding, usar valor del registro (ID/EX)
+  // 01: Forwarding desde etapa MEM (EX/MEM)
+  // 10: Forwarding desde etapa WB (MEM/WB)
+  
+  assign o_forward_a = (i_mem_rd == i_ex_rs && i_ex_rs != 0 && i_mem_reg_write) ? 2'b01 :
+                       (i_wb_rd == i_ex_rs && i_ex_rs != 0 && i_wb_reg_write) ? 2'b10 : 
+                       2'b00;
+                       
+  assign o_forward_b = (i_mem_rd == i_ex_rt && i_ex_rt != 0 && i_mem_reg_write) ? 2'b01 :
+                       (i_wb_rd == i_ex_rt && i_ex_rt != 0 && i_wb_reg_write) ? 2'b10 : 
+                       2'b00;
 
-  always @* begin
-    // La implementación debe seguir un orden estricto de prioridad
-    // Versión mejorada sin condiciones anidadas para mayor claridad
-    
-    // Forwarding para operando A (RS)
-    if (i_mem_reg_write && (i_mem_rd != 0) && (i_mem_rd == i_ex_rs)) begin
-      // EX/MEM forwarding - tiene la mayor prioridad
-      o_forward_a = 2'b01;
-    end
-    else if (i_wb_reg_write && (i_wb_rd != 0) && (i_wb_rd == i_ex_rs)) begin
-      // MEM/WB forwarding - solo si no hay EX/MEM forwarding
-      o_forward_a = 2'b10;
-    end
-    else begin
-      // Ningún forwarding necesario
-      o_forward_a = 2'b00;
-    end
-    
-    // Forwarding para operando B (RT)
-    if (i_mem_reg_write && (i_mem_rd != 0) && (i_mem_rd == i_ex_rt)) begin
-      // EX/MEM forwarding - tiene la mayor prioridad
-      o_forward_b = 2'b01;
-    end
-    else if (i_wb_reg_write && (i_wb_rd != 0) && (i_wb_rd == i_ex_rt)) begin
-      // MEM/WB forwarding - solo si no hay EX/MEM forwarding
-      o_forward_b = 2'b10;
-    end
-    else begin
-      // Ningún forwarding necesario
-      o_forward_b = 2'b00;
-    end
-    
-    // Nota: Esta implementación garantiza una prioridad clara:
-    // 1. Primero, se considera el forwarding desde EX/MEM (más reciente)
-    // 2. Si no aplica, se considera el forwarding desde MEM/WB (menos reciente)
-    // 3. Si ninguno aplica, no se hace forwarding
-    
-    // Debug: mostrar información sobre forwarding para facilitar depuración
-    if (o_forward_a != 2'b00 || o_forward_b != 2'b00) begin
-      $display("FORWARDING: RS=%d, RT=%d, MEM_Rd=%d, WB_Rd=%d, ForwardA=%d, ForwardB=%d",
-               i_ex_rs, i_ex_rt, i_mem_rd, i_wb_rd, o_forward_a, o_forward_b);
-    end
-    // Esta estructura elimina la necesidad de condiciones complejas y es más clara.
-  end
 
 endmodule
