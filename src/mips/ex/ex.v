@@ -24,6 +24,10 @@ module ex_stage(
   input  wire        i_wb_reg_write,       // Señal RegWrite en etapa WB
   input  wire [31:0] i_wb_write_data,      // Dato a escribir en etapa WB
   
+  // Señales de control de forwarding (desde la unidad externa)
+  input  wire [1:0]  i_forward_a,          // Control de forwarding para operando A
+  input  wire [1:0]  i_forward_b,          // Control de forwarding para operando B
+  
   // Señales de control para la etapa EX
   input  wire        i_alu_src,         // Selecciona entre registro rt (0) o inmediato (1)
   input  wire [1:0]  i_alu_op,          // Operación a realizar en la ALU
@@ -62,29 +66,13 @@ module ex_stage(
   wire [3:0]  alu_control;    // Señal de control para la ALU
   wire [4:0]  write_reg_rt_rd; // Registro destino (entre rt y rd)
   
-  // Señales para la unidad de forwarding
-  wire [1:0] forward_a;  // Control para operando A (RS)
-  wire [1:0] forward_b;  // Control para operando B (RT)
-  
   // Valores forwarded para los operandos
   reg [31:0] forwarded_a;  // Valor efectivo para el operando A
   reg [31:0] forwarded_b;  // Valor efectivo para el operando B
   
-  // Instancia de la unidad de forwarding
-  forwarding_unit forwarding_inst (
-    .i_ex_rs        (i_rs),                 // RS en EX
-    .i_ex_rt        (i_rt),                 // RT en EX
-    .i_mem_rd       (i_mem_write_register), // Registro destino en MEM
-    .i_mem_reg_write(i_mem_reg_write),      // RegWrite en MEM
-    .i_wb_rd        (i_wb_write_register),  // Registro destino en WB
-    .i_wb_reg_write (i_wb_reg_write),       // RegWrite en WB
-    .o_forward_a    (forward_a),            // Control para operando A
-    .o_forward_b    (forward_b)             // Control para operando B
-  );
-  
   // Lógica de multiplexor para el operando A (RS)
   always @(*) begin
-    case (forward_a)
+    case (i_forward_a)
       2'b00: forwarded_a = i_read_data_1;        // No forwarding
       2'b01: forwarded_a = i_mem_alu_result;     // Desde MEM
       2'b10: forwarded_a = i_wb_write_data;      // Desde WB
@@ -94,7 +82,7 @@ module ex_stage(
   
   // Lógica de multiplexor para el operando B (RT)
   always @(*) begin
-    case (forward_b)
+    case (i_forward_b)
       2'b00: forwarded_b = i_read_data_2;        // No forwarding
       2'b01: forwarded_b = i_mem_alu_result;     // Desde MEM
       2'b10: forwarded_b = i_wb_write_data;      // Desde WB

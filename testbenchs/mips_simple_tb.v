@@ -6,13 +6,11 @@ module mips_simple_tb();
   // Señales para conectar al DUT
   reg clk;
   reg reset;
-  wire [`DATA_WIDTH-1:0] result;
   
   // Instancia del módulo MIPS
   mips dut (
     .clk    (clk),
-    .reset  (reset),
-    .result (result)
+    .reset  (reset)
   );
   
   // Genera un reloj de 10ns (100 MHz)
@@ -104,8 +102,8 @@ module mips_simple_tb();
       // Mostrar información de la unidad de forwarding
       begin
         $display("FORWARDING: ForwardA=%0b, ForwardB=%0b", 
-                 dut.ex_stage_inst.forward_a,
-                 dut.ex_stage_inst.forward_b);
+                 dut.forward_a,
+                 dut.forward_b);
         
         // Mostrar también los registros de origen y destino relevantes
         $display("REGS: Rs=%0d, Rt=%0d, MEM_Rd=%0d, WB_Rd=%0d", 

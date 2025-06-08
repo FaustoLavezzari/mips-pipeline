@@ -4,8 +4,8 @@
 module id_stage(
   input  wire        clk,
   input  wire        reset,
-  input  wire [31:0] i_next_pc,      // PC+4 de la etapa IF
-  input  wire [31:0] i_instruction,  // Instrucción de la etapa IF
+  input  wire [31:0] i_next_pc,      
+  input  wire [31:0] i_instruction,
   
   // Señales WB (para escritura en banco de registros)
   input  wire        i_reg_write,          // Señal de habilitación de escritura 

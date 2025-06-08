@@ -1,10 +1,8 @@
 `timescale 1ns / 1ps
-`include "../mips_pkg.vh"
 
 module mem_wb(
   input  wire        clk,
   input  wire        reset,
-  input  wire        flush,            // Señal para limpiar el registro en caso de salto mal predicho
   
   // Entradas desde la etapa MEM
   input  wire [31:0] alu_result_in,     // Resultado de la ALU

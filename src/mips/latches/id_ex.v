@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `include "../mips_pkg.vh"
 
-module id_ie(
+module id_ex(
   input  wire        clk,
   input  wire        reset,
   input  wire        flush,         // Nueva señal para invalidar el latch cuando hay misprediction
@@ -34,13 +34,13 @@ module id_ie(
   output reg  [31:0] read_data_1_out,
   output reg  [31:0] read_data_2_out,
   output reg  [31:0] sign_extended_imm_out,
-  output reg  [4:0]  rs_out,              // Registro RS (añadido para forwarding)
+  output reg  [4:0]  rs_out,              
   output reg  [4:0]  rt_out,
   output reg  [4:0]  rd_out,
   output reg  [5:0]  function_out,
   output reg  [5:0]  opcode_out,
-  output reg  [31:0] next_pc_out,         // PC+4 para instrucciones JAL/JALR
-  
+  output reg  [31:0] next_pc_out,         
+
   // Señales de control hacia EX
   output reg         alu_src_out,
   output reg  [1:0]  alu_op_out,
@@ -61,7 +61,7 @@ module id_ie(
       read_data_1_out       <= {`DATA_WIDTH{1'b0}};
       read_data_2_out       <= {`DATA_WIDTH{1'b0}};
       sign_extended_imm_out <= {`DATA_WIDTH{1'b0}};
-      rs_out                <= {`REG_ADDR_WIDTH{1'b0}}; // Limpiar RS
+      rs_out                <= {`REG_ADDR_WIDTH{1'b0}};
       rt_out                <= {`REG_ADDR_WIDTH{1'b0}};
       rd_out                <= {`REG_ADDR_WIDTH{1'b0}};
       function_out          <= 6'b0;
@@ -72,7 +72,7 @@ module id_ie(
       alu_src_out          <= `CTRL_ALU_SRC_REG;
       alu_op_out           <= `ALU_OP_ADD;
       reg_dst_out          <= `CTRL_REG_DST_RT;
-      reg_write_out        <= `CTRL_REG_WRITE_DIS; // Importante: desactivar escritura
+      reg_write_out        <= `CTRL_REG_WRITE_DIS; 
       mem_read_out         <= 1'b0;
       mem_write_out        <= 1'b0;
       mem_to_reg_out       <= `CTRL_MEM_TO_REG_ALU;
@@ -85,7 +85,7 @@ module id_ie(
       read_data_1_out       <= read_data_1_in;
       read_data_2_out       <= read_data_2_in;
       sign_extended_imm_out <= sign_extended_imm_in;
-      rs_out                <= rs_in;               // Propagar RS
+      rs_out                <= rs_in;               
       rt_out                <= rt_in;
       rd_out                <= rd_in;
       function_out          <= function_in;
