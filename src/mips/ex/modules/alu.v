@@ -16,10 +16,18 @@ module alu(
       `ALU_ADD: result = a + b;
       `ALU_SUB: result = a - b;
       `ALU_SLT: result = ($signed(a) < $signed(b)) ? 32'b1 : 32'b0;
+      `ALU_SLTU: result = (a < b) ? 32'b1 : 32'b0; // Comparación sin signo
       `ALU_NOR: result = ~(a | b);
       `ALU_XOR: result = a ^ b;
-      `ALU_SLL: result = a << b[4:0];
-      `ALU_SRL: result = a >> b[4:0];
+      `ALU_SLL: result = b << a[4:0]; // b (rt) desplazado por a[4:0] (shamt)
+      `ALU_SRL: begin
+        result = b >> a[4:0]; // b (rt) desplazado por a[4:0] (shamt)
+        $display("ALU SRL: b=%d, a[4:0]=%d, result=%d", b, a[4:0], result);
+      end
+      `ALU_SRA: begin
+        result = $signed(b) >>> a[4:0]; // Desplazamiento aritmético a la derecha
+        $display("ALU SRA: b=%d, a[4:0]=%d, result=%d", $signed(b), a[4:0], result);
+      end
       default: result = a + b; // Por defecto suma
     endcase
     

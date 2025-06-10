@@ -17,16 +17,41 @@ module alu_control(
 
       `ALU_OP_RTYPE: begin // Instrucciones R-type - depende del campo function
         case(func_code)
-          `FUNC_ADD:  alu_control = `ALU_ADD; // ADD
-          `FUNC_SUB:  alu_control = `ALU_SUB; // SUB
-          `FUNC_AND:  alu_control = `ALU_AND; // AND
-          `FUNC_OR:   alu_control = `ALU_OR;  // OR  
-          `FUNC_NOR:  alu_control = `ALU_NOR; // NOR
-          `FUNC_SLT:  alu_control = `ALU_SLT; // SLT
-          `FUNC_XOR:  alu_control = `ALU_XOR; // XOR
-          6'b000000:  alu_control = `ALU_SLL; // SLL
-          6'b000010:  alu_control = `ALU_SRL; // SRL
-          default:    alu_control = `ALU_ADD; // Por defecto suma
+          `FUNC_ADD:  alu_control = `ALU_ADD;  // ADD
+          `FUNC_ADDU: alu_control = `ALU_ADD;  // ADDU (misma operación que ADD en la ALU)
+          `FUNC_SUB:  alu_control = `ALU_SUB;  // SUB
+          `FUNC_SUBU: alu_control = `ALU_SUB;  // SUBU (misma operación que SUB en la ALU)
+          `FUNC_AND:  alu_control = `ALU_AND;  // AND
+          `FUNC_OR:   alu_control = `ALU_OR;   // OR  
+          `FUNC_NOR:  alu_control = `ALU_NOR;  // NOR
+          `FUNC_SLT:  alu_control = `ALU_SLT;  // SLT
+          `FUNC_SLTU: alu_control = `ALU_SLTU; // SLTU
+          `FUNC_XOR:  alu_control = `ALU_XOR;  // XOR
+          `FUNC_SLL:  begin
+                      alu_control = `ALU_SLL;  // SLL
+                      $display("SLL detectado: func_code=%b, alu_control=%b", func_code, alu_control);
+                      end
+          `FUNC_SRL:  begin
+                      alu_control = `ALU_SRL;  // SRL
+                      $display("SRL detectado: func_code=%b, alu_control=%b", func_code, alu_control);
+                      end
+          `FUNC_SRA:  begin
+                      alu_control = `ALU_SRA;  // SRA
+                      $display("SRA detectado: func_code=%b, alu_control=%b", func_code, alu_control);
+                      end
+          `FUNC_SLLV: begin
+                      alu_control = `ALU_SLL;  // SLLV - Usa misma operación que SLL
+                      $display("SLLV detectado: func_code=%b, alu_control=%b", func_code, alu_control);
+                      end
+          `FUNC_SRLV: begin
+                      alu_control = `ALU_SRL;  // SRLV - Usa misma operación que SRL
+                      $display("SRLV detectado: func_code=%b, alu_control=%b", func_code, alu_control);
+                      end
+          `FUNC_SRAV: begin
+                      alu_control = `ALU_SRA;  // SRAV - Usa misma operación que SRA
+                      $display("SRAV detectado: func_code=%b, alu_control=%b", func_code, alu_control);
+                      end
+          default:    alu_control = `ALU_ADD;  // Por defecto suma
         endcase
       end
 

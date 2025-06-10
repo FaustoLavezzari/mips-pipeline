@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 `include "../src/mips/mips_pkg.vh"
 
-module mips_simple_tb();
+module mips_rtype_tb();
 
   // Señales para conectar al DUT
   reg clk;
@@ -28,10 +28,27 @@ module mips_simple_tb();
   function [8*20:1] instr_type;
     input [`DATA_WIDTH-1:0] instr;
     reg [5:0] opcode;
+    reg [5:0] funct;
     begin
       opcode = instr[31:26];
+      funct = instr[5:0];
       case(opcode)
-        `OPCODE_R_TYPE: instr_type = "R-type";
+        `OPCODE_R_TYPE: begin
+          case(funct)
+            `FUNC_AND:  instr_type = "AND";
+            `FUNC_OR:   instr_type = "OR";
+            `FUNC_XOR:  instr_type = "XOR";
+            `FUNC_NOR:  instr_type = "NOR";
+            `FUNC_SLT:  instr_type = "SLT";
+            `FUNC_SLTU: instr_type = "SLTU";
+            `FUNC_SLL:  instr_type = "SLL";
+            `FUNC_SRL:  instr_type = "SRL";
+            `FUNC_SRA:  instr_type = "SRA";
+            `FUNC_ADDU: instr_type = "ADDU";
+            `FUNC_SUBU: instr_type = "SUBU";
+            default:    instr_type = "R-desconocida";
+          endcase
+        end
         `OPCODE_ADDI:   instr_type = "addi";
         `OPCODE_LW:     instr_type = "lw";
         `OPCODE_SW:     instr_type = "sw";
@@ -49,8 +66,8 @@ module mips_simple_tb();
     cycle_count = 0;
     
     // Mostrar encabezado
-    $display("\n==== MIPS Pipeline Simple Testbench con Forwarding Unit ====\n");
-    $display("Este testbench evalúa el funcionamiento del pipeline MIPS");
+    $display("\n==== MIPS Pipeline R-Type Instructions Testbench ====\n");
+    $display("Este testbench evalúa el funcionamiento de las instrucciones R-Type en el pipeline MIPS");
     
     // Liberar el reset después de unos ciclos
     #15;
@@ -126,7 +143,7 @@ module mips_simple_tb();
                dut.wb_write_data,
                dut.wb_reg_write_out);
                
-      // Mostrar el contenido de los registros cada 5 ciclos
+      // Mostrar el contenido de los registros cada ciclo
       if (cycle_count % 1 == 0) begin
         $display("\nRegistros en ciclo %0d:", cycle_count);
         $display("$1=%0d, $2=%0d, $3=%0d, $4=%0d, $5=%0d", 
@@ -147,8 +164,14 @@ module mips_simple_tb();
                  dut.id_stage_inst.reg_bank.registers[13],
                  dut.id_stage_inst.reg_bank.registers[14],
                  dut.id_stage_inst.reg_bank.registers[15]);
-        
-        // Mostrar memoria relevante
+        $display("$16=%0d, $17=%0d, $18=%0d, $19=%0d, $20=%0d",
+                 dut.id_stage_inst.reg_bank.registers[16],
+                 dut.id_stage_inst.reg_bank.registers[17],
+                 dut.id_stage_inst.reg_bank.registers[18],
+                 dut.id_stage_inst.reg_bank.registers[19],
+                 dut.id_stage_inst.reg_bank.registers[20]);
+                 
+        // Mostrar contenido de memoria relevante
         $display("Memoria: Mem[100]=%0d, Mem[104]=%0d",
                  dut.mem_stage_inst.memory[25],  // 100/4 = 25
                  dut.mem_stage_inst.memory[26]); // 104/4 = 26
@@ -156,78 +179,70 @@ module mips_simple_tb();
     end
   end
   
-  // Verificación final después de 70 ciclos (aumentado para permitir la ejecución completa de todas las instrucciones)
+  // Verificación final después de 70 ciclos
   always @(posedge clk) begin
     if (!reset && cycle_count == 90) begin
       $display("\n==== VERIFICACIÓN FINAL (Ciclo %0d) ====", cycle_count);
       $display("Registros finales:");
-      $display("$1=%0d (Esperado: 5)", 
+      $display("$1=%0d (Esperado: 10)", 
                dut.id_stage_inst.reg_bank.registers[1]);
-      $display("$2=%0d (Esperado: 10)", 
+      $display("$2=%0d (Esperado: 20)", 
                dut.id_stage_inst.reg_bank.registers[2]);
-      $display("$3=%0d (Esperado: 100)", // Se restaura a 100 después de cambios para forwarding
+      $display("$3=%0d (Esperado: 10 & 20 = 0)", 
                dut.id_stage_inst.reg_bank.registers[3]);
-      $display("$4=%0d (Esperado: 20)", // Se restaura a 20 después de cambios para forwarding
+      $display("$4=%0d (Esperado: 10 | 20 = 30)", 
                dut.id_stage_inst.reg_bank.registers[4]);
-      $display("$5=%0d (Esperado: 5)", // Valor cambiado para pruebas de forwarding
+      $display("$5=%0d (Esperado: 10 ^ 20 = 30)", 
                dut.id_stage_inst.reg_bank.registers[5]);
-      $display("$6=%0d (Esperado: 5)", // Valor cambiado con forwarding desde $5
+      $display("$6=%0d (Esperado: ~(10 | 20) = -31)", 
                dut.id_stage_inst.reg_bank.registers[6]);
-      $display("$7=%0d (Esperado: 10)", // $7 = $2 & $3 = 10 & 15 = 10 (cuando $3=15)
+      $display("$7=%0d (Esperado: (10 < 20) ? 1 : 0 = 1)", 
                dut.id_stage_inst.reg_bank.registers[7]);
-      $display("$8=%0d (Esperado: 39)", // $8 = $1 | $4 = 5 | 35 = 39 (cuando $4=35)
+      $display("$8=%0d (Esperado: 20 << 2 = 80)", 
                dut.id_stage_inst.reg_bank.registers[8]);
-      $display("$9=%0d (Esperado: 1)", // Valor para pruebas de saltos
+      $display("$9=%0d (Esperado: 20 >> 2 = 5)", 
                dut.id_stage_inst.reg_bank.registers[9]);
-      // $10 cambia con forwarding y load, difícil predecir su valor exacto
-      $display("$10=%0d", dut.id_stage_inst.reg_bank.registers[10]);
-      $display("$11=%0d (Esperado: 5)", // Actualizado con valor de Mem[104]
+      $display("$10=%0d (Esperado: 10 + 20 = 30)", 
+               dut.id_stage_inst.reg_bank.registers[10]);
+      $display("$11=%0d (Esperado: 20 - 10 = 10)", 
                dut.id_stage_inst.reg_bank.registers[11]);
-      $display("$12=%0d (Esperado: 10)", // $12 = $11 + $6 = 5 + 5 = 10 (forwarding)
+      $display("$12=%0d (Esperado: (10u < 20u) ? 1 : 0 = 1)", 
                dut.id_stage_inst.reg_bank.registers[12]);
-      $display("$13=%0d (Esperado: 0)", // $13 = $5 ^ $6 = 5 ^ 5 = 0
-               dut.id_stage_inst.reg_bank.registers[13]);
-      $display("$14=%0d (Esperado: 7)", // Registro usado para verificar saltos
+      $display("$14=%0d (Sin valor esperado específico)", 
                dut.id_stage_inst.reg_bank.registers[14]);
-      $display("$15=%0d (Esperado: 20)", // Registro usado para verificar saltos
+      $display("$15=%0d (Esperado: 2)", // Resultado de SRA con desplazamiento de 3 bits
                dut.id_stage_inst.reg_bank.registers[15]);
-               
-      // Verificar memoria
-      $display("\nMemoria final:");
-      $display("Mem[100]=%0d (Esperado: 5)", 
-               dut.mem_stage_inst.memory[25]);
-      $display("Mem[104]=%0d (Esperado: 5)", 
-               dut.mem_stage_inst.memory[26]);
-      $display("Mem[35]=%0d (Esperado: 15)", 
-               dut.mem_stage_inst.memory[8]);  // 35/4 = 8 (redondeado hacia abajo)
-      $display("Mem[39]=%0d (Esperado: 35)", 
-               dut.mem_stage_inst.memory[9]);  // 39/4 = 9 (redondeado hacia abajo)
+      $display("$16=%0d (Esperado: 100 - dirección base para memoria)", 
+               dut.id_stage_inst.reg_bank.registers[16]);
+      $display("$17=%0d (Esperado: 20 << 3 = 160 - SLLV)", 
+               dut.id_stage_inst.reg_bank.registers[17]);
+      $display("$18=%0d (Esperado: 20 >> 2 = 5 - SRLV)", 
+               dut.id_stage_inst.reg_bank.registers[18]);
+      $display("$19=%0d (Esperado: -3 >>> 2 = -1 - SRAV)", 
+               dut.id_stage_inst.reg_bank.registers[19]);
+      $display("$20=%0d (Esperado: 2 - cantidad desplazamiento)", 
+               dut.id_stage_inst.reg_bank.registers[20]);
+              
                
       // Verificar resultado
-      // Verificamos que los resultados sean correctos considerando los NOPs agregados
-      // para evitar riesgos de datos que no puede resolver el forwarding
-      if (dut.id_stage_inst.reg_bank.registers[1] == 5 &&
-          dut.id_stage_inst.reg_bank.registers[2] == 10 &&
-          dut.id_stage_inst.reg_bank.registers[3] == 100 &&    // Restaurado a 100
-          dut.id_stage_inst.reg_bank.registers[4] == 20 &&     // Restaurado a 20
-          dut.id_stage_inst.reg_bank.registers[5] == 5 &&      // Cambiado a 5 para forwarding
-          dut.id_stage_inst.reg_bank.registers[6] == 5 &&      // $6 = $5 + $6(0) = 5 + 0 = 5
-          dut.id_stage_inst.reg_bank.registers[7] == 10 &&     // $7 = $2 & $3 = 10 & 15 = 10 (cuando $3=15)
-          dut.id_stage_inst.reg_bank.registers[8] == 39 &&     // $8 = $1 | $4 = 5 | 35 = 39
-          dut.id_stage_inst.reg_bank.registers[9] == 1 &&      // $9 = 1 (para saltos)
-          dut.id_stage_inst.reg_bank.registers[11] == 5 &&     // $11 = Mem[104] = 5
-          dut.id_stage_inst.reg_bank.registers[12] == 10 &&    // $12 = $11 + $6 = 5 + 5 = 10
-          dut.id_stage_inst.reg_bank.registers[13] == 0 &&     // $13 = $5 ^ $6 = 5 ^ 5 = 0
-          dut.id_stage_inst.reg_bank.registers[14] == 7 &&     // $14 = 7 (después de saltos)
-          dut.id_stage_inst.reg_bank.registers[15] == 20 &&    // $15 = 20 (después de saltos)
-          dut.mem_stage_inst.memory[25] == 5 &&               // Mem[100] = $5 = 5
-          dut.mem_stage_inst.memory[26] == 5 &&               // Mem[104] = $6 = 5
-          dut.mem_stage_inst.memory[8] == 15 &&               // Mem[35] = $3 = 15
-          dut.mem_stage_inst.memory[9] == 35) begin           // Mem[39] = $4 = 35
-        $display("\n¡PRUEBA EXITOSA! Todos los resultados son correctos.");
-        $display("\nLa unidad de forwarding ha manejado correctamente los riesgos de datos resolubles.");
-        $display("Los NOPs insertados han ayudado a evitar los riesgos no resolubles mediante forwarding.");
-        $display("(Principalmente: load-use hazards y dependencias EX-EX que requieren stalls)");
+      if (dut.id_stage_inst.reg_bank.registers[3] == 0 &&
+          dut.id_stage_inst.reg_bank.registers[4] == 30 &&
+          dut.id_stage_inst.reg_bank.registers[5] == 30 &&
+          dut.id_stage_inst.reg_bank.registers[6] == -31 &&
+          dut.id_stage_inst.reg_bank.registers[7] == 1 &&
+          dut.id_stage_inst.reg_bank.registers[8] == 80 &&
+          dut.id_stage_inst.reg_bank.registers[9] == 5 &&
+          dut.id_stage_inst.reg_bank.registers[10] == 30 &&
+          dut.id_stage_inst.reg_bank.registers[11] == 10 &&
+          dut.id_stage_inst.reg_bank.registers[12] == 1 &&
+          dut.id_stage_inst.reg_bank.registers[15] == 2 &&  
+          dut.id_stage_inst.reg_bank.registers[17] == 160 &&  
+          dut.id_stage_inst.reg_bank.registers[18] == 5 &&   
+          dut.id_stage_inst.reg_bank.registers[19] == -1    
+          ) begin          
+        $display("\n¡PRUEBA EXITOSA! Todas las instrucciones R-Type funcionan correctamente.");
+        $display("\nLas instrucciones AND, OR, XOR, NOR, SLT, SLL, SRL, SRA, ADDU, SUBU, SLTU, SLLV, SRLV, y SRAV han sido verificadas.");
+        $display("La unidad de forwarding ha manejado correctamente los riesgos de datos.");
       end else begin
         $display("\n¡PRUEBA FALLIDA! Algunos resultados no coinciden con los valores esperados.");
       end
@@ -236,8 +251,8 @@ module mips_simple_tb();
 
   // Para generar formas de onda (VCD)
   initial begin
-    $dumpfile("mips_simple.vcd");
-    $dumpvars(0, mips_simple_tb);
+    $dumpfile("mips_rtype.vcd");
+    $dumpvars(0, mips_rtype_tb);
   end
 
 endmodule

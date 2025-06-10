@@ -12,6 +12,7 @@ module id_ex(
   input  wire [4:0]  rs_in,              // Registro RS (añadido para forwarding)
   input  wire [4:0]  rt_in,
   input  wire [4:0]  rd_in,
+  input  wire [4:0]  shamt_in,            // Campo shamt para instrucciones SLL/SRL
   input  wire [5:0]  function_in,
   input  wire [5:0]  opcode_in,
   input  wire [31:0] next_pc_in,          // PC+4 para instrucciones JAL/JALR
@@ -37,6 +38,7 @@ module id_ex(
   output reg  [4:0]  rs_out,              
   output reg  [4:0]  rt_out,
   output reg  [4:0]  rd_out,
+  output reg  [4:0]  shamt_out,           // Campo shamt para instrucciones SLL/SRL
   output reg  [5:0]  function_out,
   output reg  [5:0]  opcode_out,
   output reg  [31:0] next_pc_out,         
@@ -64,6 +66,7 @@ module id_ex(
       rs_out                <= {`REG_ADDR_WIDTH{1'b0}};
       rt_out                <= {`REG_ADDR_WIDTH{1'b0}};
       rd_out                <= {`REG_ADDR_WIDTH{1'b0}};
+      shamt_out             <= {`REG_ADDR_WIDTH{1'b0}};
       function_out          <= 6'b0;
       opcode_out            <= 6'b0;
       next_pc_out           <= {`DATA_WIDTH{1'b0}};
@@ -87,6 +90,7 @@ module id_ex(
       sign_extended_imm_out <= sign_extended_imm_in;
       rs_out                <= rs_in;               
       rt_out                <= rt_in;
+      shamt_out             <= shamt_in;
       rd_out                <= rd_in;
       function_out          <= function_in;
       opcode_out            <= opcode_in;

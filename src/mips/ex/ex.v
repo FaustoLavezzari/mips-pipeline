@@ -13,6 +13,7 @@ module ex_stage(
   input  wire [4:0]  i_rt,              // Registro RT
   input  wire [4:0]  i_rd,              // Registro RD
   input  wire [4:0]  i_rs,              // Registro RS (para forwarding)
+  input  wire [4:0]  i_shamt,           // Campo shamt para instrucciones SLL/SRL
   input  wire [5:0]  i_opcode,          // Código de operación para distinguir entre BEQ y BNE
   input  wire [31:0] i_next_pc,         // PC+4 para instrucciones JAL/JALR
   
@@ -23,10 +24,6 @@ module ex_stage(
   input  wire [4:0]  i_wb_write_register,  // Registro destino en etapa WB
   input  wire        i_wb_reg_write,       // Señal RegWrite en etapa WB
   input  wire [31:0] i_wb_write_data,      // Dato a escribir en etapa WB
-  
-  // Señales de control de forwarding (desde la unidad externa)
-  input  wire [1:0]  i_forward_a,          // Control de forwarding para operando A
-  input  wire [1:0]  i_forward_b,          // Control de forwarding para operando B
   
   // Señales de control para la etapa EX
   input  wire        i_alu_src,         // Selecciona entre registro rt (0) o inmediato (1)
@@ -66,13 +63,29 @@ module ex_stage(
   wire [3:0]  alu_control;    // Señal de control para la ALU
   wire [4:0]  write_reg_rt_rd; // Registro destino (entre rt y rd)
   
+  // Señales para la unidad de forwarding
+  wire [1:0] forward_a;  // Control para operando A (RS)
+  wire [1:0] forward_b;  // Control para operando B (RT)
+  
   // Valores forwarded para los operandos
   reg [31:0] forwarded_a;  // Valor efectivo para el operando A
   reg [31:0] forwarded_b;  // Valor efectivo para el operando B
   
+  // Instancia de la unidad de forwarding
+  forwarding_unit forwarding_inst (
+    .i_ex_rs        (i_rs),                 // RS en EX
+    .i_ex_rt        (i_rt),                 // RT en EX
+    .i_mem_rd       (i_mem_write_register), // Registro destino en MEM
+    .i_mem_reg_write(i_mem_reg_write),      // RegWrite en MEM
+    .i_wb_rd        (i_wb_write_register),  // Registro destino en WB
+    .i_wb_reg_write (i_wb_reg_write),       // RegWrite en WB
+    .o_forward_a    (forward_a),            // Control para operando A
+    .o_forward_b    (forward_b)             // Control para operando B
+  );
+  
   // Lógica de multiplexor para el operando A (RS)
   always @(*) begin
-    case (i_forward_a)
+    case (forward_a)
       2'b00: forwarded_a = i_read_data_1;        // No forwarding
       2'b01: forwarded_a = i_mem_alu_result;     // Desde MEM
       2'b10: forwarded_a = i_wb_write_data;      // Desde WB
@@ -82,7 +95,7 @@ module ex_stage(
   
   // Lógica de multiplexor para el operando B (RT)
   always @(*) begin
-    case (i_forward_b)
+    case (forward_b)
       2'b00: forwarded_b = i_read_data_2;        // No forwarding
       2'b01: forwarded_b = i_mem_alu_result;     // Desde MEM
       2'b10: forwarded_b = i_wb_write_data;      // Desde WB
@@ -103,10 +116,77 @@ module ex_stage(
   assign alu_input_2 = (i_alu_src) ? i_sign_extended_imm : forwarded_b;
   
 
-  // Instancia de la ALU - usar forwarded_a como operando A
+  // Determinar si es una instrucción de desplazamiento estático (SLL, SRL, SRA)
+  // donde se usa el campo shamt de la instrucción
+  wire is_static_shift_op = (i_opcode == `OPCODE_R_TYPE) && 
+                           (i_function == `FUNC_SLL || 
+                            i_function == `FUNC_SRL || 
+                            i_function == `FUNC_SRA);
+  
+  // Determinar si es una instrucción de desplazamiento variable (SLLV, SRLV, SRAV)
+  // donde se usa el valor del registro RS como cantidad de desplazamiento
+  wire is_var_shift_op = (i_opcode == `OPCODE_R_TYPE) &&
+                         (i_function == `FUNC_SLLV ||
+                          i_function == `FUNC_SRLV ||
+                          i_function == `FUNC_SRAV);
+  
+  // Flag general para identificar si es cualquier tipo de desplazamiento
+  wire is_shift_op = is_static_shift_op || is_var_shift_op;
+                     
+  // Añadir depuración para shift operations
+  always @(i_function) begin
+    if (i_opcode == `OPCODE_R_TYPE) begin
+      if (i_function == `FUNC_SLL) 
+        $display("EX: SLL detectado - opcode=%b, function=%b, alu_op=%b, shamt=%d", 
+                 i_opcode, i_function, i_alu_op, i_shamt);
+      else if (i_function == `FUNC_SRL)
+        $display("EX: SRL detectado - opcode=%b, function=%b, alu_op=%b, shamt=%d", 
+                 i_opcode, i_function, i_alu_op, i_shamt);
+      else if (i_function == `FUNC_SRA)
+        $display("EX: SRA detectado - opcode=%b, function=%b, alu_op=%b, shamt=%d", 
+                 i_opcode, i_function, i_alu_op, i_shamt);
+      else if (i_function == `FUNC_SLLV)
+        $display("EX: SLLV detectado - opcode=%b, function=%b, alu_op=%b, rs=%d", 
+                 i_opcode, i_function, i_alu_op, forwarded_a);
+      else if (i_function == `FUNC_SRLV)
+        $display("EX: SRLV detectado - opcode=%b, function=%b, alu_op=%b, rs=%d", 
+                 i_opcode, i_function, i_alu_op, forwarded_a);
+      else if (i_function == `FUNC_SRAV)
+        $display("EX: SRAV detectado - opcode=%b, function=%b, alu_op=%b, rs=%d", 
+                 i_opcode, i_function, i_alu_op, forwarded_a);
+    end
+  end
+                    
+  // Para instrucciones de desplazamiento estático, usamos el campo shamt directamente
+  // Convertimos el campo shamt (5 bits) a 32 bits con zero extension
+  wire [31:0] shift_amount = {27'b0, i_shamt};
+  
+  // Para las instrucciones de desplazamiento:
+  // Operando A: shamt (cantidad de desplazamiento)
+  // Operando B: rt (valor a desplazar)
+  
+  // Instancia de la ALU con manejo especial para instrucciones de desplazamiento
+  // Para instrucciones de desplazamiento variable (SLLV, SRLV, SRAV),
+  // el valor de RS (forwarded_a[4:0]) contiene la cantidad de desplazamiento
+  // Para instrucciones de desplazamiento estático (SLL, SRL, SRA), 
+  // usamos el campo shamt de la instrucción
+  
+  // El valor real para la cantidad de desplazamiento:
+  // - Para desplazamientos estáticos (SLL, SRL, SRA): usar el valor de shamt
+  // - Para desplazamientos variables (SLLV, SRLV, SRAV): usar forwarded_a (valor de RS)
+  wire [31:0] shift_value = is_static_shift_op ? shift_amount : {27'b0, forwarded_a[4:0]};
+  
+  // Debug para ayudar a diagnosticar problemas con desplazamientos variables
+  always @(*) begin
+    if (is_var_shift_op) begin
+      $display("SHIFT VAR: tipo=%b, rs_valor=%d, rt_valor=%d, shift_value=%d", 
+               i_function, forwarded_a, forwarded_b, shift_value);
+    end
+  end
+  
   alu alu_inst (
-    .a           (forwarded_a),            // Operando A con forwarding
-    .b           (alu_input_2),            // Operando B (ya sea RT forwardeado o inmediato)
+    .a           (is_shift_op ? shift_value : forwarded_a),  // shamt/rs[4:0] para desplazamiento
+    .b           (is_shift_op ? forwarded_b : alu_input_2),  // rt para desplazamientos, rt/imm para otros
     .alu_control (alu_control),
     .result      (o_alu_result)
   );

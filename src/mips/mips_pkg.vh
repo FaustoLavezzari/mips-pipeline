@@ -36,7 +36,12 @@
 `define FUNC_NOR    6'b100111
 `define FUNC_SLT    6'b101010
 `define FUNC_SLTU   6'b101011
-// Códigos de función adicionales
+`define FUNC_SLL    6'b000000   // Shift Left Logical
+`define FUNC_SRL    6'b000010   // Shift Right Logical
+`define FUNC_SRA    6'b000011   // Shift Right Arithmetic
+`define FUNC_SLLV   6'b000100   // Shift Left Logical Variable
+`define FUNC_SRLV   6'b000110   // Shift Right Logical Variable
+`define FUNC_SRAV   6'b000111   // Shift Right Arithmetic Variable
 `define FUNC_JR     6'b001000   // Jump Register
 `define FUNC_JALR   6'b001001   // Jump And Link Register
 
@@ -49,16 +54,17 @@
 
 // ALU Control Signals
 `define ALU_CTRL_WIDTH  4
-`define ALU_ADD         4'b0010  // Actualizado para mantener consistencia con implementación
+`define ALU_ADD         4'b0010  
 `define ALU_SUB         4'b0110
 `define ALU_AND         4'b0000
 `define ALU_OR          4'b0001
 `define ALU_XOR         4'b1101
 `define ALU_NOR         4'b1100
 `define ALU_SLT         4'b0111
-`define ALU_SLTU        4'b1000
+`define ALU_SLTU        4'b1001  
 `define ALU_SLL         4'b1000
-`define ALU_SRL         4'b1001
+`define ALU_SRL         4'b1010  
+`define ALU_SRA         4'b1011
 
 // Control Signals Default Values
 `define CTRL_REG_DST_RT     1'b0

@@ -1,0 +1,108 @@
+// Memoria de instrucciones para testear instrucciones R-Type en el pipeline MIPS
+// Cada línea contiene una instrucción en formato hexadecimal de 32 bits
+
+// Inicialización de registros para las pruebas
+2001000A  // addi $1, $0, 10      # $1 = 10
+20020014  // addi $2, $0, 20      # $2 = 20
+20030000  // addi $3, $0, 0       # $3 = 0 (para AND)
+20040000  // addi $4, $0, 0       # $4 = 0 (para OR)
+20050000  // addi $5, $0, 0       # $5 = 0 (para XOR)
+20060000  // addi $6, $0, 0       # $6 = 0 (para NOR)
+20070000  // addi $7, $0, 0       # $7 = 0 (para SLT)
+20080000  // addi $8, $0, 0       # $8 = 0 (para SLL)
+20090000  // addi $9, $0, 0       # $9 = 0 (para SRL)
+200A0000  // addi $10, $0, 0      # $10 = 0 (para ADDU)
+200B0000  // addi $11, $0, 0      # $11 = 0 (para SUBU)
+200C0000  // addi $12, $0, 0      # $12 = 0 (para SLTU)
+200E0000  // addi $14, $0, 0      # $14 = 0 (para cálculos adicionales)
+200F0000  // addi $15, $0, 0      # $15 = 0 (para SRA)
+20100064  // addi $16, $0, 100    # $16 = 100 (dirección base para memoria)
+
+// Test de AND (Realizar AND bit a bit entre $1 y $2)
+00221824  // and $3, $1, $2       # $3 = $1 & $2 = 10 & 20 = 0
+
+// Test de OR (Realizar OR bit a bit entre $1 y $2)
+00222025  // or $4, $1, $2        # $4 = $1 | $2 = 10 | 20 = 30
+
+// Test de XOR (Realizar XOR bit a bit entre $1 y $2)
+00222826  // xor $5, $1, $2       # $5 = $1 ^ $2 = 10 ^ 20 = 30
+
+// Test de NOR (Realizar NOR bit a bit entre $1 y $2)
+00223027  // nor $6, $1, $2       # $6 = ~($1 | $2) = ~(10 | 20) = ~30 = -31
+
+// Test de SLT (Comparar si $1 es menor que $2 con signo)
+0022382A  // slt $7, $1, $2       # $7 = ($1 < $2) ? 1 : 0 = (10 < 20) ? 1 : 0 = 1
+
+// Test de SLL (Desplazamiento lógico a la izquierda de $2 por 2 bits)
+00024080  // sll $8, $2, 2        # $8 = $2 << 2 = 20 << 2 = 80
+
+// Test de SRL (Desplazamiento lógico a la derecha de $2 por 2 bits)
+00024882  // srl $9, $2, 2        # $9 = $2 >> 2 = 20 >> 2 = 5
+
+// Test de SRA (Desplazamiento aritmético a la derecha de $2 por 3 bits)
+000278C3  // sra $15, $2, 3       # $15 = $2 >>> 3 = 20 >>> 3 = 2
+
+// Test de ADDU (Suma sin signo de $1 y $2)
+00225021  // addu $10, $1, $2     # $10 = $1 + $2 = 10 + 20 = 30
+
+// Test de SUBU (Resta sin signo de $2 y $1)
+00415823  // subu $11, $2, $1     # $11 = $2 - $1 = 20 - 10 = 10
+
+// Test de SLTU (Comparar si $1 es menor que $2 sin signo)
+0022602B  // sltu $12, $1, $2     # $12 = ($1 < $2) ? 1 : 0 = (10u < 20u) ? 1 : 0 = 1
+
+// Test de SLLV (Desplazamiento lógico a la izquierda variable)
+20110003  // addi $17, $0, 3      # $17 = 3 (cantidad de desplazamiento)
+02228804  // sllv $17, $2, $17    # $17 = $2 << $17 = 20 << 3 = 160
+
+// Test de SRLV (Desplazamiento lógico a la derecha variable)
+20120002  // addi $18, $0, 2      # $18 = 2 (cantidad de desplazamiento)
+02429006  // srlv $18, $2, $18    # $18 = $2 >> $18 = 20 >> 2 = 5
+
+// Test de SRAV (Desplazamiento aritmético a la derecha variable)
+2013FFFD  // addi $19, $0, -3     # $19 = -3 (número negativo para probar con signo)
+20140002  // addi $20, $0, 2      # $20 = 2 (cantidad de desplazamiento)
+02939807  // srav $19, $19, $20   # $19 = $19 >>> $20 = -3 >>> 2 = -1
+
+
+// Instrucciones adicionales para que completen los 90 ciclos para la verificación final
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop

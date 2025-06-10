@@ -18,7 +18,7 @@ module forwarding_unit (
   output wire [1:0]  o_forward_b     // Control de forwarding para operando B
 );
 
-  // Codificación para señales de control (igual que el short_circuit.v del repositorio):
+  // Codificación para señales de control:
   // 00: No hay forwarding, usar valor del registro (ID/EX)
   // 01: Forwarding desde etapa MEM (EX/MEM)
   // 10: Forwarding desde etapa WB (MEM/WB)
@@ -30,6 +30,5 @@ module forwarding_unit (
   assign o_forward_b = (i_mem_rd == i_ex_rt && i_ex_rt != 0 && i_mem_reg_write) ? 2'b01 :
                        (i_wb_rd == i_ex_rt && i_ex_rt != 0 && i_wb_reg_write) ? 2'b10 : 
                        2'b00;
-
 
 endmodule
