@@ -8,45 +8,54 @@ module hazard_detection(
     input wire        i_id_ex_mem_read,    // MemRead signal from EX stage
     input wire [5:0]  i_if_id_opcode,     // Opcode of instruction in ID stage
     input wire [5:0]  i_if_id_funct,      // Function code for R-type instructions
-    input wire        i_branch_taken,      // Branch taken signal from EX stage
-    input wire        i_branch_mispredicted, // Branch misprediction signal from EX stage
+    input wire        i_id_branch_taken,   // Branch taken signal from ID stage
+    input wire        i_id_jump_taken,     // Jump taken signal from ID stage
     output wire       o_stall,            // Signal to stall pipeline (load hazard) 
-    output wire       o_flush,            // Signal to flush pipeline (branch hazard)
+    output wire       o_flush_id_ex,      // Signal to flush ID/EX stage (load hazard)
+    output wire       o_flush_if_id,      // Signal to flush IF/ID stage (branch/jump hazard)
     output wire       o_ctrl_hazard,      // Control hazard signal (for propagation control)
     output wire       o_halt              // HALT instruction detected
 );
 
     // Detect load-use hazard: Previous instruction is a load AND 
     // its destination register is used by current instruction as source
+    // Note: Only check i_if_id_rt when instruction is NOT a load, since in loads rt is destination
+    wire is_load_in_id = (i_if_id_opcode == `OPCODE_LW) ||
+                         (i_if_id_opcode == `OPCODE_LH) ||
+                         (i_if_id_opcode == `OPCODE_LB) ||
+                         (i_if_id_opcode == `OPCODE_LHU) ||
+                         (i_if_id_opcode == `OPCODE_LBU) ||
+                         (i_if_id_opcode == `OPCODE_LWU);
+                        
     wire load_use_hazard = i_id_ex_mem_read && 
                           ((i_id_ex_rt != 5'b0) && 
-                           ((i_id_ex_rt == i_if_id_rs) || (i_id_ex_rt == i_if_id_rt)));
+                           ((i_id_ex_rt == i_if_id_rs) || 
+                           (i_id_ex_rt == i_if_id_rt && !is_load_in_id)));
     
-    // Detect control hazard from branch misprediction
-    wire is_branch_hazard = i_branch_taken && i_branch_mispredicted;
     
-    // Detect jump instructions
-    wire is_jump = (i_if_id_opcode == `OPCODE_J) ||
-                   (i_if_id_opcode == `OPCODE_R_TYPE && 
-                   (i_if_id_funct == `FUNC_JR || i_if_id_funct == `FUNC_JALR));
+    // Detect control hazard from branch or jump taken in ID stage
+    wire is_control_hazard = i_id_branch_taken || i_id_jump_taken;
                    
     // Detect HALT instruction
     wire is_halt = (i_if_id_opcode == `OPCODE_HALT);
     
-    // Combined control hazard
-    wire control_hazard = is_branch_hazard || is_jump;
+    // Control hazard ya no depende de EX, viene directamente de ID
+    wire control_hazard = is_control_hazard;
     
-    // Generate stall signal - stall for load-use hazard and RAW hazards
-    // and make sure we're not stalling during a control hazard
-    assign o_stall = (load_use_hazard ) && !control_hazard;
+    // Generate stall signal - stall for load-use hazard
+    // No stall when a branch/jump is taken
+    assign o_stall = load_use_hazard && !control_hazard;
     
-    // Flush pipeline for control hazards
-    assign o_flush = control_hazard;
+    // Load hazard requires flushing ID/EX
+    assign o_flush_id_ex = load_use_hazard;
+    
+    // Control hazard (branch/jump) requires flushing IF/ID
+    assign o_flush_if_id = control_hazard;
     
     // Signal for control propagation management
     assign o_ctrl_hazard = control_hazard;
     
-    // Generate halt signal (only once)
+    // Generate halt signal
     assign o_halt = is_halt;
 
 endmodule

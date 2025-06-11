@@ -3,15 +3,17 @@
 
 module control(
   input  wire [5:0] opcode,      // Campo opcode de la instrucción
+  input  wire [5:0] funct,       // Campo funct de la instrucción (para detectar JR/JALR)
   output reg        reg_dst,     // Selección del registro destino
   output reg        alu_src,     // Selección del segundo operando de la ALU
-  output reg  [1:0] alu_op,      // Operación de la ALU
+  output reg  [2:0] alu_op,      // Operación de la ALU
   output reg        mem_read,    // Control de lectura de memoria
   output reg        mem_write,   // Control de escritura en memoria
   output reg        mem_to_reg,  // Selección entre ALU o memoria para WB
   output reg        reg_write,   // Habilitación de escritura en banco de registros
   output reg        branch,      // Indica si es una instrucción de salto
-  output wire       branch_prediction // Indica si se predice tomar el salto (1) o no (0)
+  output wire       branch_prediction, // Indica si se predice tomar el salto (1) o no (0)
+  output reg        o_is_jal     // Indica si es una instrucción JAL o JALR
 );
 
   always @(*) begin
@@ -24,20 +26,47 @@ module control(
     mem_to_reg = `CTRL_MEM_TO_REG_ALU;// Por defecto usa resultado de ALU
     reg_write  = `CTRL_REG_WRITE_DIS; // Por defecto no escribe en registros
     branch     = `CTRL_BRANCH_DIS;    // Por defecto no es instrucción de salto
+    o_is_jal   = 1'b0;                // Por defecto no es JAL o JALR
     
     case(opcode)
       `OPCODE_R_TYPE: begin
-        reg_dst    = `CTRL_REG_DST_RD;      // Usa el campo rd
-        alu_src    = `CTRL_ALU_SRC_REG;     // Usa el registro rt
-        alu_op     = `ALU_OP_RTYPE;         // Operación R-type (depende del campo function)
-        mem_read   = 1'b0;  
-        mem_write  = 1'b0;
-        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
-        reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
-        branch     = `CTRL_BRANCH_DIS;      // No es instrucción de salto
-        
-        // Debug: mostrar tipo R identificado
-        $display("Control: R-Type detectado, function=0x%h", opcode);
+        // Primero comprobamos las instrucciones especiales JR y JALR
+        if (funct == `FUNC_JR) begin
+          // Jump Register (JR)
+          reg_dst    = `CTRL_REG_DST_RD;      // No importa (no escribe en registros)
+          alu_src    = `CTRL_ALU_SRC_REG;     // No importa
+          alu_op     = `ALU_OP_ADD;           // No importa
+          mem_read   = 1'b0;
+          mem_write  = 1'b0;
+          mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa
+          reg_write  = `CTRL_REG_WRITE_DIS;   // No escribe en registros
+          branch     = `CTRL_BRANCH_EN;       // Tratar como branch para control hazard
+          o_is_jal   = 1'b0;                  // No es JAL ni JALR
+        end
+        else if (funct == `FUNC_JALR) begin
+          // Jump And Link Register (JALR)
+          reg_dst    = `CTRL_REG_DST_RD;      // Ya forzamos rd = $31 en la etapa ID
+          alu_src    = `CTRL_ALU_SRC_REG;     // Importante: Debe usar registro (PC+4) no el immediate
+          alu_op     = `ALU_OP_ADD;           // Operación simple de paso
+          mem_read   = 1'b0;
+          mem_write  = 1'b0;
+          mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usará resultado de ALU (que será PC+4)
+          reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en $31 (ra) o el registro rd
+          branch     = `CTRL_BRANCH_EN;       // Tratar como branch para control hazard
+          o_is_jal   = 1'b1;                  // Es JALR (similar a JAL)
+        end
+        else begin
+          // Instrucción R-type normal
+          reg_dst    = `CTRL_REG_DST_RD;      // Usa el campo rd
+          alu_src    = `CTRL_ALU_SRC_REG;     // Usa el registro rt
+          alu_op     = `ALU_OP_RTYPE;         // Operación R-type (depende del campo function)
+          mem_read   = 1'b0;  
+          mem_write  = 1'b0;
+          mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
+          reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+          branch     = `CTRL_BRANCH_DIS;      // No es instrucción de salto
+          o_is_jal   = 1'b0;                  // No es JAL ni JALR
+        end
       end
       
       `OPCODE_ADDI, `OPCODE_ADDIU: begin
@@ -50,7 +79,7 @@ module control(
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
       end
       
-      `OPCODE_LW: begin
+      `OPCODE_LW, `OPCODE_LB, `OPCODE_LH, `OPCODE_LBU, `OPCODE_LHU, `OPCODE_LWU: begin
         reg_dst    = `CTRL_REG_DST_RT;      // Usa rt como destino
         alu_src    = `CTRL_ALU_SRC_IMM;     // Usa el inmediato para calcular dirección
         alu_op     = `ALU_OP_ADD;           // Suma para dirección
@@ -60,7 +89,37 @@ module control(
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
       end
       
+      `OPCODE_LUI: begin
+        reg_dst    = `CTRL_REG_DST_RT;      // Usa rt como destino
+        alu_src    = `CTRL_ALU_SRC_IMM;     // Usa el inmediato
+        alu_op     = `ALU_OP_LUI;           // Operación específica para LUI
+        mem_read   = 1'b0;                  // No lee memoria
+        mem_write  = 1'b0;                  // No escribe memoria
+        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de la ALU
+        reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+      end
+      
       `OPCODE_SW: begin
+        reg_dst    = `CTRL_REG_DST_RT;      // No importa (no escribe en registros)
+        alu_src    = `CTRL_ALU_SRC_IMM;     // Usa el inmediato para calcular dirección
+        alu_op     = `ALU_OP_ADD;           // Suma para dirección
+        mem_read   = 1'b0;
+        mem_write  = `CTRL_MEM_WRITE_EN;    // Escribe en memoria
+        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa
+        reg_write  = `CTRL_REG_WRITE_DIS;   // No escribe en registros
+      end
+      
+      `OPCODE_SB: begin
+        reg_dst    = `CTRL_REG_DST_RT;      // No importa (no escribe en registros)
+        alu_src    = `CTRL_ALU_SRC_IMM;     // Usa el inmediato para calcular dirección
+        alu_op     = `ALU_OP_ADD;           // Suma para dirección
+        mem_read   = 1'b0;
+        mem_write  = `CTRL_MEM_WRITE_EN;    // Escribe en memoria
+        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa
+        reg_write  = `CTRL_REG_WRITE_DIS;   // No escribe en registros
+      end
+      
+      `OPCODE_SH: begin
         reg_dst    = `CTRL_REG_DST_RT;      // No importa (no escribe en registros)
         alu_src    = `CTRL_ALU_SRC_IMM;     // Usa el inmediato para calcular dirección
         alu_op     = `ALU_OP_ADD;           // Suma para dirección
@@ -90,11 +149,33 @@ module control(
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
         branch     = `CTRL_BRANCH_DIS;      // No es salto
       end
+
+      `OPCODE_XORI: begin
+        reg_dst    = `CTRL_REG_DST_RT;      // Usa rt como destino
+        alu_src    = `CTRL_ALU_SRC_IMM;     // Usa el inmediato
+        alu_op     = `ALU_OP_IMM;           // Operación inmediata (XOR)
+        mem_read   = 1'b0;
+        mem_write  = 1'b0;
+        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
+        reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+        branch     = `CTRL_BRANCH_DIS;      // No es salto
+      end
       
       `OPCODE_SLTI: begin
         reg_dst    = `CTRL_REG_DST_RT;      // Usa rt como destino
         alu_src    = `CTRL_ALU_SRC_IMM;     // Usa el inmediato
         alu_op     = `ALU_OP_IMM;           // Operación inmediata (SLT)
+        mem_read   = 1'b0;
+        mem_write  = 1'b0;
+        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
+        reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+        branch     = `CTRL_BRANCH_DIS;      // No es salto
+      end
+      
+      `OPCODE_SLTIU: begin
+        reg_dst    = `CTRL_REG_DST_RT;      // Usa rt como destino
+        alu_src    = `CTRL_ALU_SRC_IMM;     // Usa el inmediato
+        alu_op     = `ALU_OP_IMM;           // Operación inmediata (SLTU)
         mem_read   = 1'b0;
         mem_write  = 1'b0;
         mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
@@ -136,14 +217,16 @@ module control(
       end
       
       `OPCODE_JAL: begin
-        reg_dst    = `CTRL_REG_DST_RT;      // No importa (usará $31 directamente)
-        alu_src    = `CTRL_ALU_SRC_REG;     // No importa
-        alu_op     = `ALU_OP_ADD;           // No importa
+        reg_dst    = `CTRL_REG_DST_RD;      // Ya forzamos rd = $31 en la etapa ID
+        // Ahora JAL usará el ALU con el mismo flujo que instrucciones normales
+        alu_src    = `CTRL_ALU_SRC_IMM;     // Usamos immediate para pasar PC+4
+        alu_op     = `ALU_OP_ADD;           // Operación simple de paso
         mem_read   = 1'b0;
         mem_write  = 1'b0;
-        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa (usará PC+4)
+        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usará resultado de ALU (que será PC+4)
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en $31 (ra)
         branch     = `CTRL_BRANCH_EN;       // Tratar como branch para control hazard
+        o_is_jal   = 1'b1;                  // Es JAL
       end
       
       default: begin
@@ -156,6 +239,7 @@ module control(
         mem_to_reg = `CTRL_MEM_TO_REG_ALU;
         reg_write  = `CTRL_REG_WRITE_DIS;
         branch     = `CTRL_BRANCH_DIS;
+        o_is_jal   = 1'b0;
       end
     endcase
   end

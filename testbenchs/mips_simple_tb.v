@@ -94,16 +94,21 @@ module mips_simple_tb();
                  dut.id_branch_target_addr);
       end
       
-      // Mostrar información de verificación de saltos
-      if (dut.i_ex_branch) begin
-        $display("BRANCH CHECK: actually taken=%0b, mispredicted=%0b", 
-                 dut.ex_branch_taken, 
-                 dut.ex_mispredicted);
-      end
-      
-      // Mostrar información de la unidad de forwarding
+      // Mostrar información de la unidad de forwarding de ID y EX
       begin
-        $display("FORWARDING: ForwardA=%0b, ForwardB=%0b", 
+        $display("ID_FORWARDING: ForwardA=%0b, ForwardB=%0b, RS=%0d, RT=%0d", 
+                 dut.id_forward_a,
+                 dut.id_forward_b,
+                 dut.id_rs,
+                 dut.id_rt);
+                 
+        $display("ID_BRANCH_CONTROL: branch=%0b, branch_taken=%0b, jump_taken=%0b, target=0x%h", 
+                 dut.id_branch,
+                 dut.id_branch_taken,
+                 dut.id_jump_taken,
+                 dut.id_branch_target_addr);
+                 
+        $display("EX_FORWARDING: ForwardA=%0b, ForwardB=%0b", 
                  dut.ex_stage_inst.forward_a,
                  dut.ex_stage_inst.forward_b);
         

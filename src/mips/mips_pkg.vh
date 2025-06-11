@@ -9,9 +9,13 @@
 `define OPCODE_ADDIU    6'b001001
 `define OPCODE_ANDI     6'b001100
 `define OPCODE_ORI      6'b001101
+`define OPCODE_XORI     6'b001110  // XOR Immediate
 `define OPCODE_SLTI     6'b001010
+`define OPCODE_SLTIU    6'b001011  // Añadido SLTIU - Set on Less Than Immediate Unsigned
 `define OPCODE_LW       6'b100011
 `define OPCODE_SW       6'b101011
+`define OPCODE_SB       6'b101000  // Store Byte
+`define OPCODE_SH       6'b101001  // Store Halfword
 `define OPCODE_BEQ      6'b000100
 `define OPCODE_BNE      6'b000101
 `define OPCODE_J        6'b000010
@@ -46,11 +50,12 @@
 `define FUNC_JALR   6'b001001   // Jump And Link Register
 
 // ALU Operations
-`define ALU_OP_WIDTH    2
-`define ALU_OP_ADD      2'b00
-`define ALU_OP_SUB      2'b01
-`define ALU_OP_RTYPE    2'b10
-`define ALU_OP_IMM      2'b11  // Para operaciones inmediatas como ANDI, ORI, SLTI
+`define ALU_OP_WIDTH    3
+`define ALU_OP_ADD      3'b000
+`define ALU_OP_SUB      3'b001
+`define ALU_OP_RTYPE    3'b010
+`define ALU_OP_IMM      3'b011  // Para operaciones inmediatas como ANDI, ORI, SLTI
+`define ALU_OP_LUI      3'b100  // Operación específica para LUI
 
 // ALU Control Signals
 `define ALU_CTRL_WIDTH  4
@@ -65,6 +70,7 @@
 `define ALU_SLL         4'b1000
 `define ALU_SRL         4'b1010  
 `define ALU_SRA         4'b1011
+`define ALU_LUI         4'b1110  // Load Upper Immediate
 
 // Control Signals Default Values
 `define CTRL_REG_DST_RT     1'b0

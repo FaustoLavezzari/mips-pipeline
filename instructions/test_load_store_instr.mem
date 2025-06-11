@@ -1,0 +1,42 @@
+// // # Programa de prueba para SB, LB, LBU, SH, LH, LHU, SW, LW, LWU
+
+// // # === TEST SB, LB, LBU ===
+200100FF  // addi $1,  $0,   255      // # $1 = 0x000000FF
+A0010000  // sb   $1,  0($0)         // # mem[0] = 0xFF
+90020000  // lbu  $2,  0($0)         // # $2 = 0x000000FF
+80030000  // lb   $3,  0($0)         // # $3 = 0xFFFFFFFF
+
+// // # === TEST SH, LH, LHU (positivo) ===
+20041234  // addi $4,  $0,  4660     // # $4 = 0x00001234
+A4040002  // sh   $4,  2($0)         // # mem[2..3] = 0x1234
+94050002  // lhu  $5,  2($0)         // # $5 = 0x00001234 (sin signo)
+84060002  // lh   $6,  2($0)         // # $6 = 0x00001234 (sign-extend)
+
+// // # === TEST SH, LH, LHU (negativo) ===
+200DCFC7  // addi $13, $0, -12345    // # $13 = 0xFFFFCFC7
+A40D000A  // sh   $13,10($0)         // # mem[10..11] = 0xCFC7
+840E000A  // lh   $14,10($0)         // # $14 = 0xFFFFCFC7
+940F000A  // lhu  $15,10($0)         // # $15 = 0x0000CFC7
+
+// // # === TEST SW, LW, LWU (positivo) ===
+20075678  // addi $7,  $0,  22136    // # $7 = 0x00005678
+AC070004  // sw   $7,  4($0)         // # mem[4..7] = 0x00005678
+8C080004  // lw   $8,  4($0)         // # $8 = 0x00005678
+9C090004  // lwu  $9,  4($0)         // # $9 = 0x00005678
+
+// // # === TEST SW, LW, LWU (negativo) ===
+200AFFFF  // addi $10, $0,   -1     // # $10 = 0xFFFFFFFF
+AC0A0008  // sw   $10,  8($0)        // # mem[8..11] = 0xFFFFFFFF
+8C0B0008  // lw   $11,  8($0)        // # $11 = 0xFFFFFFFF
+9C0C0008  // lwu  $12,  8($0)        // # $12 = 0xFFFFFFFF
+
+// # === TEST SB, LB, LBU (negativo) ===
+2010FFFE  // addi $16, $0,   -2     // # $16 = 0xFFFFFFFE
+A010000C  // sb   $16,12($0)         // # mem[12] = 0xFE
+9011000C  // lbu  $17,12($0)         // # $17 = 0x000000FE
+8012000C  // lb   $18,12($0)         // # $18 = 0xFFFFFFFE
+
+// # NOPs para rellenar
+00000000  // nop
+00000000  // nop
+00000000  // nop

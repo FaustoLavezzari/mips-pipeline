@@ -9,7 +9,7 @@ module mips(
 );
 
   // Señales para las etapas
-  //  == Señales para las etapas ==========
+  // ========== Señales para las etapas ==========
   wire [31:0] ex_alu_result;
   wire [31:0] ex_write_data;
   wire [4:0]  ex_write_register;
@@ -17,11 +17,8 @@ module mips(
   wire        ex_mem_read;
   wire        ex_mem_write;
   wire        ex_mem_to_reg;
-  wire        ex_branch;
-  wire        ex_branch_taken;     // Indica si el salto se toma realmente
-  wire        ex_mispredicted;     // Indica si hubo un error en la predicción
-  wire [31:0] ex_pc_plus_4;        // PC+4 para JAL/JALR
-  wire        ex_is_jal;           // Señal para indicar JAL/JALR
+  wire        ex_branch;          // Mantener por compatibilidad
+  // Ya no necesitamos señales especiales para JAL/JALR en las salidas de EX
   
   wire [31:0] mem_alu_result;
   wire [31:0] mem_write_data;
@@ -31,16 +28,15 @@ module mips(
   wire        mem_mem_write;
   wire        mem_mem_to_reg;
   wire [31:0] mem_read_data;
-  wire [31:0] mem_pc_plus_4;        // PC+4 para JAL/JALR
-  wire        mem_is_jal;           // Señal para indicar JAL/JALR
+  // Ya no necesitamos señales especiales para JAL/JALR en MEM
+  wire [5:0]  mem_opcode;           // Opcode para identificar el tipo de instrucción
   
   // Señales adicionales para propagar la etapa MEM
   wire [31:0] mem_alu_result_out;
   wire [4:0]  mem_write_register_out;
   wire        mem_reg_write_out;
   wire        mem_mem_to_reg_out;
-  wire [31:0] mem_pc_plus_4_out;     // PC+4 para JAL/JALR propagado
-  wire        mem_is_jal_out;        // Señal JAL/JALR propagada
+  // Ya no necesitamos señales especiales para JAL/JALR propagadas en MEM
   
   // ========== Señales de la etapa WB ==========
   wire [31:0] wb_alu_result;
@@ -48,8 +44,7 @@ module mips(
   wire [4:0]  wb_write_register;
   wire        wb_reg_write;
   wire        wb_mem_to_reg;
-  wire [31:0] wb_pc_plus_4;       // PC+4 para JAL/JALR
-  wire        wb_is_jal;          // Señal para JAL/JALR
+  // Ya no necesitamos señales especiales para JAL/JALR en WB
   wire [31:0] wb_write_data;      // Dato a escribir en el banco de registros
   wire [4:0]  wb_write_register_out; // Señal corregida de salida de la etapa WB
   wire        wb_reg_write_out;      // Señal corregida de salida de la etapa WB
@@ -70,19 +65,25 @@ module mips(
   wire [4:0]  id_shamt;           // Campo shamt para instrucciones SLL/SRL
   wire [5:0]  id_function;
   wire [5:0]  id_opcode;
+  
+  // ========== Señales para ID forwarding ==========
+  wire [1:0]  id_forward_a;      // Señal de control para forwarding a RS en ID
+  wire [1:0]  id_forward_b;      // Señal de control para forwarding a RT en ID
   wire        id_alu_src;
-  wire [1:0]  id_alu_op;
+  wire [2:0]  id_alu_op;
   wire        id_reg_dst;
   wire        id_reg_write;
   wire        id_mem_read;
   wire        id_mem_write;
   wire        id_mem_to_reg;
   wire        id_branch;
-  wire        id_branch_prediction;      // Señal de predicción (0 = not taken)
+  wire        id_branch_prediction;      // Señal de predicción (para compatibilidad)
   wire [31:0] id_branch_target_addr;     // Dirección destino del salto
   
-  // ========== Señales para branch prediction ==========
-  wire        id_branch_prediction;
+  // ========== Nuevas señales para control de saltos en ID ==========
+  wire        id_branch_taken;          // Indica si un salto condicional debe tomarse
+  wire        id_jump_taken;            // Indica si es un salto incondicional
+  wire        id_is_jal;                // Indica si es una instrucción JAL (Jump and Link)
 
   // ========== Señales del latch ID/EX ==========
   wire [31:0] ex_read_data_1;
@@ -102,23 +103,21 @@ module mips(
   
   // ========== Señales de control entre ID/EX y EX ==========
   wire        i_ex_alu_src;
-  wire [1:0]  i_ex_alu_op;
+  wire [2:0]  i_ex_alu_op;
   wire        i_ex_reg_dst;
   wire        i_ex_reg_write;
   wire        i_ex_mem_read;
   wire        i_ex_mem_write;
   wire        i_ex_mem_to_reg;
   wire        i_ex_branch;
+  wire        i_ex_is_jal;      // Señal JAL para EX
 
   // ========== Hazard detection signals ==========
-  wire       pipeline_stall;    // Signal to stall pipeline
-  wire       pipeline_flush;    // Signal to flush pipeline
-  wire       early_stage_flush; // Signal to flush only early pipeline stages (IF/ID, ID/EX)
-  wire       control_hazard;    // Signal for control hazard propagation
-  wire       halt_detected;     // Signal for HALT instruction detected
-  
-  // Solo aplicamos flush a etapas tempranas, no a MEM/WB
-  assign early_stage_flush = pipeline_flush;
+  wire       pipeline_stall;      // Signal to stall pipeline
+  wire       flush_if_id;         // Signal to flush IF/ID stage (branch/jump hazard)
+  wire       flush_id_ex;         // Signal to flush ID/EX stage (load hazard)
+  wire       control_hazard;      // Signal for control hazard propagation
+  wire       halt_detected;       // Signal for HALT instruction detected
   
   // ========== Instancia de la unidad de detección de riesgos ==========
   hazard_detection hazard_detection_unit(
@@ -128,25 +127,37 @@ module mips(
     .i_id_ex_mem_read      (i_ex_mem_read),   // MemRead signal in EX stage
     .i_if_id_opcode        (id_opcode),       // Opcode from ID stage
     .i_if_id_funct         (id_function),     // Function code from ID stage
-    .i_branch_taken        (ex_branch_taken),      // Branch taken signal
-    .i_branch_mispredicted (ex_mispredicted), // Branch misprediction
+    .i_id_branch_taken     (id_branch_taken), // Branch taken signal desde ID
+    .i_id_jump_taken       (id_jump_taken),   // Jump taken signal desde ID
     .o_stall              (pipeline_stall),   // Stall signal
-    .o_flush              (pipeline_flush),   // Flush signal
+    .o_flush_id_ex        (flush_id_ex),      // Flush signal for ID/EX stage
+    .o_flush_if_id        (flush_if_id),      // Flush signal for IF/ID stage
     .o_ctrl_hazard        (control_hazard),   // Control hazard signal
     .o_halt               (halt_detected)     // HALT instruction detected
+  );
+  
+  // ========== Instancia de la unidad de forwarding para ID ==========
+  id_forwarding id_forwarding_inst(
+    .i_id_rs          (id_rs),                   // RS en ID
+    .i_id_rt          (id_rt),                   // RT en ID
+    .i_ex_rd          (ex_write_register),       // Registro destino en EX
+    .i_ex_reg_write   (ex_reg_write),            // RegWrite en EX
+    .i_mem_rd         (mem_write_register),      // Registro destino en MEM
+    .i_mem_reg_write  (mem_reg_write),           // RegWrite en MEM
+    .i_wb_rd          (wb_write_register_out),   // Registro destino en WB
+    .i_wb_reg_write   (wb_reg_write_out),        // RegWrite en WB
+    .o_forward_a      (id_forward_a),            // Señal de control para forwarding de RS
+    .o_forward_b      (id_forward_b)             // Señal de control para forwarding de RT
   );
 
   // ========== Instancia de la etapa IF ==========
   if_stage if_stage_inst(
     .clk                (clk),
     .reset              (reset),
-    // Señales de predicción desde ID
-    .i_branch_prediction(id_branch_prediction),
+    // Nuevas señales de control de saltos desde ID
+    .i_branch_taken     (id_branch_taken),
+    .i_jump_taken       (id_jump_taken),
     .i_branch_target_addr(id_branch_target_addr),
-    // Señales de corrección desde EX
-    .i_mispredicted     (ex_mispredicted),
-    .i_branch_taken     (ex_branch_taken),
-    .i_ex_branch_target (ex_branch_target_addr),
     // Señales de control de pipeline
     .i_halt             (halt_detected),
     .i_stall            (pipeline_stall),    // Conectar señal de stall
@@ -158,8 +169,8 @@ module mips(
   if_id if_id_reg(
     .clk         (clk),
     .reset       (reset),
-    .flush       (early_stage_flush), // Usamos early_stage_flush ya que IF/ID siempre debe limpiarse
-    .stall       (pipeline_stall),    // Connect stall signal
+    .flush       (flush_if_id),      // Flush IF/ID cuando hay branch/jump taken
+    .stall       (pipeline_stall),   // Connect stall signal
     .next_pc_in  (if_next_pc),
     .instr_in    (if_instr),
     .next_pc_out (id_next_pc),
@@ -172,9 +183,27 @@ module mips(
     .reset              (reset),
     .i_next_pc          (id_next_pc),
     .i_instruction      (id_instr),
+    
+    // Señales para el banco de registros
     .i_reg_write        (wb_reg_write_out),      // Corregido para usar señal WB de salida
     .i_write_register   (wb_write_register_out), // Corregido para usar señal WB de salida
     .i_write_data       (wb_write_data),         // Esta señal está correcta
+    
+    // Entradas para forwarding desde EX
+    .i_ex_write_register(ex_write_register),
+    .i_ex_reg_write    (ex_reg_write),
+    .i_ex_alu_result   (ex_alu_result),
+    
+    // Entradas para forwarding desde MEM
+    .i_mem_write_register(mem_write_register),
+    .i_mem_reg_write   (mem_reg_write),
+    .i_mem_alu_result  (mem_alu_result),
+    
+    // Señales de control de forwarding
+    .i_forward_a       (id_forward_a),
+    .i_forward_b       (id_forward_b),
+    
+    // Salidas de valores de registros
     .o_read_data_1      (id_read_data_1),
     .o_read_data_2      (id_read_data_2),
     .o_sign_extended_imm(id_sign_extended_imm),
@@ -192,15 +221,18 @@ module mips(
     .o_mem_write        (id_mem_write),
     .o_mem_to_reg       (id_mem_to_reg),
     .o_branch           (id_branch),
-    .o_branch_prediction(id_branch_prediction),
-    .o_branch_target_addr(id_branch_target_addr)
+    .o_is_jal           (id_is_jal),               // Señal para JAL
+    .o_branch_prediction(id_branch_prediction),    // Mantiene para compatibilidad
+    .o_branch_target_addr(id_branch_target_addr),  // Dirección de destino
+    .o_branch_taken     (id_branch_taken),         // Nueva señal: branch tomado
+    .o_jump_taken       (id_jump_taken)            // Nueva señal: jump tomado
   );
 
   // ========== Instancia del latch ID/EX ==========
 id_ex id_ex_latch(
     .clk                  (clk),
     .reset                (reset),
-    .flush                (early_stage_flush), // Usamos early_stage_flush para ID/EX
+    .flush                (flush_id_ex),      // Flush ID/EX cuando hay load hazard
     .read_data_1_in       (id_read_data_1),
     .read_data_2_in       (id_read_data_2),
     .sign_extended_imm_in (id_sign_extended_imm),
@@ -219,6 +251,7 @@ id_ex id_ex_latch(
     .mem_write_in         (id_mem_write),
     .mem_to_reg_in        (id_mem_to_reg),
     .branch_in            (id_branch),
+    .is_jal_in            (id_is_jal),            // Nueva señal para JAL
     .branch_prediction_in(id_branch_prediction),
     .branch_target_addr_in(id_branch_target_addr),
     .read_data_1_out      (ex_read_data_1),
@@ -230,6 +263,7 @@ id_ex id_ex_latch(
     .shamt_out            (ex_shamt),         // Campo shamt para instrucciones SLL/SRL
     .function_out         (ex_function),
     .opcode_out           (ex_opcode),
+    .next_pc_out          (ex_next_pc),         // PC+4 para JAL/JALR
     .alu_src_out          (i_ex_alu_src),
     .alu_op_out           (i_ex_alu_op),
     .reg_dst_out          (i_ex_reg_dst),
@@ -238,8 +272,25 @@ id_ex id_ex_latch(
     .mem_write_out        (i_ex_mem_write),
     .mem_to_reg_out       (i_ex_mem_to_reg),
     .branch_out           (i_ex_branch),
+    .is_jal_out           (i_ex_is_jal),         // Salida de señal para JAL
     .branch_prediction_out(ex_branch_prediction),
     .branch_target_addr_out(ex_branch_target_addr)
+  );
+  
+  // ========== Señales para la unidad de forwarding de EX ==========
+  wire [1:0] ex_forward_a;  // Control para operando A (RS) en EX
+  wire [1:0] ex_forward_b;  // Control para operando B (RT) en EX
+  
+  // ========== Instancia de la unidad de forwarding para EX ==========
+  forwarding_unit forwarding_ex_inst(
+    .i_ex_rs        (ex_rs),                 // RS en EX
+    .i_ex_rt        (ex_rt),                 // RT en EX
+    .i_mem_rd       (mem_write_register),    // Registro destino en MEM
+    .i_mem_reg_write(mem_reg_write),         // RegWrite en MEM
+    .i_wb_rd        (wb_write_register_out), // Registro destino en WB
+    .i_wb_reg_write (wb_reg_write_out),      // RegWrite en WB
+    .o_forward_a    (ex_forward_a),          // Control para operando A
+    .o_forward_b    (ex_forward_b)           // Control para operando B
   );
   
   // ========== Instancia de la etapa EX ==========
@@ -264,6 +315,8 @@ id_ex id_ex_latch(
     .i_wb_write_register (wb_write_register_out), // Registro destino en WB
     .i_wb_reg_write      (wb_reg_write_out),      // RegWrite en WB
     .i_wb_write_data     (wb_write_data),         // Dato de WB
+    .i_forward_a         (ex_forward_a),          // Control de forwarding para RS
+    .i_forward_b         (ex_forward_b),          // Control de forwarding para RT
     
     .i_alu_src           (i_ex_alu_src),
     .i_alu_op            (i_ex_alu_op),
@@ -272,9 +325,9 @@ id_ex id_ex_latch(
     .i_mem_read          (i_ex_mem_read),
     .i_mem_write         (i_ex_mem_write),
     .i_mem_to_reg        (i_ex_mem_to_reg),
-    .i_branch            (i_ex_branch),
-    .i_branch_prediction (ex_branch_prediction),
-    .i_branch_target_addr(ex_branch_target_addr),
+    .i_branch            (i_ex_branch),       // Mantener por compatibilidad
+    .i_is_jal            (i_ex_is_jal),       // Para JAL/JALR
+    
     .o_alu_result        (ex_alu_result),
     .o_read_data_2       (ex_write_data),
     .o_write_register    (ex_write_register),
@@ -282,11 +335,7 @@ id_ex id_ex_latch(
     .o_mem_read          (ex_mem_read),
     .o_mem_write         (ex_mem_write),
     .o_mem_to_reg        (ex_mem_to_reg),
-    .o_branch            (ex_branch),
-    .o_branch_taken      (ex_branch_taken),
-    .o_mispredicted      (ex_mispredicted),
-    .o_pc_plus_4         (ex_pc_plus_4),     // PC+4 para JAL/JALR
-    .o_is_jal            (ex_is_jal)         // Señal para JAL/JALR
+    .o_branch            (ex_branch)          // Mantener por compatibilidad
   );
   
   // ========== Instancia del latch EX/MEM ==========
@@ -301,8 +350,7 @@ id_ex id_ex_latch(
     .mem_read_in         (ex_mem_read),       // Usando salida de EX stage
     .mem_write_in        (ex_mem_write),      // Usando salida de EX stage
     .mem_to_reg_in       (ex_mem_to_reg),     // Usando salida de EX stage
-    .pc_plus_4_in        (ex_pc_plus_4),      // PC+4 para JAL/JALR
-    .is_jal_in           (ex_is_jal),         // Señal para JAL/JALR
+    .opcode_in           (ex_opcode),         // Propagar el opcode a MEM
     .alu_result_out      (mem_alu_result),
     .read_data_2_out     (mem_write_data),
     .write_register_out  (mem_write_register),
@@ -310,8 +358,7 @@ id_ex id_ex_latch(
     .mem_read_out        (mem_mem_read),
     .mem_write_out       (mem_mem_write),
     .mem_to_reg_out      (mem_mem_to_reg),
-    .pc_plus_4_out       (mem_pc_plus_4),
-    .is_jal_out          (mem_is_jal)
+    .opcode_out          (mem_opcode)
   );
   
   // ========== Instancia de la etapa MEM ==========
@@ -325,15 +372,12 @@ id_ex id_ex_latch(
     .mem_read_in      (mem_mem_read),
     .mem_write_in     (mem_mem_write),
     .mem_to_reg_in    (mem_mem_to_reg),
-    .pc_plus_4_in     (mem_pc_plus_4),     // PC+4 para JAL/JALR
-    .is_jal_in        (mem_is_jal),        // Señal para JAL/JALR
+    .opcode_in        (mem_opcode),        // Opcode para identificar el tipo de instrucción
     .read_data_out    (mem_read_data),
     .alu_result_out   (mem_alu_result_out),
     .write_register_out(mem_write_register_out),
     .reg_write_out    (mem_reg_write_out),
-    .mem_to_reg_out   (mem_mem_to_reg_out),
-    .pc_plus_4_out    (mem_pc_plus_4_out),
-    .is_jal_out       (mem_is_jal_out)
+    .mem_to_reg_out   (mem_mem_to_reg_out)
   );
   
   // ========== Instancia del latch MEM/WB ==========
@@ -346,15 +390,11 @@ id_ex id_ex_latch(
     .write_register_in   (mem_write_register_out),
     .reg_write_in        (mem_reg_write_out),
     .mem_to_reg_in       (mem_mem_to_reg_out),
-    .pc_plus_4_in        (mem_pc_plus_4_out),
-    .is_jal_in           (mem_is_jal_out),
     .alu_result_out      (wb_alu_result),
     .read_data_out       (wb_read_data),
     .write_register_out  (wb_write_register),
     .reg_write_out       (wb_reg_write),
-    .mem_to_reg_out      (wb_mem_to_reg),
-    .pc_plus_4_out       (wb_pc_plus_4),
-    .is_jal_out          (wb_is_jal)
+    .mem_to_reg_out      (wb_mem_to_reg)
   );
   
   // ========== Instancia de la etapa WB ==========
@@ -367,8 +407,6 @@ id_ex id_ex_latch(
     .i_write_register (wb_write_register),
     .i_reg_write      (wb_reg_write),
     .i_mem_to_reg     (wb_mem_to_reg),
-    .i_pc_plus_4      (wb_pc_plus_4),
-    .i_is_jal         (wb_is_jal),
     .o_write_data     (wb_write_data),
     .o_write_register (wb_write_register_out),  // Renombramos para evitar el cortocircuito
     .o_reg_write      (wb_reg_write_out)        // Renombramos para evitar el cortocircuito

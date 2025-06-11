@@ -4,14 +4,11 @@
 module if_stage(
   input  wire       clk,
   input  wire       reset,
-  // Entradas para branch prediction desde ID
-  input  wire       i_branch_prediction,     // Señal de predicción (0 para not taken)
-  input  wire [31:0] i_branch_target_addr,   // Dirección de destino del salto
   
-  // Entradas para corrección de predicciones desde EX
-  input  wire       i_mispredicted,          // Indica si hubo un error en la predicción
-  input  wire       i_branch_taken,          // Indica si el salto se toma realmente
-  input  wire [31:0] i_ex_branch_target,     // Dirección destino desde EX
+  // Entradas para control de saltos desde ID (nueva implementación)
+  input  wire       i_branch_taken,          // Indica si el salto condicional se toma
+  input  wire       i_jump_taken,            // Indica si es un salto incondicional
+  input  wire [31:0] i_branch_target_addr,   // Dirección de destino del salto
   
   // Entradas para manejo de stalls
   input  wire       i_halt,                  // Señal de HALT para detener el PC
@@ -32,20 +29,19 @@ module if_stage(
     .out  (pc_next)
   );
   
-  // Seleccionar PC basado en predicciones y posibles correcciones
-  // Prioridad: 1. Corrección de predicción 2. Predicción normal
-  wire [31:0] branch_target = i_mispredicted ? 
-                             (i_branch_taken ? i_ex_branch_target : pc_next) : 
-                             (i_branch_prediction ? i_branch_target_addr : pc_next);
-  wire        take_branch = i_mispredicted || i_branch_prediction;
+  // Decidir si se toma cualquier tipo de salto (condicional o incondicional)
+  wire branch_or_jump_taken = i_branch_taken || i_jump_taken;
+  
+  // Seleccionar la dirección de destino
+  wire [31:0] next_pc_value = branch_or_jump_taken ? i_branch_target_addr : pc_next;
 
   // Actualizar el PC con el valor seleccionado
   PC pc_inst(
     .clk           (clk),    
     .reset         (reset),
     .next_pc       (pc_next),
-    .branch_target (branch_target),
-    .take_branch   (take_branch),
+    .branch_target (i_branch_target_addr),
+    .take_branch   (branch_or_jump_taken),
     .halt          (i_halt),
     .stall         (i_stall),
     .pc            (pc)

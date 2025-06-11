@@ -1,0 +1,149 @@
+// Memoria de instrucciones para testear instrucciones I-Type en el pipeline MIPS
+// Cada línea contiene una instrucción en formato hexadecimal de 32 bits
+
+// Inicialización de registros para las pruebas - Cada instrucción usa un registro diferente
+2001000A  // addi $1, $0, 10      # $1 = 10 (registro para operandos)
+20020014  // addi $2, $0, 20      # $2 = 20 (registro para operandos)
+20030000  // addi $3, $0, 0       # $3 = 0 (registro para operandos)
+20040064  // addi $4, $0, 100     # $4 = 100 (base para pruebas de memoria)
+24050028  // addiu $5, $0, 40     # $5 = 40 (usando addiu)
+30060005  // andi $6, $0, 5       # $6 = 0 & 5 = 0
+34070007  // ori $7, $0, 7        # $7 = 0 | 7 = 7
+2008000F  // slti $8, $0, 15      # $8 = (0 < 15) ? 1 : 0 = 1
+290901F4  // slti $9, $8, 500     # $9 = (1 < 500) ? 1 : 0 = 1
+2D280001  // sltiu $8, $9, 1      # $8 = (1 < 1) ? 1 : 0 = 0 (unsigned)
+
+// Prueba instrucciones de carga/almacenamiento
+AC010000  // sw $1, 0($0)         # Mem[0] = 10
+AC020004  // sw $2, 4($0)         # Mem[1] = 20
+200BFFF6  // addi $11, $0, -10    # $11 = -10 (para guardar en memoria)
+AC0B0008  // sw $11, 8($0)        # Mem[2] = -10
+8C0C0000  // lw $12, 0($0)        # $12 = Mem[0] = 10
+8C0D0004  // lw $13, 4($0)        # $13 = Mem[1] = 20
+8C0E0008  // lw $14, 8($0)        # $14 = Mem[2] = -10
+
+// Pruebas de memoria con desplazamiento
+AC820000  // sw $2, 0($4)         # Mem[100/4] = 20
+8C8F0000  // lw $15, 0($4)        # $15 = Mem[100/4] = 20
+AC810004  // sw $1, 4($4)         # Mem[104/4] = 10
+8C900004  // lw $16, 4($4)        # $16 = Mem[104/4] = 10
+
+// Pruebas de instrucciones de salto
+// BEQ - Si $1==$12 (ambos 10), salta 2 instrucciones
+10200002  // beq $1, $0, 2        # No salta (10 != 0)
+102C0003  // beq $1, $12, 3       # Salta 3 instrucciones (10 == 10)
+20110077  // addi $17, $0, 119    # Esta instrucción no se ejecuta si el salto se toma
+20110078  // addi $17, $0, 120    # Esta instrucción no se ejecuta si el salto se toma
+20110079  // addi $17, $0, 121    # Esta instrucción no se ejecuta si el salto se toma
+2011007A  // addi $17, $0, 122    # $17 = 122 (esta se ejecuta después del salto)
+
+// BNE - Si $1!=$0 (10!=0), salta 2 instrucciones
+14200003  // bne $1, $0, 3        # Salta 3 instrucciones (10 != 0)
+2012007B  // addi $18, $0, 123    # Esta instrucción no se ejecuta si el salto se toma
+2012007C  // addi $18, $0, 124    # Esta instrucción no se ejecuta si el salto se toma
+2012007D  // addi $18, $0, 125    # Esta instrucción no se ejecuta si el salto se toma
+2012007E  // addi $18, $0, 126    # $18 = 126 (esta se ejecuta después del salto)
+
+// Prueba de Jump
+08000035  // j 0x0D (decimal: 13) # Salta a la instrucción 53 (adelante)
+20130001  // addi $19, $0, 1      # Esta instrucción no se ejecuta si el salto se toma
+20130002  // addi $19, $0, 2      # Esta instrucción no se ejecuta si el salto se toma
+20130003  // addi $19, $0, 3      # Esta instrucción no se ejecuta si el salto se toma
+20130004  // addi $19, $0, 4      # Esta instrucción no se ejecuta si el salto se toma
+
+// Instrucciones de nop hasta la instrucción 54 (donde apunta el jump)
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+
+// Instrucción 53: Después del jump
+20130064  // addi $19, $0, 100    # $19 = 100 (se ejecuta después del jump)
+
+// Prueba JAL - Jump & Link
+0C000038  // jal 0x38 (decimal: 56) # Salta a la instrucción 56 y guarda PC+4 en $ra
+20140001  // addi $20, $0, 1      # Esta instrucción no se ejecuta si el salto se toma
+
+// Instrucción 56: Destino de JAL
+2014000F  // addi $20, $0, 15     # $20 = 15 (se ejecuta después del jal)
+
+// Pruebas para LB, LH, LWU, LBU, LHU y LUI
+// Primero inicializar un valor de prueba en memoria con valores significativos
+201500FF  // addi $21, $0, 255    # $21 = 0x000000FF (255)
+AC950010  // sw $21, 16($4)       # Mem[104/4+4] = 0x000000FF
+
+3C16ABCD  // lui $22, 0xABCD      # $22 = 0xABCD0000 (cargar en los 16 bits superiores)
+80970010  // lb $23, 16($4)       # $23 = sign_ext(Mem[104/4+4][7:0]) = sign_ext(0xFF) = -1 (0xFFFFFFFF)
+90980010  // lbu $24, 16($4)      # $24 = zero_ext(Mem[104/4+4][7:0]) = 255 (0x000000FF)
+
+// Preparar valores para probar halfword
+20190102  // addi $25, $0, 258    # $25 = 0x00000102 (258)
+AC990014  // sw $25, 20($4)       # Mem[104/4+5] = 0x00000102
+
+849A0014  // lh $26, 20($4)       # $26 = sign_ext(Mem[104/4+5][15:0]) = sign_ext(0x0102) = 258
+949B0014  // lhu $27, 20($4)      # $27 = zero_ext(Mem[104/4+5][15:0]) = 258
+8C9C0014  // lw $28, 20($4)       # $28 = Mem[104/4+5] = 258 (0x00000102)
+9C9D0014  // lwu $29, 20($4)      # $29 = Mem[104/4+5] = 258 (en MIPS32, lwu = lw)
+
+// Prueba para valores negativos en halfword
+201EFF00  // addi $30, $0, -256   # $30 = 0xFFFFFF00 (-256)
+AC9E0018  // sw $30, 24($4)       # Mem[104/4+6] = 0xFFFFFF00
+
+848A0018  // lh $10, 24($4)       # $10 = sign_ext(Mem[104/4+6][15:0]) = sign_ext(0xFF00) = -256
+948B0018  // lhu $11, 24($4)      # $11 = zero_ext(Mem[104/4+6][15:0]) = 65280 (0x0000FF00)
+
+// Otra prueba con LUI
+3C091234  // lui $9, 0x1234       # $9 = 0x12340000
+
+// Prueba XORI
+20010055  // addi $1, $0, 85     # $1 = 0x00000055 (85)
+382100FF  // xori $1, $1, 0xFF  # $1 = 0x00000055 XOR 0x000000FF = 0x000000AA (170)
+
+// Prueba SB - Store Byte - usamos un área nueva de memoria para no afectar pruebas anteriores
+A09F001C  // sb  $31, 28($4)      # Mem[(100+28)/4][7:0] = 0xDC (guarda el byte menos significativo de 220 decimal)
+8C91001C  // lw  $17, 28($4)      # $17 = 0x000000DC (220 decimal) al cargar la palabra completa
+
+// Prueba SH - Store Halfword - usamos $31 que ya ha sido verificado
+A49F0020  // sh  $31, 32($4)      # Mem[(100+32)/4][15:0] = 0x00DC (guarda el halfword menos significativo de 220 decimal)
+8C920020  // lw  $18, 32($4)      # $18 = 0x000000DC (220 decimal) al cargar la palabra completa
+
+
+// Instrucciones adicionales para asegurar que todo se complete
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+00000000  // nop
+
+// Resumen de registros después de la ejecución (para verificación):
+// Operandos y registros base:
+// $1 = 10, $2 = 20, $3 = 0, $4 = 100 (base para memoria)
+//
+// Instrucciones básicas y comparaciones:
+// $5 = 40 (addiu), $6 = 0 (andi), $7 = 7 (ori), $8 = 0x000000AA (xori), $9 = 0x12340000 (lui), $10 = -256 (lh)
+//
+// Pruebas de carga/almacenamiento:
+// $11 = 65280 (lhu - sobrescribe el valor inicial de -10), $12 = 10 (lw), $13 = valor del sh (lw), $14 = -10 (lw), $15 = valor del sb (lw), $16 = 10 (lw)
+//
+// Pruebas de salto:
+// $17 = 122 (beq), $18 = 126 (bne), $19 = 100 (jump), $20 = 15 (jal)
+//
+// Pruebas de manejo de bytes/halfwords:
+// $21 = 255, $22 = 0xABCD0000 (lui), $23 = -1 (lb), $24 = 255 (lbu)
+// $25 = 258, $26 = 258 (lh), $27 = 258 (lhu), $28 = 258 (lw), $29 = 258 (lwu)
+// $30 = -256
+//
+// $31 (registro $ra) = PC+4 del JAL (para regresar después de la función)

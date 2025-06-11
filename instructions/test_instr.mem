@@ -30,12 +30,11 @@ AC840004  // sw $4, 4($4)         # Mem[39] = $4 = 35 (forwarding de $4)
 // Recuperar valor original de $3 para las pruebas siguientes
 20030064  // addi $3, $0, 100     # $3 = 100 (restauramos dirección memoria)
 
-
 // Almacenar y leer valores para usarlos más adelante
 AC650000  // sw $5, 0($3)         # Mem[100] = $5 = 5
-AC660004  // sw $6, 4($3)         # Mem[104] = $6 = 5
 8C6B0000  // lw $11, 0($3)        # $11 = Mem[100] = 5
 01666020  // add $12, $11, $6     # $12 = $11 + $6 = 5 + 5 = 10 (ahora con MEM-EX forwarding)
+AC660004  // sw $6, 4($3)         # Mem[104] = $6 = 5
 8C6B0004  // lw $11, 4($3)        # $11 = Mem[104] = 5
 00A66826  // xor $13, $5, $6      # $13 = $5 ^ $6 = 5 ^ 5 = 0
 

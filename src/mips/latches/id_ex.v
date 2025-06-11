@@ -15,17 +15,18 @@ module id_ex(
   input  wire [4:0]  shamt_in,            // Campo shamt para instrucciones SLL/SRL
   input  wire [5:0]  function_in,
   input  wire [5:0]  opcode_in,
-  input  wire [31:0] next_pc_in,          // PC+4 para instrucciones JAL/JALR
+  input  wire [31:0] next_pc_in,          // PC+4 (solo para uso general)
   
   // Señales de control de ID
   input  wire        alu_src_in,
-  input  wire [1:0]  alu_op_in,
+  input  wire [2:0]  alu_op_in,
   input  wire        reg_dst_in,
   input  wire        reg_write_in,
   input  wire        mem_read_in,
   input  wire        mem_write_in,
   input  wire        mem_to_reg_in,
   input  wire        branch_in,
+  input  wire        is_jal_in,    // Nueva señal para JAL
   
   // Señales para branch prediction
   input  wire        branch_prediction_in,
@@ -45,13 +46,14 @@ module id_ex(
 
   // Señales de control hacia EX
   output reg         alu_src_out,
-  output reg  [1:0]  alu_op_out,
+  output reg  [2:0]  alu_op_out,
   output reg         reg_dst_out,
   output reg         reg_write_out,
   output reg         mem_read_out,
   output reg         mem_write_out,
   output reg         mem_to_reg_out,
   output reg         branch_out,
+  output reg         is_jal_out,   // Salida de señal para JAL
   
   // Señales para branch prediction
   output reg         branch_prediction_out,
@@ -69,7 +71,7 @@ module id_ex(
       shamt_out             <= {`REG_ADDR_WIDTH{1'b0}};
       function_out          <= 6'b0;
       opcode_out            <= 6'b0;
-      next_pc_out           <= {`DATA_WIDTH{1'b0}};
+      next_pc_out           <= next_pc_in;
       
       // Señales de control - Desactivar todas en caso de flush o reset
       alu_src_out          <= `CTRL_ALU_SRC_REG;
@@ -80,6 +82,7 @@ module id_ex(
       mem_write_out        <= 1'b0;
       mem_to_reg_out       <= `CTRL_MEM_TO_REG_ALU;
       branch_out           <= `CTRL_BRANCH_DIS;
+      is_jal_out          <= 1'b0;                // No propagamos JAL en reset/flush
       branch_prediction_out <= 1'b0;
       branch_target_addr_out <= {`DATA_WIDTH{1'b0}};
     end
@@ -105,6 +108,7 @@ module id_ex(
       mem_write_out       <= mem_write_in;
       mem_to_reg_out      <= mem_to_reg_in;
       branch_out          <= branch_in;
+      is_jal_out          <= is_jal_in;            // Propagar señal JAL
       branch_prediction_out <= branch_prediction_in;
       branch_target_addr_out <= branch_target_addr_in;
     end

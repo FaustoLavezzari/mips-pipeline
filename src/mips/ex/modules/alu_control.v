@@ -3,7 +3,8 @@
 
 module alu_control(
   input  wire [5:0] func_code,   // Campo function de la instrucción
-  input  wire [1:0] alu_op,      // Señal de control de la ALU del control principal
+  input  wire [5:0] i_opcode,    // Opcode de la instrucción (para instrucciones I-type)
+  input  wire [2:0] alu_op,      // Señal de control de la ALU del control principal
   output reg  [3:0] alu_control  // Señal de control para la ALU
 );
 
@@ -14,6 +15,9 @@ module alu_control(
     case(alu_op)
       `ALU_OP_SUB: // BEQ, BNE - siempre resta (para comparar)
         alu_control = `ALU_SUB;
+        
+      `ALU_OP_LUI: // LUI - operación específica
+        alu_control = `ALU_LUI;
 
       `ALU_OP_RTYPE: begin // Instrucciones R-type - depende del campo function
         case(func_code)
@@ -55,13 +59,20 @@ module alu_control(
         endcase
       end
 
-      `ALU_OP_IMM: begin // ANDI, ORI, SLTI
-        if (func_code[5:0] == `OPCODE_ANDI)
-          alu_control = `ALU_AND; // ANDI
-        else if (func_code[5:0] == `OPCODE_ORI)
-          alu_control = `ALU_OR;  // ORI
-        else if (func_code[5:0] == `OPCODE_SLTI)
-          alu_control = `ALU_SLT; // SLTI
+      `ALU_OP_IMM: begin // ANDI, ORI, XORI, SLTI, SLTIU
+        // En lugar de comparar func_code con opcodes, usamos i_opcode pasado directamente
+        case(i_opcode)
+          `OPCODE_ANDI:  alu_control = `ALU_AND;  // ANDI
+          `OPCODE_ORI:   alu_control = `ALU_OR;   // ORI
+          `OPCODE_XORI:  alu_control = `ALU_XOR;  // XORI
+          `OPCODE_SLTI:  alu_control = `ALU_SLT;  // SLTI
+          `OPCODE_SLTIU: alu_control = `ALU_SLTU; // SLTIU - usa comparación sin signo
+          default:       alu_control = `ALU_ADD;  // Default para otras operaciones inmediatas
+        endcase
+      end
+      
+      `ALU_OP_LUI: begin // LUI
+        alu_control = `ALU_LUI;  // Operación específica para LUI
       end
       
     endcase

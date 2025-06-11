@@ -1,0 +1,44 @@
+// Archivo de instrucciones simple para probar JR y JALR (siempre guarda en $31)
+
+// === TEST JR ===
+// Inicializar registros
+20010005  // addi $1,  $0,   5    # $1 = 5
+20020064  // addi $2,  $0, 100    # $2 = 100
+20100018  // addi $16, $0,  24    # $16 = 24 (dirección para JR)
+
+// Instrucción JR
+02000008  // jr   $16             # Salta a la dirección en $16 (PC = 24)
+
+// Instrucciones que no deberían ejecutarse
+20030003  // addi $3,  $0,   3    # No se ejecuta
+20040004  // addi $4,  $0,   4    # No se ejecuta
+
+// destino_jr (PC = 24)
+20050099  // addi $5,  $0, 153    # $5 = 153 (ejecutada tras JR)
+20060006  // addi $6,  $0,   6    # $6 = 6
+
+// Nops para completar
+00000000  // nop
+00000000  // nop
+00000000  // nop
+
+
+// === MINI–TEST JALR (guarda retorno en $31) ===
+// Inicializar registro para salto
+20070040  // addi $7,  $0,  68    # $7 = 92 (dirección de salto)
+
+// Instrucción JALR
+00E0F809  // jalr $7             # Salta a PC=$7 (68), guarda PC+4 en $31
+
+// Instrucciones que no deberían ejecutarse tras el JALR
+20080008  // addi $8,  $0,   8    # No se ejecuta
+20090009  // addi $9,  $0,   9    # No se ejecuta
+200A000A  // addi $10, $0,  10    # No se ejecuta
+
+// Instrucción en destino de JALR (PC = 92)
+200B000B  // addi $11, $0,  11    # $11 = 11 (ejecutada tras JALR)
+
+// Nops para completar
+00000000  // nop
+00000000  // nop
+00000000  // nop
