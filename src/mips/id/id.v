@@ -45,14 +45,11 @@ module id_stage(
   output wire        o_mem_read,           // Control de lectura de memoria
   output wire        o_mem_write,          // Control de escritura en memoria
   output wire        o_mem_to_reg,         // Selección entre ALU o memoria para WB
-  output wire        o_branch,             // Indica si es una instrucción de salto
   output wire        o_is_jal,             // Indica si es un JAL (Jump And Link)
   
-  // Nuevas salidas para control de saltos en ID
-  output wire        o_branch_prediction,   // Indica si se predice un salto (1) o no (0)
-  output wire [31:0] o_branch_target_addr,  // Dirección de destino del salto 
-  output wire        o_branch_taken,        // Indica si el salto se toma realmente
-  output wire        o_jump_taken           // Indica si es un salto incondicional (J/JAL/JR/JALR)
+  // Salidas para control de saltos en ID (simplificadas)
+  output wire [31:0] o_branch_target_addr,  // Dirección de destino del salto
+  output wire        o_take_branch          // Señal unificada: saltar (1) o no (0)
 );
 
   // Extraer los campos de la instrucción
@@ -65,17 +62,10 @@ module id_stage(
   wire [25:0] target = i_instruction[25:0]; // Campo target para instrucciones J y JAL
   wire [5:0]  funct  = i_instruction[5:0];  // Campo function para instrucciones tipo R
   
-  // Detectar tipos de instrucciones de salto
-  wire is_beq = (opcode == `OPCODE_BEQ);
-  wire is_bne = (opcode == `OPCODE_BNE);
-  wire is_j   = (opcode == `OPCODE_J);
-  wire is_jal = (opcode == `OPCODE_JAL);
-  wire is_jr  = (opcode == `OPCODE_R_TYPE && funct == `FUNC_JR);
-  wire is_jalr = (opcode == `OPCODE_R_TYPE && funct == `FUNC_JALR);
-  
-  // Extension de signo para el immediate, o 0 para JAL/JALR para que no afecte al PC+4
-  assign o_sign_extended_imm = (is_jal || is_jalr) ? 32'b0 : {{16{immediate[15]}}, immediate};
-  
+  // Extension de signo para el immediate - ya no necesitamos casos especiales
+  // porque la ALU hará un bypass directo del operando A
+  assign o_sign_extended_imm = {{16{immediate[15]}}, immediate};
+
   // Para instrucciones J/JAL, también necesitamos el target completo
   wire [31:0] jump_target = {i_next_pc[31:28], target, 2'b00};
   
@@ -125,13 +115,9 @@ module id_stage(
     endcase
   end
   
-  // IMPORTANTE: JALR necesita dos valores distintos:
-  // 1. PC+4 para guardar como dirección de retorno (esto va por o_read_data_1 hacia la ALU)
-  // 2. El valor de RS para usarlo como destino de salto (esto va por jr_target)
-  
-  // Si es JAL o JALR, enviamos PC+4 a la ALU para guardarlo como dirección de retorno
-  // De lo contrario, enviamos el valor del registro RS normalmente 
-  assign o_read_data_1 = (is_jal || is_jalr) ? i_next_pc : forwarded_data_1;
+  // Para todas las instrucciones, simplemente pasamos los valores forwardeados
+  // Para JAL/JALR, pasaremos siempre i_next_pc y la ALU se encargará de hacer bypass
+  assign o_read_data_1 = (branch_type == `BRANCH_TYPE_JAL || branch_type == `BRANCH_TYPE_JALR) ? i_next_pc : forwarded_data_1;
   assign o_read_data_2 = forwarded_data_2;
   
   // Calcular la dirección destino del salto: PC+4 + (immediate << 2)
@@ -142,41 +128,48 @@ module id_stage(
   // Necesitamos usar el valor original/forwardeado de RS, no PC+4
   wire [31:0] jr_target = forwarded_data_1;
   
-  // Lógica para determinar si el salto se toma
+  // Lógica para determinar si el salto se toma y la dirección de salto
   wire is_equal = (forwarded_data_1 == forwarded_data_2);
-  assign o_branch_taken = o_branch && ((is_beq && is_equal) || (is_bne && !is_equal));
   
-  // Detectar saltos incondicionales
-  assign o_jump_taken = is_j || is_jal || is_jr || is_jalr;
+  // La lógica de salto se basa directamente en branch_type
+  assign o_take_branch = 
+      // Para saltos condicionales (BEQ/BNE)
+      ((branch_type == `BRANCH_TYPE_BEQ) && is_equal) ||               // BEQ y son iguales
+      ((branch_type == `BRANCH_TYPE_BNE) && !is_equal) ||              // BNE y son diferentes
+      (branch_type >= `BRANCH_TYPE_J);                                 // Cualquier tipo de jump
+      
+  // Multiplexor directo usando branch_type
+  assign o_branch_target_addr = 
+      (branch_type == `BRANCH_TYPE_BEQ || branch_type == `BRANCH_TYPE_BNE) ? branch_target :   // BEQ o BNE
+      (branch_type == `BRANCH_TYPE_J || branch_type == `BRANCH_TYPE_JAL) ? jump_target :      // J o JAL
+      (branch_type == `BRANCH_TYPE_JR || branch_type == `BRANCH_TYPE_JALR) ? jr_target :      // JR o JALR
+      i_next_pc; // Por defecto PC+4 
+      
+  assign o_is_jal = ((branch_type == `BRANCH_TYPE_JAL) || (branch_type == `BRANCH_TYPE_JALR));                                                                                                                                    // Por defecto PC+4
   
-  // Determinar la dirección de destino basada en el tipo de salto
-  assign o_branch_target_addr = (is_j || is_jal) ? jump_target :
-                                (is_jr || is_jalr) ? jr_target :
-                                branch_target;
-  
-
   // Pasar campos rs, rt, rd, shamt y function a la siguiente etapa
   assign o_rs = rs; 
   assign o_rt = rt;
-  assign o_rd = is_jal ? 5'b11111 : rd;
+  assign o_rd = (branch_type == `BRANCH_TYPE_JAL) ? 5'b11111 : rd;  // Si es JAL, rd = $31 (ra)
   assign o_shamt = shamt;         
   assign o_function = funct;
   assign o_opcode = opcode;     
 
+  // Señal interna para el tipo de salto
+  wire [2:0] branch_type;
+  
   // Instanciar la unidad de control
   control control_inst (
-    .opcode     (opcode),
-    .funct      (funct),            // Pasamos el campo funct para JR/JALR
-    .reg_dst    (o_reg_dst),
-    .reg_write  (o_reg_write),
-    .alu_src    (o_alu_src),
-    .alu_op     (o_alu_op),
-    .mem_read   (o_mem_read), 
-    .mem_write  (o_mem_write),
-    .mem_to_reg (o_mem_to_reg),
-    .branch     (o_branch),
-    .branch_prediction (o_branch_prediction),
-    .o_is_jal   (o_is_jal)          // Recibimos la señal de JAL/JALR
+    .opcode       (opcode),
+    .funct        (funct), 
+    .reg_dst      (o_reg_dst),
+    .reg_write    (o_reg_write),
+    .alu_src      (o_alu_src),
+    .alu_op       (o_alu_op),
+    .mem_read     (o_mem_read), 
+    .mem_write    (o_mem_write),
+    .mem_to_reg   (o_mem_to_reg),
+    .o_branch_type(branch_type) 
   );
 
 endmodule

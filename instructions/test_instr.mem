@@ -57,12 +57,9 @@ AC660004  // sw $6, 4($3)         # Mem[104] = $6 = 5
 11E40003  // beq $15, $4, 3       # Saltar si $15 == $4 (se tomará porque $15=20, $4=20)
 21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 21 (no se ejecutará si beq salta)
 21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 22 (no se ejecutará si beq salta)
+21CF0001  // addi $15, $15, 1     # $15 = $15 + 1 = 22 (no se ejecutará si beq salta)
 
 // Importante: Aguardar varios ciclos tras el salto para asegurar limpieza del pipeline
-00000000  // nop                  # Instrucción nula (estabilización post-salto)
-00000000  // nop                  # Instrucción nula (estabilización post-salto)
 200E0005  // addi $14, $0, 5      # $14 = 5 (resetear el valor de $14 directamente)
-00000000  // nop                  # Nop para permitir la actualización de $14 en registros
 21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 6
-00000000  // nop                  # Nop para evitar riesgo EX-EX
 21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 7

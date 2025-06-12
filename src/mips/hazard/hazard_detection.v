@@ -8,8 +8,7 @@ module hazard_detection(
     input wire        i_id_ex_mem_read,    // MemRead signal from EX stage
     input wire [5:0]  i_if_id_opcode,     // Opcode of instruction in ID stage
     input wire [5:0]  i_if_id_funct,      // Function code for R-type instructions
-    input wire        i_id_branch_taken,   // Branch taken signal from ID stage
-    input wire        i_id_jump_taken,     // Jump taken signal from ID stage
+    input wire        i_id_take_branch,    // Unified branch/jump taken signal from ID stage
     output wire       o_stall,            // Signal to stall pipeline (load hazard) 
     output wire       o_flush_id_ex,      // Signal to flush ID/EX stage (load hazard)
     output wire       o_flush_if_id,      // Signal to flush IF/ID stage (branch/jump hazard)
@@ -33,8 +32,8 @@ module hazard_detection(
                            (i_id_ex_rt == i_if_id_rt && !is_load_in_id)));
     
     
-    // Detect control hazard from branch or jump taken in ID stage
-    wire is_control_hazard = i_id_branch_taken || i_id_jump_taken;
+    // Detect control hazard from unified branch/jump taken signal
+    wire is_control_hazard = i_id_take_branch;
                    
     // Detect HALT instruction
     wire is_halt = (i_if_id_opcode == `OPCODE_HALT);

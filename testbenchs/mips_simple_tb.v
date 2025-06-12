@@ -12,7 +12,8 @@ module mips_simple_tb();
   mips dut (
     .clk    (clk),
     .reset  (reset),
-    .result (result)
+    .result (result),
+    .halt   ()  // Conectamos la señal de halt aunque no la usamos en este testbench
   );
   
   // Genera un reloj de 10ns (100 MHz)
@@ -85,14 +86,6 @@ module mips_simple_tb();
                dut.ex_alu_result,
                dut.ex_write_register,
                dut.ex_reg_write);
-               
-      // Mostrar información de branch prediction
-      if (dut.id_branch) begin
-        $display("BRANCH: opcode=%6b, prediction=%0b (always not taken), target=%0h", 
-                 dut.id_opcode, 
-                 dut.id_branch_prediction, 
-                 dut.id_branch_target_addr);
-      end
       
       // Mostrar información de la unidad de forwarding de ID y EX
       begin
@@ -102,10 +95,8 @@ module mips_simple_tb();
                  dut.id_rs,
                  dut.id_rt);
                  
-        $display("ID_BRANCH_CONTROL: branch=%0b, branch_taken=%0b, jump_taken=%0b, target=0x%h", 
-                 dut.id_branch,
-                 dut.id_branch_taken,
-                 dut.id_jump_taken,
+        $display("ID_BRANCH_CONTROL: take_branch=%0b, target=0x%h", 
+                 dut.id_take_branch,
                  dut.id_branch_target_addr);
                  
         $display("EX_FORWARDING: ForwardA=%0b, ForwardB=%0b", 

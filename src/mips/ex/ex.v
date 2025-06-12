@@ -37,7 +37,6 @@ module ex_stage(
   input  wire        i_mem_read,        // Control de lectura de memoria
   input  wire        i_mem_write,       // Control de escritura en memoria
   input  wire        i_mem_to_reg,      // Selecciona entre ALU o memoria para WB
-  input  wire        i_branch,          // Indica si es instrucción de salto (mantener por compatibilidad)
   input  wire        i_is_jal,          // Indica si es JAL (recibido desde ID)
   
   // Salidas hacia la etapa MEM
@@ -47,8 +46,7 @@ module ex_stage(
   output wire        o_reg_write,       // Señal de escritura en registros
   output wire        o_mem_read,        // Control de lectura de memoria
   output wire        o_mem_write,       // Control de escritura en memoria
-  output wire        o_mem_to_reg,      // Selecciona entre ALU o memoria para WB
-  output wire        o_branch          // Mantener por compatibilidad
+  output wire        o_mem_to_reg      // Selecciona entre ALU o memoria para WB
 );
 
   // Datos intermedios
@@ -148,6 +146,5 @@ module ex_stage(
   assign o_mem_read = i_mem_read;
   assign o_mem_write = i_mem_write;
   assign o_mem_to_reg = i_mem_to_reg;
-  assign o_branch = i_branch;  // Mantener por compatibilidad
 
 endmodule

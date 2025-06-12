@@ -23,6 +23,7 @@ module alu(
       `ALU_SRL: result = b >> a[4:0]; 
       `ALU_SRA: result = $signed(b) >>> a[4:0];
       `ALU_LUI: result = {b[15:0], 16'b0}; // LUI: coloca los 16 bits inferiores de b en los 16 bits superiores del resultado
+      `ALU_BYPASS_A: result = a;           // JAL/JALR: simplemente retorna el operando A (PC+4)
       default: result = a + b; // Por defecto suma
     endcase
     

@@ -1,6 +1,5 @@
 `timescale 1ns / 1ps
-`include "../../mips_pkg.vh"
-
+`include "../../mips_pkg.vh"       
 module control(
   input  wire [5:0] opcode,      // Campo opcode de la instrucción
   input  wire [5:0] funct,       // Campo funct de la instrucción (para detectar JR/JALR)
@@ -11,9 +10,7 @@ module control(
   output reg        mem_write,   // Control de escritura en memoria
   output reg        mem_to_reg,  // Selección entre ALU o memoria para WB
   output reg        reg_write,   // Habilitación de escritura en banco de registros
-  output reg        branch,      // Indica si es una instrucción de salto
-  output wire       branch_prediction, // Indica si se predice tomar el salto (1) o no (0)
-  output reg        o_is_jal     // Indica si es una instrucción JAL o JALR
+  output reg  [2:0] o_branch_type // Tipo de instrucción de salto:
 );
 
   always @(*) begin
@@ -25,8 +22,7 @@ module control(
     mem_write  = 1'b0;                // Por defecto no escribe memoria
     mem_to_reg = `CTRL_MEM_TO_REG_ALU;// Por defecto usa resultado de ALU
     reg_write  = `CTRL_REG_WRITE_DIS; // Por defecto no escribe en registros
-    branch     = `CTRL_BRANCH_DIS;    // Por defecto no es instrucción de salto
-    o_is_jal   = 1'b0;                // Por defecto no es JAL o JALR
+    o_branch_type = `BRANCH_TYPE_NONE;// Por defecto no es un salto
     
     case(opcode)
       `OPCODE_R_TYPE: begin
@@ -40,20 +36,18 @@ module control(
           mem_write  = 1'b0;
           mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa
           reg_write  = `CTRL_REG_WRITE_DIS;   // No escribe en registros
-          branch     = `CTRL_BRANCH_EN;       // Tratar como branch para control hazard
-          o_is_jal   = 1'b0;                  // No es JAL ni JALR
+          o_branch_type = 3'b101;             // JR
         end
         else if (funct == `FUNC_JALR) begin
           // Jump And Link Register (JALR)
           reg_dst    = `CTRL_REG_DST_RD;      // Ya forzamos rd = $31 en la etapa ID
-          alu_src    = `CTRL_ALU_SRC_REG;     // Importante: Debe usar registro (PC+4) no el immediate
-          alu_op     = `ALU_OP_ADD;           // Operación simple de paso
+          alu_src    = `CTRL_ALU_SRC_REG;     // No importa para el bypass
+          alu_op     = `ALU_OP_BYPASS_A;      // Operación que hará bypass del operando A
           mem_read   = 1'b0;
           mem_write  = 1'b0;
           mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usará resultado de ALU (que será PC+4)
           reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en $31 (ra) o el registro rd
-          branch     = `CTRL_BRANCH_EN;       // Tratar como branch para control hazard
-          o_is_jal   = 1'b1;                  // Es JALR (similar a JAL)
+          o_branch_type = 3'b110;             // JALR
         end
         else begin
           // Instrucción R-type normal
@@ -64,8 +58,6 @@ module control(
           mem_write  = 1'b0;
           mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
           reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
-          branch     = `CTRL_BRANCH_DIS;      // No es instrucción de salto
-          o_is_jal   = 1'b0;                  // No es JAL ni JALR
         end
       end
       
@@ -147,7 +139,6 @@ module control(
         mem_write  = 1'b0;
         mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
-        branch     = `CTRL_BRANCH_DIS;      // No es salto
       end
 
       `OPCODE_XORI: begin
@@ -158,7 +149,6 @@ module control(
         mem_write  = 1'b0;
         mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
-        branch     = `CTRL_BRANCH_DIS;      // No es salto
       end
       
       `OPCODE_SLTI: begin
@@ -169,7 +159,6 @@ module control(
         mem_write  = 1'b0;
         mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
-        branch     = `CTRL_BRANCH_DIS;      // No es salto
       end
       
       `OPCODE_SLTIU: begin
@@ -180,7 +169,6 @@ module control(
         mem_write  = 1'b0;
         mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
-        branch     = `CTRL_BRANCH_DIS;      // No es salto
       end
       
       `OPCODE_BEQ: begin
@@ -188,10 +176,9 @@ module control(
         alu_src    = `CTRL_ALU_SRC_REG;     // Usa el registro rt
         alu_op     = `ALU_OP_SUB;           // Resta para comparación
         mem_read   = 1'b0;
-        mem_write  = 1'b0;
-        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa
+        mem_write  = 1'b0;          mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa
         reg_write  = `CTRL_REG_WRITE_DIS;   // No escribe en registros
-        branch     = `CTRL_BRANCH_EN;       // Es salto
+        o_branch_type = `BRANCH_TYPE_BEQ;   // BEQ
       end
       
       `OPCODE_BNE: begin
@@ -199,10 +186,9 @@ module control(
         alu_src    = `CTRL_ALU_SRC_REG;     // Usa el registro rt
         alu_op     = `ALU_OP_SUB;           // Resta para comparación
         mem_read   = 1'b0;
-        mem_write  = 1'b0;
-        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa
+        mem_write  = 1'b0;          mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa
         reg_write  = `CTRL_REG_WRITE_DIS;   // No escribe en registros
-        branch     = `CTRL_BRANCH_EN;       // Es salto
+        o_branch_type = `BRANCH_TYPE_BNE;   // BNE
       end
       
       `OPCODE_J: begin
@@ -210,23 +196,20 @@ module control(
         alu_src    = `CTRL_ALU_SRC_REG;     // No importa
         alu_op     = `ALU_OP_ADD;           // No importa
         mem_read   = 1'b0;
-        mem_write  = 1'b0;
-        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa
+        mem_write  = 1'b0;          mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // No importa
         reg_write  = `CTRL_REG_WRITE_DIS;   // No escribe en registros
-        branch     = `CTRL_BRANCH_EN;       // Tratar como branch para control hazard
+        o_branch_type = `BRANCH_TYPE_J;     // J
       end
       
       `OPCODE_JAL: begin
         reg_dst    = `CTRL_REG_DST_RD;      // Ya forzamos rd = $31 en la etapa ID
-        // Ahora JAL usará el ALU con el mismo flujo que instrucciones normales
-        alu_src    = `CTRL_ALU_SRC_IMM;     // Usamos immediate para pasar PC+4
-        alu_op     = `ALU_OP_ADD;           // Operación simple de paso
+        // Usamos operación de bypass para que ALU solo pase directamente el operando A (PC+4)
+        alu_src    = `CTRL_ALU_SRC_IMM;     // No importa para el bypass
+        alu_op     = `ALU_OP_BYPASS_A;      // Operación que hará bypass del operando A
         mem_read   = 1'b0;
-        mem_write  = 1'b0;
-        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usará resultado de ALU (que será PC+4)
+        mem_write  = 1'b0;          mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usará resultado de ALU (que será PC+4)
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en $31 (ra)
-        branch     = `CTRL_BRANCH_EN;       // Tratar como branch para control hazard
-        o_is_jal   = 1'b1;                  // Es JAL
+        o_branch_type = `BRANCH_TYPE_JAL;   // JAL
       end
       
       default: begin
@@ -235,16 +218,11 @@ module control(
         alu_src    = `CTRL_ALU_SRC_REG;
         alu_op     = `ALU_OP_ADD;
         mem_read   = 1'b0;
-        mem_write  = 1'b0;
-        mem_to_reg = `CTRL_MEM_TO_REG_ALU;
+        mem_write  = 1'b0;          mem_to_reg = `CTRL_MEM_TO_REG_ALU;
         reg_write  = `CTRL_REG_WRITE_DIS;
-        branch     = `CTRL_BRANCH_DIS;
-        o_is_jal   = 1'b0;
+        o_branch_type = `BRANCH_TYPE_NONE;  // No es salto
       end
     endcase
   end
-
-  // Always Not Taken: Siempre predecimos que el salto no se toma
-  assign branch_prediction = 1'b0;
 
 endmodule

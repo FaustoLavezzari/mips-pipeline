@@ -5,9 +5,8 @@ module if_stage(
   input  wire       clk,
   input  wire       reset,
   
-  // Entradas para control de saltos desde ID (nueva implementación)
-  input  wire       i_branch_taken,          // Indica si el salto condicional se toma
-  input  wire       i_jump_taken,            // Indica si es un salto incondicional
+  // Entradas para control de saltos desde ID (simplificadas)
+  input  wire       i_take_branch,           // Señal unificada: saltar (1) o no (0)
   input  wire [31:0] i_branch_target_addr,   // Dirección de destino del salto
   
   // Entradas para manejo de stalls
@@ -29,11 +28,10 @@ module if_stage(
     .out  (pc_next)
   );
   
-  // Decidir si se toma cualquier tipo de salto (condicional o incondicional)
-  wire branch_or_jump_taken = i_branch_taken || i_jump_taken;
+  // Ya no necesitamos combinar señales, usamos directamente la señal unificada
   
   // Seleccionar la dirección de destino
-  wire [31:0] next_pc_value = branch_or_jump_taken ? i_branch_target_addr : pc_next;
+  wire [31:0] next_pc_value = i_take_branch ? i_branch_target_addr : pc_next;
 
   // Actualizar el PC con el valor seleccionado
   PC pc_inst(
@@ -41,7 +39,7 @@ module if_stage(
     .reset         (reset),
     .next_pc       (pc_next),
     .branch_target (i_branch_target_addr),
-    .take_branch   (branch_or_jump_taken),
+    .take_branch   (i_take_branch),
     .halt          (i_halt),
     .stall         (i_stall),
     .pc            (pc)

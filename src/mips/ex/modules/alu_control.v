@@ -18,6 +18,9 @@ module alu_control(
         
       `ALU_OP_LUI: // LUI - operación específica
         alu_control = `ALU_LUI;
+        
+      `ALU_OP_BYPASS_A: // JAL, JALR - bypass del operando A
+        alu_control = `ALU_BYPASS_A;
 
       `ALU_OP_RTYPE: begin // Instrucciones R-type - depende del campo function
         case(func_code)

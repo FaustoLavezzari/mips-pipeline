@@ -175,15 +175,12 @@ module mips_load_store_tb;
                dut.if_instr,
                instr_type(dut.if_instr));
                
-      $display("ID: Instr=%0h, Branch=%0b, Function=%0h", 
+      $display("ID: Instr=%0h, Function=%0h", 
                dut.id_instr,
-               dut.id_branch,
                dut.id_function);
                
-      $display("ID_BRANCH_CONTROL: branch=%0b, branch_taken=%0b, jump_taken=%0b, target=0x%h, read_data_1=0x%h", 
-               dut.id_branch,
-               dut.id_branch_taken,
-               dut.id_jump_taken,
+      $display("ID_BRANCH_CONTROL: take_branch=%0b, target=0x%h, read_data_1=0x%h", 
+               dut.id_take_branch,
                dut.id_branch_target_addr,
                dut.id_read_data_1);
                

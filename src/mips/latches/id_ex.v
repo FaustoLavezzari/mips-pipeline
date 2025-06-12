@@ -25,12 +25,11 @@ module id_ex(
   input  wire        mem_read_in,
   input  wire        mem_write_in,
   input  wire        mem_to_reg_in,
-  input  wire        branch_in,
   input  wire        is_jal_in,    // Nueva señal para JAL
   
-  // Señales para branch prediction
-  input  wire        branch_prediction_in,
-  input  wire [31:0] branch_target_addr_in,
+  // Señales de predicción de saltos
+  input  wire        branch_prediction_in,     // Señal de predicción
+  input  wire [31:0] branch_target_addr_in,    // Dirección destino del salto
   
   // Salidas hacia la etapa EX
   output reg  [31:0] read_data_1_out,
@@ -52,12 +51,11 @@ module id_ex(
   output reg         mem_read_out,
   output reg         mem_write_out,
   output reg         mem_to_reg_out,
-  output reg         branch_out,
   output reg         is_jal_out,   // Salida de señal para JAL
   
-  // Señales para branch prediction
-  output reg         branch_prediction_out,
-  output reg [31:0]  branch_target_addr_out
+  // Salidas de predicción de saltos
+  output reg         branch_prediction_out,     // Señal de predicción
+  output reg  [31:0] branch_target_addr_out     // Dirección destino del salto
 );
   always @(posedge clk) begin
     if (reset || flush) begin
@@ -74,15 +72,16 @@ module id_ex(
       next_pc_out           <= next_pc_in;
       
       // Señales de control - Desactivar todas en caso de flush o reset
-      alu_src_out          <= `CTRL_ALU_SRC_REG;
-      alu_op_out           <= `ALU_OP_ADD;
-      reg_dst_out          <= `CTRL_REG_DST_RT;
-      reg_write_out        <= `CTRL_REG_WRITE_DIS; 
-      mem_read_out         <= 1'b0;
-      mem_write_out        <= 1'b0;
-      mem_to_reg_out       <= `CTRL_MEM_TO_REG_ALU;
-      branch_out           <= `CTRL_BRANCH_DIS;
-      is_jal_out          <= 1'b0;                // No propagamos JAL en reset/flush
+      alu_src_out           <= `CTRL_ALU_SRC_REG;
+      alu_op_out            <= `ALU_OP_ADD;
+      reg_dst_out           <= `CTRL_REG_DST_RT;
+      reg_write_out         <= `CTRL_REG_WRITE_DIS; 
+      mem_read_out          <= 1'b0;
+      mem_write_out         <= 1'b0;
+      mem_to_reg_out        <= `CTRL_MEM_TO_REG_ALU;
+      is_jal_out            <= 1'b0;                // No propagamos JAL en reset/flush
+      
+      // Resetear señales de predicción
       branch_prediction_out <= 1'b0;
       branch_target_addr_out <= {`DATA_WIDTH{1'b0}};
     end
@@ -100,15 +99,16 @@ module id_ex(
       next_pc_out           <= next_pc_in;
       
       // Señales de control
-      alu_src_out         <= alu_src_in;
-      alu_op_out          <= alu_op_in;
-      reg_dst_out         <= reg_dst_in;
-      reg_write_out       <= reg_write_in;
-      mem_read_out        <= mem_read_in;
-      mem_write_out       <= mem_write_in;
-      mem_to_reg_out      <= mem_to_reg_in;
-      branch_out          <= branch_in;
-      is_jal_out          <= is_jal_in;            // Propagar señal JAL
+      alu_src_out           <= alu_src_in;
+      alu_op_out            <= alu_op_in;
+      reg_dst_out           <= reg_dst_in;
+      reg_write_out         <= reg_write_in;
+      mem_read_out          <= mem_read_in;
+      mem_write_out         <= mem_write_in;
+      mem_to_reg_out        <= mem_to_reg_in;
+      is_jal_out            <= is_jal_in;            // Propagar señal JAL
+      
+      // Propagar señales de predicción
       branch_prediction_out <= branch_prediction_in;
       branch_target_addr_out <= branch_target_addr_in;
     end

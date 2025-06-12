@@ -56,6 +56,7 @@
 `define ALU_OP_RTYPE    3'b010
 `define ALU_OP_IMM      3'b011  // Para operaciones inmediatas como ANDI, ORI, SLTI
 `define ALU_OP_LUI      3'b100  // Operación específica para LUI
+`define ALU_OP_BYPASS_A 3'b101  // Operación para JAL/JALR: bypass del operando A
 
 // ALU Control Signals
 `define ALU_CTRL_WIDTH  4
@@ -71,6 +72,7 @@
 `define ALU_SRL         4'b1010  
 `define ALU_SRA         4'b1011
 `define ALU_LUI         4'b1110  // Load Upper Immediate
+`define ALU_BYPASS_A    4'b1111  // Bypass operando A (para JAL/JALR)
 
 // Control Signals Default Values
 `define CTRL_REG_DST_RT     1'b0
@@ -85,3 +87,12 @@
 `define CTRL_REG_WRITE_EN   1'b1
 `define CTRL_BRANCH_DIS     1'b0
 `define CTRL_BRANCH_EN      1'b1
+
+// Tipos de salto (branch_type)
+`define BRANCH_TYPE_NONE  3'b000  // No es salto
+`define BRANCH_TYPE_BEQ   3'b001  // Branch if Equal
+`define BRANCH_TYPE_BNE   3'b010  // Branch if Not Equal
+`define BRANCH_TYPE_J     3'b011  // Jump
+`define BRANCH_TYPE_JAL   3'b100  // Jump and Link
+`define BRANCH_TYPE_JR    3'b101  // Jump Register
+`define BRANCH_TYPE_JALR  3'b110  // Jump and Link Register

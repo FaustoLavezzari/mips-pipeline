@@ -8,7 +8,6 @@ module mips(
   output wire        halt    // Nueva señal de halt
 );
 
-  // Señales para las etapas
   // ========== Señales para las etapas ==========
   wire [31:0] ex_alu_result;
   wire [31:0] ex_write_data;
@@ -17,7 +16,6 @@ module mips(
   wire        ex_mem_read;
   wire        ex_mem_write;
   wire        ex_mem_to_reg;
-  wire        ex_branch;          // Mantener por compatibilidad
   // Ya no necesitamos señales especiales para JAL/JALR en las salidas de EX
   
   wire [31:0] mem_alu_result;
@@ -28,7 +26,6 @@ module mips(
   wire        mem_mem_write;
   wire        mem_mem_to_reg;
   wire [31:0] mem_read_data;
-  // Ya no necesitamos señales especiales para JAL/JALR en MEM
   wire [5:0]  mem_opcode;           // Opcode para identificar el tipo de instrucción
   
   // Señales adicionales para propagar la etapa MEM
@@ -36,7 +33,6 @@ module mips(
   wire [4:0]  mem_write_register_out;
   wire        mem_reg_write_out;
   wire        mem_mem_to_reg_out;
-  // Ya no necesitamos señales especiales para JAL/JALR propagadas en MEM
   
   // ========== Señales de la etapa WB ==========
   wire [31:0] wb_alu_result;
@@ -44,7 +40,6 @@ module mips(
   wire [4:0]  wb_write_register;
   wire        wb_reg_write;
   wire        wb_mem_to_reg;
-  // Ya no necesitamos señales especiales para JAL/JALR en WB
   wire [31:0] wb_write_data;      // Dato a escribir en el banco de registros
   wire [4:0]  wb_write_register_out; // Señal corregida de salida de la etapa WB
   wire        wb_reg_write_out;      // Señal corregida de salida de la etapa WB
@@ -76,13 +71,11 @@ module mips(
   wire        id_mem_read;
   wire        id_mem_write;
   wire        id_mem_to_reg;
-  wire        id_branch;
-  wire        id_branch_prediction;      // Señal de predicción (para compatibilidad)
+  wire        id_branch_prediction = 1'b0;      // Señal de predicción (para compatibilidad)
   wire [31:0] id_branch_target_addr;     // Dirección destino del salto
   
-  // ========== Nuevas señales para control de saltos en ID ==========
-  wire        id_branch_taken;          // Indica si un salto condicional debe tomarse
-  wire        id_jump_taken;            // Indica si es un salto incondicional
+  // ========== Señales para control de saltos en ID ==========
+  wire        id_take_branch;           // Señal unificada para saltos (condicionales e incondicionales)
   wire        id_is_jal;                // Indica si es una instrucción JAL (Jump and Link)
 
   // ========== Señales del latch ID/EX ==========
@@ -109,7 +102,6 @@ module mips(
   wire        i_ex_mem_read;
   wire        i_ex_mem_write;
   wire        i_ex_mem_to_reg;
-  wire        i_ex_branch;
   wire        i_ex_is_jal;      // Señal JAL para EX
 
   // ========== Hazard detection signals ==========
@@ -127,8 +119,7 @@ module mips(
     .i_id_ex_mem_read      (i_ex_mem_read),   // MemRead signal in EX stage
     .i_if_id_opcode        (id_opcode),       // Opcode from ID stage
     .i_if_id_funct         (id_function),     // Function code from ID stage
-    .i_id_branch_taken     (id_branch_taken), // Branch taken signal desde ID
-    .i_id_jump_taken       (id_jump_taken),   // Jump taken signal desde ID
+    .i_id_take_branch      (id_take_branch),  // Unified branch/jump taken signal from ID
     .o_stall              (pipeline_stall),   // Stall signal
     .o_flush_id_ex        (flush_id_ex),      // Flush signal for ID/EX stage
     .o_flush_if_id        (flush_if_id),      // Flush signal for IF/ID stage
@@ -154,9 +145,8 @@ module mips(
   if_stage if_stage_inst(
     .clk                (clk),
     .reset              (reset),
-    // Nuevas señales de control de saltos desde ID
-    .i_branch_taken     (id_branch_taken),
-    .i_jump_taken       (id_jump_taken),
+    // Señales simplificadas de control de saltos desde ID
+    .i_take_branch      (id_take_branch),
     .i_branch_target_addr(id_branch_target_addr),
     // Señales de control de pipeline
     .i_halt             (halt_detected),
@@ -220,12 +210,9 @@ module mips(
     .o_mem_read         (id_mem_read),
     .o_mem_write        (id_mem_write),
     .o_mem_to_reg       (id_mem_to_reg),
-    .o_branch           (id_branch),
     .o_is_jal           (id_is_jal),               // Señal para JAL
-    .o_branch_prediction(id_branch_prediction),    // Mantiene para compatibilidad
     .o_branch_target_addr(id_branch_target_addr),  // Dirección de destino
-    .o_branch_taken     (id_branch_taken),         // Nueva señal: branch tomado
-    .o_jump_taken       (id_jump_taken)            // Nueva señal: jump tomado
+    .o_take_branch      (id_take_branch)           // Señal unificada: saltar o no
   );
 
   // ========== Instancia del latch ID/EX ==========
@@ -250,7 +237,6 @@ id_ex id_ex_latch(
     .mem_read_in          (id_mem_read),
     .mem_write_in         (id_mem_write),
     .mem_to_reg_in        (id_mem_to_reg),
-    .branch_in            (id_branch),
     .is_jal_in            (id_is_jal),            // Nueva señal para JAL
     .branch_prediction_in(id_branch_prediction),
     .branch_target_addr_in(id_branch_target_addr),
@@ -271,7 +257,6 @@ id_ex id_ex_latch(
     .mem_read_out         (i_ex_mem_read),
     .mem_write_out        (i_ex_mem_write),
     .mem_to_reg_out       (i_ex_mem_to_reg),
-    .branch_out           (i_ex_branch),
     .is_jal_out           (i_ex_is_jal),         // Salida de señal para JAL
     .branch_prediction_out(ex_branch_prediction),
     .branch_target_addr_out(ex_branch_target_addr)
@@ -325,7 +310,6 @@ id_ex id_ex_latch(
     .i_mem_read          (i_ex_mem_read),
     .i_mem_write         (i_ex_mem_write),
     .i_mem_to_reg        (i_ex_mem_to_reg),
-    .i_branch            (i_ex_branch),       // Mantener por compatibilidad
     .i_is_jal            (i_ex_is_jal),       // Para JAL/JALR
     
     .o_alu_result        (ex_alu_result),
@@ -334,8 +318,7 @@ id_ex id_ex_latch(
     .o_reg_write         (ex_reg_write),
     .o_mem_read          (ex_mem_read),
     .o_mem_write         (ex_mem_write),
-    .o_mem_to_reg        (ex_mem_to_reg),
-    .o_branch            (ex_branch)          // Mantener por compatibilidad
+    .o_mem_to_reg        (ex_mem_to_reg)
   );
   
   // ========== Instancia del latch EX/MEM ==========
