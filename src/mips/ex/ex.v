@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 `include "../mips_pkg.vh"
-
+ 
 module ex_stage(
   input  wire        clk,
   input  wire        reset,
@@ -18,17 +18,11 @@ module ex_stage(
   input  wire [31:0] i_next_pc,         // PC+4 para instrucciones JAL/JALR
   
   // Señales para forwarding (anticipación de datos)
-  input  wire [4:0]  i_mem_write_register, // Registro destino en etapa MEM
-  input  wire        i_mem_reg_write,      // Señal RegWrite en etapa MEM
-  input  wire [31:0] i_mem_alu_result,     // Resultado ALU en etapa MEM
-  input  wire [4:0]  i_wb_write_register,  // Registro destino en etapa WB
-  input  wire        i_wb_reg_write,       // Señal RegWrite en etapa WB
-  input  wire [31:0] i_wb_write_data,      // Dato a escribir en etapa WB
-  
-  // Señales de control de forwarding (recibidas desde afuera)
-  input  wire [1:0]  i_forward_a,          // Control para operando A (RS)
-  input  wire [1:0]  i_forward_b,          // Control para operando B (RT)
-  
+  input  wire [31:0] i_forwarded_value_a,   // Valor ya seleccionado para RS
+  input  wire [31:0] i_forwarded_value_b,   // Valor ya seleccionado para RT
+  input  wire        i_use_forwarded_a,     // Control de forwarding para RS (0:registro, 1:forwarded)
+  input  wire        i_use_forwarded_b,     // Control de forwarding para RT (0:registro, 1:forwarded)
+
   // Señales de control para la etapa EX
   input  wire        i_alu_src,         // Selecciona entre registro rt (0) o inmediato (1)
   input  wire [2:0]  i_alu_op,          // Operación a realizar en la ALU
@@ -46,17 +40,13 @@ module ex_stage(
   output wire        o_reg_write,       // Señal de escritura en registros
   output wire        o_mem_read,        // Control de lectura de memoria
   output wire        o_mem_write,       // Control de escritura en memoria
-  output wire        o_mem_to_reg      // Selecciona entre ALU o memoria para WB
+  output wire        o_mem_to_reg       // Selecciona entre ALU o memoria para WB
 );
 
   // Datos intermedios
   wire [31:0] alu_input_2;    // Segundo operando de la ALU
   wire [3:0]  alu_control;    // Señal de control para la ALU
   wire [4:0]  write_reg_rt_rd; // Registro destino (entre rt y rd)
-  
-  // Señales para la unidad de forwarding, ahora recibidas como entradas
-  wire [1:0] forward_a = i_forward_a;  // Control para operando A (RS)
-  wire [1:0] forward_b = i_forward_b;  // Control para operando B (RT)
   
   // Valores forwarded para los operandos
   reg [31:0] forwarded_a;  // Valor efectivo para el operando A
@@ -68,25 +58,20 @@ module ex_stage(
       // Si es JAL o JALR, mantenemos el valor de PC+4 intacto, evitando el forwarding
       forwarded_a = i_read_data_1;  // Contiene PC+4 
     end else begin
-      // Normal forwarding para otras instrucciones
-      case (forward_a)
-        2'b00: forwarded_a = i_read_data_1;      // No forwarding
-        2'b01: forwarded_a = i_mem_alu_result;   // Desde MEM
-        2'b10: forwarded_a = i_wb_write_data;    // Desde WB
-        default: forwarded_a = i_read_data_1;    // Default: no forwarding
-      endcase
+      // Forwarding simplificado para RS
+      if (i_use_forwarded_a)
+        forwarded_a = i_forwarded_value_a;  // Usar valor forwardeado
+      else
+        forwarded_a = i_read_data_1;        // Usar valor original
     end
   end
   
-  
   // Lógica de multiplexor para el operando B (RT)
   always @(*) begin
-    case (forward_b)
-      2'b00: forwarded_b = i_read_data_2;        // No forwarding
-      2'b01: forwarded_b = i_mem_alu_result;     // Desde MEM
-      2'b10: forwarded_b = i_wb_write_data;      // Desde WB
-      default: forwarded_b = i_read_data_2;      // Default: no forwarding
-    endcase
+    if (i_use_forwarded_b)
+      forwarded_b = i_forwarded_value_b;  // Usar valor forwardeado
+    else
+      forwarded_b = i_read_data_2;        // Usar valor original
   end
   
   // Instancia del controlador de la ALU

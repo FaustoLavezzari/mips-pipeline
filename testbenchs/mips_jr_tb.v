@@ -156,16 +156,14 @@ module mips_jr_tb;
                dut.id_branch_target_addr,
                dut.id_read_data_1);
                
-      $display("ID_FORWARDING: ForwardA=%0b, ForwardB=%0b, RS=%0d, RT=%0d", 
-               dut.id_forward_a,
-               dut.id_forward_b,
+      $display("ID_FORWARDING: UseForwardedA=%0b, UseForwardedB=%0b, RS=%0d, RT=%0d", 
+               dut.id_use_forwarded_a,
+               dut.id_use_forwarded_b,
                dut.id_rs,
                dut.id_rt);
                
-      // Esta parte ya no es relevante con la nueva implementación, pero la dejamos por compatibilidad
-      $display("EX: ALUResult=%0d, TargetAddr=%0h", 
-               dut.ex_alu_result,
-               dut.ex_branch_target_addr);
+      $display("EX: ALUResult=%0d", 
+               dut.ex_alu_result)
                
       // Mostrar opcode y function code en EX para debugging
       $display("EX Debug: Opcode=%b, Function=%b, forwarded_a=%0d", 

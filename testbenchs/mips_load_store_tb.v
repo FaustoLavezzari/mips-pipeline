@@ -184,15 +184,14 @@ module mips_load_store_tb;
                dut.id_branch_target_addr,
                dut.id_read_data_1);
                
-      $display("ID_FORWARDING: ForwardA=%0b, ForwardB=%0b, RS=%0d, RT=%0d", 
-               dut.id_forward_a,
-               dut.id_forward_b,
+      $display("ID_FORWARDING: UseForwardedA=%0b, UseForwardedB=%0b, RS=%0d, RT=%0d", 
+               dut.id_use_forwarded_a,
+               dut.id_use_forwarded_b,
                dut.id_rs,
                dut.id_rt);
                
       // Mostrar información de la etapa EX
-      $display("EX: ALUResult=%0d, TargetAddr=%0h", 
-               dut.ex_alu_result,
+      $display("EX: ALUResult=%0d",
                dut.ex_branch_target_addr);
                
       // Mostrar información de memoria en la etapa MEM

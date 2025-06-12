@@ -12,19 +12,11 @@ module id_stage(
   input  wire [4:0]  i_write_register,     // Registro destino para WB
   input  wire [31:0] i_write_data,         // Dato a escribir en WB
   
-  // Entradas para forwarding desde EX
-  input  wire [4:0]  i_ex_write_register,  // Registro destino en EX
-  input  wire        i_ex_reg_write,       // Señal de escritura en registro en EX
-  input  wire [31:0] i_ex_alu_result,      // Resultado de la ALU en EX
-  
-  // Entradas para forwarding desde MEM
-  input  wire [4:0]  i_mem_write_register, // Registro destino en MEM
-  input  wire        i_mem_reg_write,      // Señal de escritura en registro en MEM
-  input  wire [31:0] i_mem_alu_result,     // Resultado de la ALU en MEM
-  
-  // Señales de control de forwarding (recibidas desde afuera)
-  input  wire [1:0]  i_forward_a,          // Control de forwarding para RS
-  input  wire [1:0]  i_forward_b,          // Control de forwarding para RT
+  // Entradas simplificadas para forwarding
+  input  wire [31:0] i_forwarded_value_a,   // Valor ya seleccionado para RS (desde EX/MEM/WB)
+  input  wire [31:0] i_forwarded_value_b,   // Valor ya seleccionado para RT (desde EX/MEM/WB)
+  input  wire        i_use_forwarded_a,     // Control de forwarding para RS (0:registro, 1:forwarded)
+  input  wire        i_use_forwarded_b,     // Control de forwarding para RT (0:registro, 1:forwarded)
   
   // Salidas hacia la etapa EX
   output wire [31:0] o_read_data_1,        // Valor del registro rs
@@ -90,29 +82,21 @@ module id_stage(
     .o_read_data_2    (reg_data_2)
   );
   
-  // Usar las señales de forwarding recibidas desde el exterior
-  wire [1:0] forward_a = i_forward_a;
-  wire [1:0] forward_b = i_forward_b;
-  
-  // Multiplexores para seleccionar los valores forwardeados
+  // Multiplexores simplificados para los valores forwardeados
   // Implementación del forwarding para el operando A (RS)
   always @(*) begin
-    case (forward_a)
-      2'b01: forwarded_data_1 = i_ex_alu_result;  // Desde EX
-      2'b10: forwarded_data_1 = i_mem_alu_result; // Desde MEM
-      2'b11: forwarded_data_1 = i_write_data;     // Desde WB
-      default: forwarded_data_1 = reg_data_1;     // Valor original
-    endcase
+    if (i_use_forwarded_a)
+      forwarded_data_1 = i_forwarded_value_a;  // Usar valor forwardeado
+    else
+      forwarded_data_1 = reg_data_1;          // Usar valor del registro
   end
   
   // Implementación del forwarding para el operando B (RT)
   always @(*) begin
-    case (forward_b)
-      2'b01: forwarded_data_2 = i_ex_alu_result;  // Desde EX
-      2'b10: forwarded_data_2 = i_mem_alu_result; // Desde MEM
-      2'b11: forwarded_data_2 = i_write_data;     // Desde WB
-      default: forwarded_data_2 = reg_data_2;     // Valor original
-    endcase
+    if (i_use_forwarded_b)
+      forwarded_data_2 = i_forwarded_value_b;  // Usar valor forwardeado
+    else
+      forwarded_data_2 = reg_data_2;          // Usar valor del registro
   end
   
   // Para todas las instrucciones, simplemente pasamos los valores forwardeados
@@ -121,7 +105,7 @@ module id_stage(
   assign o_read_data_2 = forwarded_data_2;
   
   // Calcular la dirección destino del salto: PC+4 + (immediate << 2)
-  wire [31:0] shifted_imm = {{16{immediate[15]}}, immediate} << 2; // Usar immediate original, no el que podría ser 0 para JAL/JALR
+  wire [31:0] shifted_imm = {{16{immediate[15]}}, immediate} << 2;
   wire [31:0] branch_target = i_next_pc + shifted_imm;
   
   // Para instrucciones JR/JALR, el destino es el valor del registro rs

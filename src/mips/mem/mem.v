@@ -13,7 +13,6 @@ module mem_stage(
   input  wire        mem_read_in,      // Control de lectura
   input  wire        mem_write_in,     // Control de escritura
   input  wire        mem_to_reg_in,    // Selección ALU/MEM para WB
-  // Ya no recibimos señales especiales para JAL/JALR
   input  wire [5:0]  opcode_in,        // Opcode para identificar tipo de carga
   
   // Salidas
@@ -22,7 +21,6 @@ module mem_stage(
   output wire [4:0]  write_register_out, // Registro destino para WB
   output wire        reg_write_out,    // Señal de escritura en registros
   output wire        mem_to_reg_out   // Selección ALU/MEM para WB
-  // Ya no propagamos señales especiales para JAL/JALR
 );
 
   // Memoria de datos (256 palabras de 32 bits)
@@ -32,14 +30,6 @@ module mem_stage(
   // Usar más bits para direccionar correctamente toda la memoria
   wire [31:0] mem_addr_full = alu_result_in >> 2; // División por 4 (palabra alineada)
   wire [7:0] mem_addr = mem_addr_full[7:0]; // Mantener compatibilidad con la definición de memoria
-  
-  // Debug: mostrar el cálculo de dirección de memoria 
-  always @(*) begin
-    if (mem_write_in || mem_read_in) begin
-      $display("MEM ADDRESS: original=%d, ajustada=%d, índice=%d, offset=%d", 
-               alu_result_in, mem_addr_full, mem_addr, alu_result_in[1:0]);
-    end
-  end
   
   always @(posedge clk) begin
     if (mem_write_in) begin
@@ -51,27 +41,18 @@ module mem_stage(
             2'b10: memory[mem_addr] <= {memory[mem_addr][31:24], write_data_in[7:0], memory[mem_addr][15:0]};
             2'b11: memory[mem_addr] <= {write_data_in[7:0], memory[mem_addr][23:0]};
           endcase
-          $display("SB: Escribiendo byte en Memoria[%d] = %h, offset=%b", 
-                  mem_addr, write_data_in[7:0], alu_result_in[1:0]);
         end
-        
         `OPCODE_SH: begin  // Store Halfword
           case (alu_result_in[1])
             1'b0: memory[mem_addr] <= {memory[mem_addr][31:16], write_data_in[15:0]};
             1'b1: memory[mem_addr] <= {write_data_in[15:0], memory[mem_addr][15:0]};
           endcase
-          $display("SH: Escribiendo halfword en Memoria[%d] = %h, offset=%b", 
-                  mem_addr, write_data_in[15:0], alu_result_in[1]);
         end
-        
         `OPCODE_SW: begin  // Store Word (estándar)
           memory[mem_addr] <= write_data_in;
-          $display("SW: Escribiendo word en Memoria[%d] = %d", alu_result_in, write_data_in);
         end
-        
         default: begin
           memory[mem_addr] <= write_data_in;
-          $display("Default Store: Memoria[%d] = %d", alu_result_in, write_data_in);
         end
       endcase
     end
@@ -90,9 +71,7 @@ module mem_stage(
             2'b10: read_data = {{24{memory[mem_addr][23]}}, memory[mem_addr][23:16]};
             2'b11: read_data = {{24{memory[mem_addr][31]}}, memory[mem_addr][31:24]};
           endcase
-          $display("LB: Leyendo byte en Memoria[%d] = %d", alu_result_in, read_data);
         end
-        
         `OPCODE_LBU: begin  // Load Byte Unsigned (zero-extended)
           case (alu_result_in[1:0])
             2'b00: read_data = {24'b0, memory[mem_addr][7:0]};
@@ -100,35 +79,25 @@ module mem_stage(
             2'b10: read_data = {24'b0, memory[mem_addr][23:16]};
             2'b11: read_data = {24'b0, memory[mem_addr][31:24]};
           endcase
-          $display("LBU: Leyendo byte unsigned en Memoria[%d] = %d", alu_result_in, read_data);
         end
-        
         `OPCODE_LH: begin  // Load Halfword (sign-extended)
           case (alu_result_in[1])
             1'b0: read_data = {{16{memory[mem_addr][15]}}, memory[mem_addr][15:0]};
             1'b1: read_data = {{16{memory[mem_addr][31]}}, memory[mem_addr][31:16]};
           endcase
-          $display("LH: Leyendo halfword en Memoria[%d] = %d", alu_result_in, read_data);
         end
-        
         `OPCODE_LHU: begin  // Load Halfword Unsigned (zero-extended)
           case (alu_result_in[1])
             1'b0: read_data = {16'b0, memory[mem_addr][15:0]};
             1'b1: read_data = {16'b0, memory[mem_addr][31:16]};
           endcase
-          $display("LHU: Leyendo halfword unsigned en Memoria[%d] = %d", alu_result_in, read_data);
         end
-        
         `OPCODE_LW: begin  // Load Word (standard)
           read_data = memory[mem_addr];
-          $display("LW: Leyendo word en Memoria[%d] = %d", alu_result_in, read_data);
         end
-        
         `OPCODE_LWU: begin  // Load Word Unsigned (no-op, igual a LW en un sistema de 32 bits)
           read_data = memory[mem_addr];
-          $display("LWU: Leyendo word unsigned en Memoria[%d] = %d", alu_result_in, read_data);
         end
-        
         default: begin
           read_data = memory[mem_addr]; // Por defecto, cargar palabra completa
         end
@@ -152,6 +121,5 @@ module mem_stage(
   assign write_register_out = write_register_in;
   assign reg_write_out = reg_write_in;
   assign mem_to_reg_out = mem_to_reg_in;
-  // Ya no propagamos señales JAL/JALR
 
 endmodule

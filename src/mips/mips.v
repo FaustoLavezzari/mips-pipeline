@@ -62,8 +62,8 @@ module mips(
   wire [5:0]  id_opcode;
   
   // ========== Señales para ID forwarding ==========
-  wire [1:0]  id_forward_a;      // Señal de control para forwarding a RS en ID
-  wire [1:0]  id_forward_b;      // Señal de control para forwarding a RT en ID
+  wire        id_use_forwarded_a;  // Señal para usar valor forwardeado para RS
+  wire        id_use_forwarded_b;  // Señal para usar valor forwardeado para RT
   wire        id_alu_src;
   wire [2:0]  id_alu_op;
   wire        id_reg_dst;
@@ -128,17 +128,25 @@ module mips(
   );
   
   // ========== Instancia de la unidad de forwarding para ID ==========
+  wire [31:0] id_forwarded_value_a;  // Valor forwardeado para RS
+  wire [31:0] id_forwarded_value_b;  // Valor forwardeado para RT
+  
   id_forwarding id_forwarding_inst(
     .i_id_rs          (id_rs),                   // RS en ID
     .i_id_rt          (id_rt),                   // RT en ID
     .i_ex_rd          (ex_write_register),       // Registro destino en EX
     .i_ex_reg_write   (ex_reg_write),            // RegWrite en EX
+    .i_ex_alu_result  (ex_alu_result),           // Resultado ALU en EX
     .i_mem_rd         (mem_write_register),      // Registro destino en MEM
     .i_mem_reg_write  (mem_reg_write),           // RegWrite en MEM
+    .i_mem_alu_result (mem_alu_result),          // Resultado ALU en MEM
     .i_wb_rd          (wb_write_register_out),   // Registro destino en WB
     .i_wb_reg_write   (wb_reg_write_out),        // RegWrite en WB
-    .o_forward_a      (id_forward_a),            // Señal de control para forwarding de RS
-    .o_forward_b      (id_forward_b)             // Señal de control para forwarding de RT
+    .i_wb_write_data  (wb_write_data),           // Dato de WB
+    .o_use_forwarded_a(id_use_forwarded_a),      // Señal para usar valor forwardeado para RS
+    .o_use_forwarded_b(id_use_forwarded_b),      // Señal para usar valor forwardeado para RT
+    .o_forwarded_value_a(id_forwarded_value_a),  // Valor forwardeado para RS
+    .o_forwarded_value_b(id_forwarded_value_b)   // Valor forwardeado para RT
   );
 
   // ========== Instancia de la etapa IF ==========
@@ -179,19 +187,13 @@ module mips(
     .i_write_register   (wb_write_register_out), // Corregido para usar señal WB de salida
     .i_write_data       (wb_write_data),         // Esta señal está correcta
     
-    // Entradas para forwarding desde EX
-    .i_ex_write_register(ex_write_register),
-    .i_ex_reg_write    (ex_reg_write),
-    .i_ex_alu_result   (ex_alu_result),
-    
-    // Entradas para forwarding desde MEM
-    .i_mem_write_register(mem_write_register),
-    .i_mem_reg_write   (mem_reg_write),
-    .i_mem_alu_result  (mem_alu_result),
+    // Entradas simplificadas para forwarding (valores ya seleccionados)
+    .i_forwarded_value_a(id_forwarded_value_a),  // Valor ya seleccionado por la unidad de forwarding
+    .i_forwarded_value_b(id_forwarded_value_b),  // Valor ya seleccionado por la unidad de forwarding
     
     // Señales de control de forwarding
-    .i_forward_a       (id_forward_a),
-    .i_forward_b       (id_forward_b),
+    .i_use_forwarded_a  (id_use_forwarded_a),
+    .i_use_forwarded_b  (id_use_forwarded_b),
     
     // Salidas de valores de registros
     .o_read_data_1      (id_read_data_1),
@@ -263,19 +265,25 @@ id_ex id_ex_latch(
   );
   
   // ========== Señales para la unidad de forwarding de EX ==========
-  wire [1:0] ex_forward_a;  // Control para operando A (RS) en EX
-  wire [1:0] ex_forward_b;  // Control para operando B (RT) en EX
+  wire        ex_use_forwarded_a;      // Señal para usar valor forwardeado para RS
+  wire        ex_use_forwarded_b;      // Señal para usar valor forwardeado para RT
+  wire [31:0] ex_forwarded_value_a;    // Valor forwardeado para RS
+  wire [31:0] ex_forwarded_value_b;    // Valor forwardeado para RT
   
   // ========== Instancia de la unidad de forwarding para EX ==========
   forwarding_unit forwarding_ex_inst(
-    .i_ex_rs        (ex_rs),                 // RS en EX
-    .i_ex_rt        (ex_rt),                 // RT en EX
-    .i_mem_rd       (mem_write_register),    // Registro destino en MEM
-    .i_mem_reg_write(mem_reg_write),         // RegWrite en MEM
-    .i_wb_rd        (wb_write_register_out), // Registro destino en WB
-    .i_wb_reg_write (wb_reg_write_out),      // RegWrite en WB
-    .o_forward_a    (ex_forward_a),          // Control para operando A
-    .o_forward_b    (ex_forward_b)           // Control para operando B
+    .i_ex_rs          (ex_rs),                   // RS en EX
+    .i_ex_rt          (ex_rt),                   // RT en EX
+    .i_mem_rd         (mem_write_register),      // Registro destino en MEM
+    .i_mem_reg_write  (mem_reg_write),           // RegWrite en MEM
+    .i_mem_result     (mem_alu_result),          // Resultado ALU en MEM
+    .i_wb_rd          (wb_write_register_out),   // Registro destino en WB
+    .i_wb_reg_write   (wb_reg_write_out),        // RegWrite en WB
+    .i_wb_result      (wb_write_data),           // Datos desde WB
+    .o_use_forwarded_a(ex_use_forwarded_a),      // Señal para usar valor forwardeado para RS
+    .o_use_forwarded_b(ex_use_forwarded_b),      // Señal para usar valor forwardeado para RT
+    .o_forwarded_value_a(ex_forwarded_value_a),  // Valor forwardeado para RS
+    .o_forwarded_value_b(ex_forwarded_value_b)   // Valor forwardeado para RT
   );
   
   // ========== Instancia de la etapa EX ==========
@@ -294,14 +302,10 @@ id_ex id_ex_latch(
     .i_next_pc           (ex_next_pc),       // PC+4 para JAL/JALR
     
     // Señales para forwarding (anticipación de datos)
-    .i_mem_write_register(mem_write_register), // Registro destino en MEM
-    .i_mem_reg_write     (mem_reg_write),      // RegWrite en MEM
-    .i_mem_alu_result    (mem_alu_result),     // Resultado ALU en MEM
-    .i_wb_write_register (wb_write_register_out), // Registro destino en WB
-    .i_wb_reg_write      (wb_reg_write_out),      // RegWrite en WB
-    .i_wb_write_data     (wb_write_data),         // Dato de WB
-    .i_forward_a         (ex_forward_a),          // Control de forwarding para RS
-    .i_forward_b         (ex_forward_b),          // Control de forwarding para RT
+    .i_forwarded_value_a (ex_forwarded_value_a),  // Valor ya seleccionado para RS
+    .i_forwarded_value_b (ex_forwarded_value_b),  // Valor ya seleccionado para RT
+    .i_use_forwarded_a   (ex_use_forwarded_a),    // Control de forwarding para RS (0:registro, 1:forwarded)
+    .i_use_forwarded_b   (ex_use_forwarded_b),    // Control de forwarding para RT (0:registro, 1:forwarded)
     
     .i_alu_src           (i_ex_alu_src),
     .i_alu_op            (i_ex_alu_op),

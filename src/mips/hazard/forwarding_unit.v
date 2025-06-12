@@ -8,27 +8,38 @@ module forwarding_unit (
   // Información del registro destino en MEM
   input  wire [4:0] i_mem_rd,        // Registro destino en MEM
   input  wire       i_mem_reg_write, // Señal de escritura en registro en MEM
+  input  wire [31:0] i_mem_result,   // Resultado de la etapa MEM
   
   // Información del registro destino en WB
   input  wire [4:0] i_wb_rd,         // Registro destino en WB
   input  wire       i_wb_reg_write,  // Señal de escritura en registro en WB
+  input  wire [31:0] i_wb_result,    // Resultado de la etapa WB
   
   // Señales de control de forwarding
-  output wire [1:0]  o_forward_a,    // Control de forwarding para operando A
-  output wire [1:0]  o_forward_b     // Control de forwarding para operando B
+  output wire       o_use_forwarded_a,    // Señal para usar valor forwardeado para RS
+  output wire       o_use_forwarded_b,    // Señal para usar valor forwardeado para RT
+  output wire [31:0] o_forwarded_value_a, // Valor forwardeado para RS
+  output wire [31:0] o_forwarded_value_b  // Valor forwardeado para RT
 );
 
-  // Codificación para señales de control:
-  // 00: No hay forwarding, usar valor del registro (ID/EX)
-  // 01: Forwarding desde etapa MEM (EX/MEM)
-  // 10: Forwarding desde etapa WB (MEM/WB)
+  // Señales de control para forwarding
+  wire forward_mem_rs = (i_mem_rd == i_ex_rs && i_ex_rs != 0 && i_mem_reg_write);
+  wire forward_wb_rs = (i_wb_rd == i_ex_rs && i_ex_rs != 0 && i_wb_reg_write);
   
-  assign o_forward_a = (i_mem_rd == i_ex_rs && i_ex_rs != 0 && i_mem_reg_write) ? 2'b01 :
-                       (i_wb_rd == i_ex_rs && i_ex_rs != 0 && i_wb_reg_write) ? 2'b10 : 
-                       2'b00;
-                       
-  assign o_forward_b = (i_mem_rd == i_ex_rt && i_ex_rt != 0 && i_mem_reg_write) ? 2'b01 :
-                       (i_wb_rd == i_ex_rt && i_ex_rt != 0 && i_wb_reg_write) ? 2'b10 : 
-                       2'b00;
+  wire forward_mem_rt = (i_mem_rd == i_ex_rt && i_ex_rt != 0 && i_mem_reg_write);
+  wire forward_wb_rt = (i_wb_rd == i_ex_rt && i_ex_rt != 0 && i_wb_reg_write);
+  
+  // Determinar si es necesario usar forwarding
+  assign o_use_forwarded_a = forward_mem_rs || forward_wb_rs;
+  assign o_use_forwarded_b = forward_mem_rt || forward_wb_rt;
+  
+  // Selección de los valores forwardeados (prioridad: MEM > WB)
+  assign o_forwarded_value_a = forward_mem_rs ? i_mem_result :
+                              forward_wb_rs ? i_wb_result :
+                              32'b0; // Este valor no se usará cuando o_use_forwarded_a sea 0
+                              
+  assign o_forwarded_value_b = forward_mem_rt ? i_mem_result :
+                              forward_wb_rt ? i_wb_result :
+                              32'b0; // Este valor no se usará cuando o_use_forwarded_b sea 0
 
 endmodule

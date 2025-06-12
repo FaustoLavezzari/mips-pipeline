@@ -11,7 +11,6 @@ module wb_stage(
   input  wire [4:0]  i_write_register, // Registro destino
   input  wire        i_reg_write,      // Control de escritura en registros
   input  wire        i_mem_to_reg,     // Selección entre ALU o memoria
-  // Ya no necesitamos señales especiales para JAL/JALR
   
   // Salidas para retroalimentación
   output wire [31:0] o_write_data,     // Dato a escribir en el banco de registros
@@ -23,7 +22,6 @@ module wb_stage(
   assign o_write_data = (i_mem_to_reg) ? i_read_data : i_alu_result;
   
   // Propagar las señales de control directamente
-  // El registro destino ya fue configurado en la etapa ID para JAL/JALR
   assign o_write_register = i_write_register;
   assign o_reg_write = i_reg_write;
 
