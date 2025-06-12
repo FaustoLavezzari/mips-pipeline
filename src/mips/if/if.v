@@ -6,7 +6,7 @@ module if_stage(
   input  wire       reset,
   
   // Entradas para control de saltos desde ID (simplificadas)
-  input  wire       i_take_branch,           // Señal unificada: saltar (1) o no (0)
+  input  wire        i_take_branch,           // Señal unificada: saltar (1) o no (0)
   input  wire [31:0] i_branch_target_addr,   // Dirección de destino del salto
   
   // Entradas para manejo de stalls
@@ -27,9 +27,7 @@ module if_stage(
     .in   (pc), 
     .out  (pc_next)
   );
-  
-  // Ya no necesitamos combinar señales, usamos directamente la señal unificada
-  
+    
   // Seleccionar la dirección de destino
   wire [31:0] next_pc_value = i_take_branch ? i_branch_target_addr : pc_next;
 
@@ -38,8 +36,6 @@ module if_stage(
     .clk           (clk),    
     .reset         (reset),
     .next_pc       (pc_next),
-    .branch_target (i_branch_target_addr),
-    .take_branch   (i_take_branch),
     .halt          (i_halt),
     .stall         (i_stall),
     .pc            (pc)
