@@ -146,8 +146,8 @@ module mips_simple_tb();
         
         // Mostrar memoria relevante
         $display("Memoria: Mem[100]=%0d, Mem[104]=%0d",
-                 dut.mem_stage_inst.memory[25],  // 100/4 = 25
-                 dut.mem_stage_inst.memory[26]); // 104/4 = 26
+                 dut.mem_stage_inst.data_mem.memory[25],  // 100/4 = 25
+                 dut.mem_stage_inst.data_mem.memory[26]); // 104/4 = 26
       end
     end
   end
@@ -191,13 +191,13 @@ module mips_simple_tb();
       // Verificar memoria
       $display("\nMemoria final:");
       $display("Mem[100]=%0d (Esperado: 5)", 
-               dut.mem_stage_inst.memory[25]);
+               dut.mem_stage_inst.data_mem.memory[25]);
       $display("Mem[104]=%0d (Esperado: 5)", 
-               dut.mem_stage_inst.memory[26]);
+               dut.mem_stage_inst.data_mem.memory[26]);
       $display("Mem[35]=%0d (Esperado: 15)", 
-               dut.mem_stage_inst.memory[8]);  // 35/4 = 8 (redondeado hacia abajo)
+               dut.mem_stage_inst.data_mem.memory[8]);  // 35/4 = 8 (redondeado hacia abajo)
       $display("Mem[39]=%0d (Esperado: 35)", 
-               dut.mem_stage_inst.memory[9]);  // 39/4 = 9 (redondeado hacia abajo)
+               dut.mem_stage_inst.data_mem.memory[9]);  // 39/4 = 9 (redondeado hacia abajo)
                
       // Verificar resultado
       // Verificamos que los resultados sean correctos considerando los NOPs agregados
@@ -216,10 +216,10 @@ module mips_simple_tb();
           dut.id_stage_inst.reg_bank.registers[13] == 0 &&     // $13 = $5 ^ $6 = 5 ^ 5 = 0
           dut.id_stage_inst.reg_bank.registers[14] == 7 &&     // $14 = 7 (después de saltos)
           dut.id_stage_inst.reg_bank.registers[15] == 20 &&    // $15 = 20 (después de saltos)
-          dut.mem_stage_inst.memory[25] == 5 &&               // Mem[100] = $5 = 5
-          dut.mem_stage_inst.memory[26] == 5 &&               // Mem[104] = $6 = 5
-          dut.mem_stage_inst.memory[8] == 15 &&               // Mem[35] = $3 = 15
-          dut.mem_stage_inst.memory[9] == 35) begin           // Mem[39] = $4 = 35
+          dut.mem_stage_inst.data_mem.memory[25] == 5 &&               // Mem[100] = $5 = 5
+          dut.mem_stage_inst.data_mem.memory[26] == 5 &&               // Mem[104] = $6 = 5
+          dut.mem_stage_inst.data_mem.memory[8] == 15 &&               // Mem[35] = $3 = 15
+          dut.mem_stage_inst.data_mem.memory[9] == 35) begin           // Mem[39] = $4 = 35
         $display("\n¡PRUEBA EXITOSA! Todos los resultados son correctos.");
         $display("\nLa unidad de forwarding ha manejado correctamente los riesgos de datos resolubles.");
         $display("Los NOPs insertados han ayudado a evitar los riesgos no resolubles mediante forwarding.");

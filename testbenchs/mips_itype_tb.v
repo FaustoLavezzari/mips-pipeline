@@ -213,23 +213,23 @@ module mips_itype_tb();
                  
         // Mostrar contenido de memoria relevante
         $display("Memoria: Mem[0]=%0d, Mem[1]=%0d, Mem[2]=%0d, Mem[25]=%0d, Mem[26]=%0d",
-                 dut.mem_stage_inst.memory[0],
-                 dut.mem_stage_inst.memory[1],
-                 dut.mem_stage_inst.memory[2],
-                 dut.mem_stage_inst.memory[25],  // 100/4 = 25
-                 dut.mem_stage_inst.memory[26]); // 104/4 = 26
+                 dut.mem_stage_inst.data_mem.memory[0],
+                 dut.mem_stage_inst.data_mem.memory[1],
+                 dut.mem_stage_inst.data_mem.memory[2],
+                 dut.mem_stage_inst.data_mem.memory[25],  // 100/4 = 25
+                 dut.mem_stage_inst.data_mem.memory[26]); // 104/4 = 26
         $display("Mem[29]=%0d, Mem[30]=%0d, Mem[31]=%0d (valores para pruebas de LB/LH)",
-                 dut.mem_stage_inst.memory[29],  // (16+100)/4 = 29 (Mem para byte load)
-                 dut.mem_stage_inst.memory[30],  // (20+100)/4 = 30 (Mem para half load)
-                 dut.mem_stage_inst.memory[31]); // (24+100)/4 = 31 (Mem para half load negativo)
+                 dut.mem_stage_inst.data_mem.memory[29],  // (16+100)/4 = 29 (Mem para byte load)
+                 dut.mem_stage_inst.data_mem.memory[30],  // (20+100)/4 = 30 (Mem para half load)
+                 dut.mem_stage_inst.data_mem.memory[31]); // (24+100)/4 = 31 (Mem para half load negativo)
                          
         // Añadir valores para SB y SH
         $display("Mem[32]=%0d / 0x%h (SB - guarda solo un byte)", 
-                 dut.mem_stage_inst.memory[32],  // (28+100)/4 = 32 (SB - memoria)
-                 dut.mem_stage_inst.memory[32]);
+                 dut.mem_stage_inst.data_mem.memory[32],  // (28+100)/4 = 32 (SB - memoria)
+                 dut.mem_stage_inst.data_mem.memory[32]);
         $display("Mem[33]=%0d / 0x%h (SH - guarda solo halfword)", 
-                 dut.mem_stage_inst.memory[33],  // (32+100)/4 = 33 (SH - memoria)
-                 dut.mem_stage_inst.memory[33]);
+                 dut.mem_stage_inst.data_mem.memory[33],  // (32+100)/4 = 33 (SH - memoria)
+                 dut.mem_stage_inst.data_mem.memory[33]);
       end
     end
   end      // Verificación final después de 90 ciclos
@@ -319,27 +319,27 @@ module mips_itype_tb();
       // Verificación de memoria
       $display("\n==== VERIFICACIÓN DE MEMORIA ====");
       $display("Mem[0]=%0d (Esperado: 10 - SW)", 
-               dut.mem_stage_inst.memory[0]);
+               dut.mem_stage_inst.data_mem.memory[0]);
       $display("Mem[1]=%0d (Esperado: 20 - SW)", 
-               dut.mem_stage_inst.memory[1]);
+               dut.mem_stage_inst.data_mem.memory[1]);
       $display("Mem[2]=%0d (Esperado: -10 - SW)", 
-               dut.mem_stage_inst.memory[2]);
+               dut.mem_stage_inst.data_mem.memory[2]);
       $display("Mem[25]=%0d (Esperado: 20 - SW con offset)", 
-               dut.mem_stage_inst.memory[25]);  // 100/4 = 25
+               dut.mem_stage_inst.data_mem.memory[25]);  // 100/4 = 25
       $display("Mem[26]=%0d (Esperado: 10 - SW con offset)", 
-               dut.mem_stage_inst.memory[26]);  // 104/4 = 26
+               dut.mem_stage_inst.data_mem.memory[26]);  // 104/4 = 26
       $display("Mem[29]=%0d (Esperado: 255 - SW con offset)", 
-               dut.mem_stage_inst.memory[29]);  // 116/4 = 29 (16+100)/4
+               dut.mem_stage_inst.data_mem.memory[29]);  // 116/4 = 29 (16+100)/4
       $display("Mem[30]=%0d (Esperado: 258 - SW con offset)", 
-               dut.mem_stage_inst.memory[30]);  // 120/4 = 30 (20+100)/4
+               dut.mem_stage_inst.data_mem.memory[30]);  // 120/4 = 30 (20+100)/4
       $display("Mem[31]=%0d (Esperado: -256 - SW con offset)", 
-               dut.mem_stage_inst.memory[31]);  // 124/4 = 31 (24+100)/4
+               dut.mem_stage_inst.data_mem.memory[31]);  // 124/4 = 31 (24+100)/4
       $display("Mem[32]=%0d / 0x%h (Esperado: 0x000000dc - SB)", 
-               dut.mem_stage_inst.memory[32],   // 128/4 = 32 (28+100)/4
-               dut.mem_stage_inst.memory[32]);
+               dut.mem_stage_inst.data_mem.memory[32],   // 128/4 = 32 (28+100)/4
+               dut.mem_stage_inst.data_mem.memory[32]);
       $display("Mem[33]=%0d / 0x%h (Esperado: 0x000000dc - SH)", 
-               dut.mem_stage_inst.memory[33],   // 132/4 = 33 (32+100)/4
-               dut.mem_stage_inst.memory[33]);
+               dut.mem_stage_inst.data_mem.memory[33],   // 132/4 = 33 (32+100)/4
+               dut.mem_stage_inst.data_mem.memory[33]);
       
       // Verificar si todas las instrucciones funcionan correctamente
       if (dut.id_stage_inst.reg_bank.registers[1] == 170 &&
@@ -373,16 +373,16 @@ module mips_itype_tb();
           dut.id_stage_inst.reg_bank.registers[29] == 258 && // LWU
           dut.id_stage_inst.reg_bank.registers[30] == -256 &&
           dut.id_stage_inst.reg_bank.registers[31] == 220 && 
-          dut.mem_stage_inst.memory[0] == 10 &&
-          dut.mem_stage_inst.memory[1] == 20 &&
-          dut.mem_stage_inst.memory[2] == -10 &&
-          dut.mem_stage_inst.memory[25] == 20 &&
-          dut.mem_stage_inst.memory[26] == 10 &&
-          dut.mem_stage_inst.memory[29] == 255 &&
-          dut.mem_stage_inst.memory[30] == 258 &&
-          dut.mem_stage_inst.memory[31] == -256 &&
-          dut.mem_stage_inst.memory[32] == 220 && // SB - verificar solo el byte bajo
-          dut.mem_stage_inst.memory[33] == 220  // SH - verificar solo el halfword bajo
+          dut.mem_stage_inst.data_mem.memory[0] == 10 &&
+          dut.mem_stage_inst.data_mem.memory[1] == 20 &&
+          dut.mem_stage_inst.data_mem.memory[2] == -10 &&
+          dut.mem_stage_inst.data_mem.memory[25] == 20 &&
+          dut.mem_stage_inst.data_mem.memory[26] == 10 &&
+          dut.mem_stage_inst.data_mem.memory[29] == 255 &&
+          dut.mem_stage_inst.data_mem.memory[30] == 258 &&
+          dut.mem_stage_inst.data_mem.memory[31] == -256 &&
+          dut.mem_stage_inst.data_mem.memory[32] == 220 && // SB - verificar solo el byte bajo
+          dut.mem_stage_inst.data_mem.memory[33] == 220  // SH - verificar solo el halfword bajo
           ) begin          
         $display("\n¡PRUEBA EXITOSA! Todas las instrucciones I-Type implementadas funcionan correctamente.");
         $display("\nLas instrucciones ADDI, ADDIU, ANDI, ORI, XORI, SLTI, SLTIU, LW, SW, LB, SB, LH, SH,");

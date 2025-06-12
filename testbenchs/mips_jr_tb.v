@@ -163,7 +163,7 @@ module mips_jr_tb;
                dut.id_rt);
                
       $display("EX: ALUResult=%0d", 
-               dut.ex_alu_result)
+               dut.ex_alu_result);
                
       // Mostrar opcode y function code en EX para debugging
       $display("EX Debug: Opcode=%b, Function=%b, forwarded_a=%0d", 

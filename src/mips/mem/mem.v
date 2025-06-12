@@ -23,98 +23,17 @@ module mem_stage(
   output wire        mem_to_reg_out   // Selección ALU/MEM para WB
 );
 
-  // Memoria de datos (256 palabras de 32 bits)
-  reg [31:0] memory [0:255];
-  
-  // Cálculo del índice para acceder a la memoria (dirección dividida por 4)
-  // Usar más bits para direccionar correctamente toda la memoria
-  wire [31:0] mem_addr_full = alu_result_in >> 2; // División por 4 (palabra alineada)
-  wire [7:0] mem_addr = mem_addr_full[7:0]; // Mantener compatibilidad con la definición de memoria
-  
-  always @(posedge clk) begin
-    if (mem_write_in) begin
-      case (opcode_in)
-        `OPCODE_SB: begin  // Store Byte
-          case (alu_result_in[1:0])
-            2'b00: memory[mem_addr] <= {memory[mem_addr][31:8], write_data_in[7:0]};
-            2'b01: memory[mem_addr] <= {memory[mem_addr][31:16], write_data_in[7:0], memory[mem_addr][7:0]};
-            2'b10: memory[mem_addr] <= {memory[mem_addr][31:24], write_data_in[7:0], memory[mem_addr][15:0]};
-            2'b11: memory[mem_addr] <= {write_data_in[7:0], memory[mem_addr][23:0]};
-          endcase
-        end
-        `OPCODE_SH: begin  // Store Halfword
-          case (alu_result_in[1])
-            1'b0: memory[mem_addr] <= {memory[mem_addr][31:16], write_data_in[15:0]};
-            1'b1: memory[mem_addr] <= {write_data_in[15:0], memory[mem_addr][15:0]};
-          endcase
-        end
-        `OPCODE_SW: begin  // Store Word (estándar)
-          memory[mem_addr] <= write_data_in;
-        end
-        default: begin
-          memory[mem_addr] <= write_data_in;
-        end
-      endcase
-    end
-  end
-
-  // Lectura de memoria (asíncrona)
-  reg [31:0] read_data;
-  
-  always @(*) begin
-    if (mem_read_in) begin
-      case (opcode_in)
-        `OPCODE_LB: begin  // Load Byte (sign-extended)
-          case (alu_result_in[1:0])
-            2'b00: read_data = {{24{memory[mem_addr][7]}}, memory[mem_addr][7:0]};
-            2'b01: read_data = {{24{memory[mem_addr][15]}}, memory[mem_addr][15:8]};
-            2'b10: read_data = {{24{memory[mem_addr][23]}}, memory[mem_addr][23:16]};
-            2'b11: read_data = {{24{memory[mem_addr][31]}}, memory[mem_addr][31:24]};
-          endcase
-        end
-        `OPCODE_LBU: begin  // Load Byte Unsigned (zero-extended)
-          case (alu_result_in[1:0])
-            2'b00: read_data = {24'b0, memory[mem_addr][7:0]};
-            2'b01: read_data = {24'b0, memory[mem_addr][15:8]};
-            2'b10: read_data = {24'b0, memory[mem_addr][23:16]};
-            2'b11: read_data = {24'b0, memory[mem_addr][31:24]};
-          endcase
-        end
-        `OPCODE_LH: begin  // Load Halfword (sign-extended)
-          case (alu_result_in[1])
-            1'b0: read_data = {{16{memory[mem_addr][15]}}, memory[mem_addr][15:0]};
-            1'b1: read_data = {{16{memory[mem_addr][31]}}, memory[mem_addr][31:16]};
-          endcase
-        end
-        `OPCODE_LHU: begin  // Load Halfword Unsigned (zero-extended)
-          case (alu_result_in[1])
-            1'b0: read_data = {16'b0, memory[mem_addr][15:0]};
-            1'b1: read_data = {16'b0, memory[mem_addr][31:16]};
-          endcase
-        end
-        `OPCODE_LW: begin  // Load Word (standard)
-          read_data = memory[mem_addr];
-        end
-        `OPCODE_LWU: begin  // Load Word Unsigned (no-op, igual a LW en un sistema de 32 bits)
-          read_data = memory[mem_addr];
-        end
-        default: begin
-          read_data = memory[mem_addr]; // Por defecto, cargar palabra completa
-        end
-      endcase
-    end else begin
-      read_data = 32'b0;
-    end
-  end
-  
-  assign read_data_out = read_data;
-  
-  // Inicialización de la memoria
-  integer i;
-  initial begin
-    for (i = 0; i < 256; i = i + 1)
-      memory[i] = 32'b0;
-  end
+  // Instanciar el módulo de memoria de datos
+  data_memory data_mem (
+    .clk(clk),
+    .reset(reset),
+    .address_in(alu_result_in),
+    .write_data_in(write_data_in),
+    .mem_read_in(mem_read_in),
+    .mem_write_in(mem_write_in),
+    .opcode_in(opcode_in),
+    .read_data_out(read_data_out)
+  );
   
   // Propagar señales de control y datos
   assign alu_result_out = alu_result_in;

@@ -170,8 +170,8 @@ module mips_rtype_tb();
                  
         // Mostrar contenido de memoria relevante
         $display("Memoria: Mem[100]=%0d, Mem[104]=%0d",
-                 dut.mem_stage_inst.memory[25],  // 100/4 = 25
-                 dut.mem_stage_inst.memory[26]); // 104/4 = 26
+                 dut.mem_stage_inst.data_mem.memory[25],  // 100/4 = 25
+                 dut.mem_stage_inst.data_mem.memory[26]); // 104/4 = 26
       end
     end
   end
