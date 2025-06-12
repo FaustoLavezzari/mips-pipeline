@@ -77,8 +77,11 @@
 // Control Signals Default Values
 `define CTRL_REG_DST_RT     1'b0
 `define CTRL_REG_DST_RD     1'b1
-`define CTRL_ALU_SRC_REG    1'b0
-`define CTRL_ALU_SRC_IMM    1'b1
+`define CTRL_ALU_SRC_B_REG  1'b0
+`define CTRL_ALU_SRC_B_IMM  1'b1
+`define CTRL_ALU_SRC_A_REG   2'b00
+`define CTRL_ALU_SRC_A_PC    2'b01
+`define CTRL_ALU_SRC_A_SHAMT 2'b11
 `define CTRL_MEM_READ_EN    1'b1
 `define CTRL_MEM_WRITE_EN   1'b1
 `define CTRL_MEM_TO_REG_ALU 1'b0

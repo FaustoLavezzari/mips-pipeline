@@ -24,7 +24,7 @@ module ex_stage(
   input  wire        i_use_forwarded_b,     // Control de forwarding para RT (0:registro, 1:forwarded)
 
   // Señales de control para la etapa EX
-  input  wire        i_alu_src,         // Selecciona entre registro rt (0) o inmediato (1)
+  input  wire        i_alu_src_b,       // Selecciona entre registro rt (0) o inmediato (1)
   input  wire [2:0]  i_alu_op,          // Operación a realizar en la ALU
   input  wire        i_reg_dst,         // Selecciona registro destino: rt (0) o rd (1)
   input  wire        i_reg_write,       // Señal de escritura en registros
@@ -84,7 +84,7 @@ module ex_stage(
 
   // Multiplexor final para el segundo operando de la ALU
   // Selecciona entre el RT forwardeado y el inmediato extendido
-  assign alu_input_2 = (i_alu_src) ? i_sign_extended_imm : forwarded_b;
+  assign alu_input_2 = (i_alu_src_b) ? i_sign_extended_imm : forwarded_b;
   
   // Determinar si es una instrucción de desplazamiento estático (SLL, SRL, SRA)
   // donde se usa el campo shamt de la instrucción

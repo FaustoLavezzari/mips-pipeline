@@ -33,7 +33,7 @@ module id_stage(
   output wire [5:0]  o_opcode,            // Opcode
   
   // Señales de control para EX
-  output wire        o_alu_src,           // Selección del segundo operando ALU
+  output wire        o_alu_src_b,         // Selección del segundo operando ALU
   output wire [2:0]  o_alu_op,            // Operación ALU
   output wire        o_reg_dst,           // Selección del registro destino
   output wire        o_reg_write,         // Habilitación escritura en banco de registros
@@ -111,7 +111,7 @@ module id_stage(
     .funct        (funct), 
     .reg_dst      (o_reg_dst),
     .reg_write    (o_reg_write),
-    .alu_src      (o_alu_src),
+    .alu_src_b    (o_alu_src_b),
     .alu_op       (o_alu_op),
     .mem_read     (o_mem_read), 
     .mem_write    (o_mem_write),

@@ -52,10 +52,10 @@ module mips(
   wire [4:0]  id_rs;
   wire [4:0]  id_rt;
   wire [4:0]  id_rd;
-  wire [31:0]  id_shamt;
+  wire [31:0] id_shamt;
   wire [5:0]  id_function;
   wire [5:0]  id_opcode;
-  wire        id_alu_src;
+  wire        id_alu_src_b_b;
   wire [2:0]  id_alu_op;
   wire        id_reg_dst;
   wire        id_reg_write;
@@ -65,7 +65,6 @@ module mips(
   wire        id_is_jal;
   wire [31:0] id_branch_target_addr;
   wire        id_take_branch;
-  wire        id_branch_prediction = 1'b0;
 
   // ID Forwarding señales
   wire        id_use_forwarded_a;
@@ -112,7 +111,7 @@ module mips(
     .o_shamt            (id_shamt),
     .o_function         (id_function),
     .o_opcode           (id_opcode),
-    .o_alu_src          (id_alu_src),
+    .o_alu_src_b          (id_alu_src_b),
     .o_alu_op           (id_alu_op),
     .o_reg_dst          (id_reg_dst),
     .o_reg_write        (id_reg_write),
@@ -151,7 +150,7 @@ module mips(
   wire [5:0]  ex_function;
   wire [5:0]  ex_opcode;
   wire [31:0] ex_next_pc;
-  wire        i_ex_alu_src;
+  wire        i_ex_alu_src_b;
   wire [2:0]  i_ex_alu_op;
   wire        i_ex_reg_dst;
   wire        i_ex_reg_write;
@@ -159,7 +158,6 @@ module mips(
   wire        i_ex_mem_write;
   wire        i_ex_mem_to_reg;
   wire        i_ex_is_jal;
-  wire        ex_branch_prediction;
   wire [31:0] ex_branch_target_addr;
   
   id_ex id_ex_latch(
@@ -176,7 +174,7 @@ module mips(
     .function_in          (id_function),
     .opcode_in            (id_opcode),
     .next_pc_in           (id_next_pc),
-    .alu_src_in           (id_alu_src),
+    .alu_src_b_in           (id_alu_src_b),
     .alu_op_in            (id_alu_op),
     .reg_dst_in           (id_reg_dst),
     .reg_write_in         (id_reg_write),
@@ -184,8 +182,6 @@ module mips(
     .mem_write_in         (id_mem_write),
     .mem_to_reg_in        (id_mem_to_reg),
     .is_jal_in            (id_is_jal),
-    .branch_prediction_in (id_branch_prediction),
-    .branch_target_addr_in(id_branch_target_addr),
     .read_data_1_out      (ex_read_data_1),
     .read_data_2_out      (ex_read_data_2),
     .sign_extended_imm_out(ex_sign_extended_imm),
@@ -196,16 +192,14 @@ module mips(
     .function_out         (ex_function),
     .opcode_out           (ex_opcode),
     .next_pc_out          (ex_next_pc),
-    .alu_src_out          (i_ex_alu_src),
+    .alu_src_b_out          (i_ex_alu_src_b),
     .alu_op_out           (i_ex_alu_op),
     .reg_dst_out          (i_ex_reg_dst),
     .reg_write_out        (i_ex_reg_write),
     .mem_read_out         (i_ex_mem_read),
     .mem_write_out        (i_ex_mem_write),
     .mem_to_reg_out       (i_ex_mem_to_reg),
-    .is_jal_out           (i_ex_is_jal),
-    .branch_prediction_out(ex_branch_prediction),
-    .branch_target_addr_out(ex_branch_target_addr)
+    .is_jal_out           (i_ex_is_jal)
   );
 
   // ======== EX Forwarding y señales ========
@@ -255,7 +249,7 @@ module mips(
     .i_forwarded_value_b (ex_forwarded_value_b),
     .i_use_forwarded_a   (ex_use_forwarded_a),
     .i_use_forwarded_b   (ex_use_forwarded_b),
-    .i_alu_src           (i_ex_alu_src),
+    .i_alu_src_b           (i_ex_alu_src_b),
     .i_alu_op            (i_ex_alu_op),
     .i_reg_dst           (i_ex_reg_dst),
     .i_reg_write         (i_ex_reg_write),
