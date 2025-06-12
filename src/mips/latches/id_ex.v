@@ -38,7 +38,7 @@ module id_ex(
   output reg  [4:0]  rs_out,              
   output reg  [4:0]  rt_out,
   output reg  [4:0]  rd_out,
-  output reg  [4:0]  shamt_out,           // Campo shamt para instrucciones SLL/SRL
+  output reg  [31:0]  shamt_out,           
   output reg  [5:0]  function_out,
   output reg  [5:0]  opcode_out,
   output reg  [31:0] next_pc_out,         

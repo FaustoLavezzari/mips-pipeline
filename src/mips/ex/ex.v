@@ -6,16 +6,16 @@ module ex_stage(
   input  wire        reset,
   
   // Datos de la etapa ID/EX
-  input  wire [31:0] i_read_data_1,     // Valor del registro rs
-  input  wire [31:0] i_read_data_2,     // Valor del registro rt
+  input  wire [31:0] i_read_data_1,       // Valor del registro rs
+  input  wire [31:0] i_read_data_2,       // Valor del registro rt
   input  wire [31:0] i_sign_extended_imm, // Immediate con extensión de signo
-  input  wire [5:0]  i_function,        // Campo function de la instrucción
-  input  wire [4:0]  i_rt,              // Registro RT
-  input  wire [4:0]  i_rd,              // Registro RD
-  input  wire [4:0]  i_rs,              // Registro RS (para forwarding)
-  input  wire [4:0]  i_shamt,           // Campo shamt para instrucciones SLL/SRL
-  input  wire [5:0]  i_opcode,          // Código de operación
-  input  wire [31:0] i_next_pc,         // PC+4 para instrucciones JAL/JALR
+  input  wire [5:0]  i_function,          // Campo function de la instrucción
+  input  wire [4:0]  i_rt,                // Registro RT
+  input  wire [4:0]  i_rd,                // Registro RD
+  input  wire [4:0]  i_rs,                // Registro RS (para forwarding)
+  input  wire [31:0]  i_shamt,            // Campo shamt para instrucciones SLL/SRL
+  input  wire [5:0]  i_opcode,            // Código de operación
+  input  wire [31:0] i_next_pc,           // PC+4 para instrucciones JAL/JALR
   
   // Señales para forwarding (anticipación de datos)
   input  wire [31:0] i_forwarded_value_a,   // Valor ya seleccionado para RS

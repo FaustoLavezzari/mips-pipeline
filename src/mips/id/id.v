@@ -28,7 +28,7 @@ module id_stage(
   output wire [4:0]  o_rs,                // Campo rs
   output wire [4:0]  o_rt,                // Campo rt
   output wire [4:0]  o_rd,                // Campo rd
-  output wire [4:0]  o_shamt,             // Campo shamt
+  output wire [31:0]  o_shamt,            // Campo shamt
   output wire [5:0]  o_function,          // Campo function
   output wire [5:0]  o_opcode,            // Opcode
   
@@ -126,7 +126,7 @@ module id_stage(
   assign o_rs = rs;
   assign o_rt = rt;
   assign o_rd = (branch_type == `BRANCH_TYPE_JAL) ? 5'b11111 : rd;  // JAL: rd = $31
-  assign o_shamt = shamt;
+  assign o_shamt = {27'b0, shamt};
   assign o_function = funct;
   assign o_opcode = opcode;
 

@@ -19,7 +19,6 @@ module if_stage(
 
   wire [31:0]   pc;
   wire [31:0]   pc_next; 
-  wire [31:0]   pc_selected; // PC seleccionado después de considerar predicciones/correcciones
   wire [31:0]   instr;
 
   // Calcular PC+4

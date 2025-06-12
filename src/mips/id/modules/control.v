@@ -15,14 +15,14 @@ module control(
 
   always @(*) begin
     // Valores por defecto
-    reg_dst    = `CTRL_REG_DST_RT;    // Por defecto usa rt como registro destino
-    alu_src    = `CTRL_ALU_SRC_REG;   // Por defecto usa el registro rt
-    alu_op     = `ALU_OP_ADD;         // Por defecto suma
-    mem_read   = 1'b0;                // Por defecto no lee memoria
-    mem_write  = 1'b0;                // Por defecto no escribe memoria
-    mem_to_reg = `CTRL_MEM_TO_REG_ALU;// Por defecto usa resultado de ALU
-    reg_write  = `CTRL_REG_WRITE_DIS; // Por defecto no escribe en registros
-    o_branch_type = `BRANCH_TYPE_NONE;// Por defecto no es un salto
+    reg_dst    = `CTRL_REG_DST_RT;     // Por defecto usa rt como registro destino
+    alu_src    = `CTRL_ALU_SRC_REG;    // Por defecto usa el registro rt
+    alu_op     = `ALU_OP_ADD;          // Por defecto suma
+    mem_read   = 1'b0;                 // Por defecto no lee memoria
+    mem_write  = 1'b0;                 // Por defecto no escribe memoria
+    mem_to_reg = `CTRL_MEM_TO_REG_ALU; // Por defecto usa resultado de ALU
+    reg_write  = `CTRL_REG_WRITE_DIS;  // Por defecto no escribe en registros
+    o_branch_type = `BRANCH_TYPE_NONE; // Por defecto no es un salto
     
     case(opcode)
       `OPCODE_R_TYPE: begin

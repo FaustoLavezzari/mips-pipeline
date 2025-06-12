@@ -52,7 +52,7 @@ module mips(
   wire [4:0]  id_rs;
   wire [4:0]  id_rt;
   wire [4:0]  id_rd;
-  wire [4:0]  id_shamt;
+  wire [31:0]  id_shamt;
   wire [5:0]  id_function;
   wire [5:0]  id_opcode;
   wire        id_alu_src;
@@ -147,7 +147,7 @@ module mips(
   wire [4:0]  ex_rs;
   wire [4:0]  ex_rt;
   wire [4:0]  ex_rd;
-  wire [4:0]  ex_shamt;
+  wire [31:0]  ex_shamt;
   wire [5:0]  ex_function;
   wire [5:0]  ex_opcode;
   wire [31:0] ex_next_pc;
