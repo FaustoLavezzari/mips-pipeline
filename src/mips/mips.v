@@ -34,7 +34,7 @@ module mips(
   wire [31:0] id_next_pc;
   wire [31:0] id_instr;
   
-  if_id if_id_reg(
+  if_id if_id_latch(
     .clk         (clk),
     .reset       (reset),
     .flush       (flush_if_id),
@@ -282,7 +282,7 @@ module mips(
   wire        mem_mem_to_reg;
   wire [5:0]  mem_opcode;
   
-  ex_mem ex_mem_reg(
+  ex_mem ex_mem_latch(
     .clk                 (clk),
     .reset               (reset),
     .flush               (1'b0),
@@ -336,7 +336,7 @@ module mips(
   wire        wb_reg_write;
   wire        wb_mem_to_reg;
   
-  mem_wb mem_wb_reg(
+  mem_wb mem_wb_latch(
     .clk                 (clk),
     .reset               (reset),
     .flush               (1'b0),
