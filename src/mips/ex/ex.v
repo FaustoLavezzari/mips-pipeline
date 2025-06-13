@@ -2,6 +2,7 @@
 `include "../mips_pkg.vh"
  
 module ex_stage(
+  // Señales de sistema
   input  wire        clk,
   input  wire        reset,
   
@@ -9,124 +10,96 @@ module ex_stage(
   input  wire [31:0] i_read_data_1,       // Valor del registro rs
   input  wire [31:0] i_read_data_2,       // Valor del registro rt
   input  wire [31:0] i_sign_extended_imm, // Immediate con extensión de signo
-  input  wire [5:0]  i_function,          // Campo function de la instrucción
+  input  wire [5:0]  i_function,          // Campo function
   input  wire [4:0]  i_rt,                // Registro RT
   input  wire [4:0]  i_rd,                // Registro RD
   input  wire [4:0]  i_rs,                // Registro RS (para forwarding)
-  input  wire [31:0]  i_shamt,            // Campo shamt para instrucciones SLL/SRL
+  input  wire [31:0] i_shamt,             // Campo shamt ya extendido a 32 bits
   input  wire [5:0]  i_opcode,            // Código de operación
-  input  wire [31:0] i_next_pc,           // PC+4 para instrucciones JAL/JALR
+  input  wire [31:0] i_next_pc,           // PC+4 para JAL/JALR
   
-  // Señales para forwarding (anticipación de datos)
-  input  wire [31:0] i_forwarded_value_a,   // Valor ya seleccionado para RS
-  input  wire [31:0] i_forwarded_value_b,   // Valor ya seleccionado para RT
-  input  wire        i_use_forwarded_a,     // Control de forwarding para RS (0:registro, 1:forwarded)
-  input  wire        i_use_forwarded_b,     // Control de forwarding para RT (0:registro, 1:forwarded)
+  // Entradas para forwarding
+  input  wire [31:0] i_forwarded_value_a, // Valor forwardeado para RS
+  input  wire [31:0] i_forwarded_value_b, // Valor forwardeado para RT
+  input  wire        i_use_forwarded_a,   // Control de forwarding para RS
+  input  wire        i_use_forwarded_b,   // Control de forwarding para RT
 
-  // Señales de control para la etapa EX
-  input  wire        i_alu_src_b,       // Selecciona entre registro rt (0) o inmediato (1)
-  input  wire [2:0]  i_alu_op,          // Operación a realizar en la ALU
-  input  wire        i_reg_dst,         // Selecciona registro destino: rt (0) o rd (1)
-  input  wire        i_reg_write,       // Señal de escritura en registros
-  input  wire        i_mem_read,        // Control de lectura de memoria
-  input  wire        i_mem_write,       // Control de escritura en memoria
-  input  wire        i_mem_to_reg,      // Selecciona entre ALU o memoria para WB
-  input  wire        i_is_jal,          // Indica si es JAL (recibido desde ID)
+  // Señales de control
+  input  wire        i_alu_src_b,           // Selección entre rt o inmediato
+  input  wire [1:0]  i_alu_src_a,           // Selección entre rs o PC+4 o shamt
+  input  wire        i_reg_dst,           // Selección registro destino
+  input  wire        i_reg_write,         // Escritura en registros
+  input  wire        i_mem_read,          // Lectura de memoria
+  input  wire        i_mem_write,         // Escritura en memoria
+  input  wire        i_mem_to_reg,        // Selección entre ALU o memoria
   
   // Salidas hacia la etapa MEM
-  output wire [31:0] o_alu_result,      // Resultado de la ALU
-  output wire [31:0] o_read_data_2,     // Valor del registro rt (para SW)
-  output wire [4:0]  o_write_register,  // Registro destino para WB
-  output wire        o_reg_write,       // Señal de escritura en registros
-  output wire        o_mem_read,        // Control de lectura de memoria
-  output wire        o_mem_write,       // Control de escritura en memoria
-  output wire        o_mem_to_reg       // Selecciona entre ALU o memoria para WB
+  output wire [31:0] o_alu_result,        // Resultado de la ALU
+  output wire [31:0] o_read_data_2,       // Valor rt para store
+  output wire [4:0]  o_write_register,    // Registro destino
+  output wire        o_reg_write,         // Control de escritura
+  output wire        o_mem_read,          // Control de lectura
+  output wire        o_mem_write,         // Control de escritura
+  output wire        o_mem_to_reg         // Selección para WB
 );
 
-  // Datos intermedios
-  wire [31:0] alu_input_2;    // Segundo operando de la ALU
-  wire [3:0]  alu_control;    // Señal de control para la ALU
-  wire [4:0]  write_reg_rt_rd; // Registro destino (entre rt y rd)
+  //----------------------------------------------------------------------
+  // 1. LÓGICA DE FORWARDING Y VALORES DE OPERANDOS
+  //----------------------------------------------------------------------
   
-  // Valores forwarded para los operandos
-  reg [31:0] forwarded_a;  // Valor efectivo para el operando A
-  reg [31:0] forwarded_b;  // Valor efectivo para el operando B
-    
-  // Lógica de multiplexor para el operando A (RS)
+  wire [31:0] updated_rs = i_use_forwarded_a ? i_forwarded_value_a : i_read_data_1;
+  wire [31:0] updated_rt = i_use_forwarded_b ? i_forwarded_value_b : i_read_data_2;
+
+  reg [31:0] alu_input_a;
   always @(*) begin
-    if (i_is_jal) begin
-      // Si es JAL o JALR, mantenemos el valor de PC+4 intacto, evitando el forwarding
-      forwarded_a = i_read_data_1;  // Contiene PC+4 
-    end else begin
-      // Forwarding simplificado para RS
-      if (i_use_forwarded_a)
-        forwarded_a = i_forwarded_value_a;  // Usar valor forwardeado
-      else
-        forwarded_a = i_read_data_1;        // Usar valor original
-    end
+    case(i_alu_src_a)
+      `CTRL_ALU_SRC_A_REG:   alu_input_a = updated_rs;
+      `CTRL_ALU_SRC_A_PC:    alu_input_a = i_next_pc;
+      `CTRL_ALU_SRC_A_SHAMT: alu_input_a = i_shamt;
+      default:               alu_input_a = updated_rs;  
+    endcase
   end
-  
-  // Lógica de multiplexor para el operando B (RT)
+
+  reg [31:0] alu_input_b;
   always @(*) begin
-    if (i_use_forwarded_b)
-      forwarded_b = i_forwarded_value_b;  // Usar valor forwardeado
-    else
-      forwarded_b = i_read_data_2;        // Usar valor original
+    case(i_alu_src_b)
+      `CTRL_ALU_SRC_B_REG: alu_input_b = updated_rt;
+      `CTRL_ALU_SRC_B_IMM: alu_input_b = i_sign_extended_imm;
+      default:             alu_input_b = 32'b0;
+    endcase
   end
-  
-  // Instancia del controlador de la ALU
+
+  //----------------------------------------------------------------------
+  // 2. CONTROL DE LA ALU Y EJECUCIÓN
+  //----------------------------------------------------------------------
+  // Señal de control para la ALU
+  wire [3:0] alu_control;
+
+  // Controlador de la ALU
   alu_control alu_control_inst (
-    .func_code   (i_function),
-    .i_opcode    (i_opcode),     // Pasar el opcode para instrucciones I-type
-    .alu_op      (i_alu_op),
+    .i_func_code   (i_function),
+    .i_opcode    (i_opcode),
     .alu_control (alu_control)
   );
-
-  // Multiplexor final para el segundo operando de la ALU
-  // Selecciona entre el RT forwardeado y el inmediato extendido
-  assign alu_input_2 = (i_alu_src_b) ? i_sign_extended_imm : forwarded_b;
   
-  // Determinar si es una instrucción de desplazamiento estático (SLL, SRL, SRA)
-  // donde se usa el campo shamt de la instrucción
-  wire is_static_shift_op = (i_opcode == `OPCODE_R_TYPE) && 
-                           (i_function == `FUNC_SLL || 
-                            i_function == `FUNC_SRL || 
-                            i_function == `FUNC_SRA);
-  
-  // Determinar si es una instrucción de desplazamiento variable (SLLV, SRLV, SRAV)
-  // donde se usa el valor del registro RS como cantidad de desplazamiento
-  wire is_var_shift_op = (i_opcode == `OPCODE_R_TYPE) &&
-                         (i_function == `FUNC_SLLV ||
-                          i_function == `FUNC_SRLV ||
-                          i_function == `FUNC_SRAV);
-  
-  // Flag general para identificar si es cualquier tipo de desplazamiento
-  wire is_shift_op = is_static_shift_op || is_var_shift_op;
-                                       
-  // Para instrucciones de desplazamiento estático, usamos el campo shamt directamente
-  // Convertimos el campo shamt (5 bits) a 32 bits con zero extension
-  wire [31:0] shift_amount = {27'b0, i_shamt};
-  
-  // El valor real para la cantidad de desplazamiento:
-  // - Para desplazamientos estáticos (SLL, SRL, SRA): usar el valor de shamt
-  // - Para desplazamientos variables (SLLV, SRLV, SRAV): usar forwarded_a (valor de RS)
-  wire [31:0] shift_value = is_static_shift_op ? shift_amount : {27'b0, forwarded_a[4:0]};
-  
+  // Unidad ALU
   alu alu_inst (
-    .a           (is_shift_op ? shift_value : forwarded_a),  // shamt/rs[4:0] para desplazamiento
-    .b           (is_shift_op ? forwarded_b : alu_input_2),  // rt para desplazamientos, rt/imm para otros
+    .a           (alu_input_a),
+    .b           (alu_input_b),
     .alu_control (alu_control),
     .result      (o_alu_result)
   );
   
-  // MUX para seleccionar entre rt y rd como registro destino
-  // La etapa ID es responsable de configurar el registro destino apropiado
-  assign o_write_register = (i_reg_dst) ? i_rd : i_rt;
+  //----------------------------------------------------------------------
+  // 3. SELECCIÓN DE REGISTRO Y SEÑALES DE CONTROL
+  //----------------------------------------------------------------------
+  // Selección del registro destino
+  assign o_write_register = i_reg_dst ? i_rd : i_rt;
   
-  // Usar el valor RT forwardeado para instrucciones store
-  assign o_read_data_2 = forwarded_b;
-
-  // Pasar las señales de control
+  // Valor rt para instrucciones store
+  assign o_read_data_2 = updated_rt;
+  
+  // Paso de señales de control a la siguiente etapa
   assign o_reg_write = i_reg_write;
   assign o_mem_read = i_mem_read;
   assign o_mem_write = i_mem_write;

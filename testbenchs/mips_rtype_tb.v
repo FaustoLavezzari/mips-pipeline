@@ -93,33 +93,32 @@ module mips_rtype_tb();
                dut.if_stage_inst.pc_inst.pc,
                dut.if_instr,
                instr_type(dut.if_instr));
-               
-      $display("ID: Instr=%0h, RegDst=%0b, ALUOp=%0b, RegWrite=%0b", 
-               dut.id_instr,
-               dut.id_reg_dst,
-               dut.id_alu_op,
-               dut.id_reg_write);
-               
-      $display("EX: ALUResult=%0d, RD=%0d, RegWrite=%0b", 
-               dut.ex_alu_result,
-               dut.ex_write_register,
-               dut.ex_reg_write);
       
-      // Mostrar información de la unidad de forwarding de ID y EX
-      begin
-        $display("ID_FORWARDING: UseForwardedA=%0b, UseForwardedB=%0b, RS=%0d, RT=%0d", 
-                 dut.id_use_forwarded_a,
-                 dut.id_use_forwarded_b,
-                 dut.id_rs,
-                 dut.id_rt);
-                 
-        $display("ID_BRANCH_CONTROL: take_branch=%0b, target=0x%h", 
-                 dut.id_take_branch,
-                 dut.id_branch_target_addr);
-                 
-        $display("EX_FORWARDING: UseForwardedA=%0b, UseForwardedB=%0b", 
-                 dut.ex_use_forwarded_a,
-                 dut.ex_use_forwarded_b);
+        $display("ID: Instr=%0h, RegDst=%0b, OpCode=%0b, ALUSrcA=%0b, ALUSrcB=%0b, Shamt=0x%h, Function=%0b, RegWrite=%0b", 
+                 dut.id_instr,
+                 dut.id_reg_dst,
+                 dut.id_opcode,
+                 dut.id_alu_src_a,
+                 dut.id_alu_src_b,
+                 dut.id_shamt,
+                 dut.id_function,
+                 dut.id_reg_write);
+
+        $display("Branch Control: Take Branch=%0b, Target Address=0x%0h, Branch Type=%0b, PC+4=0x%h", 
+                  dut.id_take_branch,
+                  dut.id_branch_target_addr,
+                  dut.id_stage_inst.branch_type,
+                  dut.id_next_pc);         
+
+        $display("EX: ALUSrcA=%0b, ALUinputA=%0d, ALUinputB=%0d, Shamt=0x%h, ALUControl=%0d, ALUResult=%0d, RD=%0d, RegWrite=%0b",
+                 dut.ex_stage_inst.i_alu_src_a,
+                 dut.ex_stage_inst.alu_input_a,
+                 dut.ex_stage_inst.alu_input_b, 
+                 dut.ex_stage_inst.i_shamt,
+                 dut.ex_stage_inst.alu_control,
+                 dut.ex_alu_result,
+                 dut.ex_write_register,
+                 dut.ex_reg_write);
         
         // Mostrar también los registros de origen y destino relevantes
         $display("REGS: Rs=%0d, Rt=%0d, MEM_Rd=%0d, WB_Rd=%0d", 
@@ -127,7 +126,6 @@ module mips_rtype_tb();
                  dut.ex_rt,
                  dut.mem_write_register,
                  dut.wb_write_register_out);
-      end
                
       $display("MEM: ALUResult=%0d, MemWrite=%0b, MemRead=%0b, RegWrite=%0b", 
                dut.mem_alu_result,

@@ -28,19 +28,18 @@ module id_stage(
   output wire [4:0]  o_rs,                // Campo rs
   output wire [4:0]  o_rt,                // Campo rt
   output wire [4:0]  o_rd,                // Campo rd
-  output wire [31:0]  o_shamt,            // Campo shamt
+  output wire [31:0] o_shamt,            // Campo shamt
   output wire [5:0]  o_function,          // Campo function
   output wire [5:0]  o_opcode,            // Opcode
   
   // Señales de control para EX
   output wire        o_alu_src_b,         // Selección del segundo operando ALU
-  output wire [2:0]  o_alu_op,            // Operación ALU
+  output wire [1:0]  o_alu_src_a,         // Selección del primer operando ALU
   output wire        o_reg_dst,           // Selección del registro destino
   output wire        o_reg_write,         // Habilitación escritura en banco de registros
   output wire        o_mem_read,          // Control de lectura de memoria
   output wire        o_mem_write,         // Control de escritura en memoria
   output wire        o_mem_to_reg,        // Selección entre ALU o memoria para WB
-  output wire        o_is_jal,            // Indica si es JAL/JALR
   
   // Salidas para control de saltos
   output wire [31:0] o_branch_target_addr, // Dirección de destino del salto
@@ -85,9 +84,6 @@ module id_stage(
   
   // Lógica de forwarding para operando A (RS), incluye caso especial JAL/JALR
   always @(*) begin
-    if (branch_type == `BRANCH_TYPE_JAL || branch_type == `BRANCH_TYPE_JALR)
-      forwarded_data_1 = i_next_pc;  // Para JAL/JALR, pasamos PC+4 directamente
-    else
       forwarded_data_1 = i_use_forwarded_a ? i_forwarded_value_a : reg_data_1;
   end
   
@@ -112,7 +108,7 @@ module id_stage(
     .reg_dst      (o_reg_dst),
     .reg_write    (o_reg_write),
     .alu_src_b    (o_alu_src_b),
-    .alu_op       (o_alu_op),
+    .alu_src_a    (o_alu_src_a),
     .mem_read     (o_mem_read), 
     .mem_write    (o_mem_write),
     .mem_to_reg   (o_mem_to_reg),
@@ -153,9 +149,6 @@ module id_stage(
       (branch_type == `BRANCH_TYPE_BEQ || branch_type == `BRANCH_TYPE_BNE) ? branch_target :
       (branch_type == `BRANCH_TYPE_J || branch_type == `BRANCH_TYPE_JAL) ? jump_target :
       (branch_type == `BRANCH_TYPE_JR || branch_type == `BRANCH_TYPE_JALR) ? jr_target :
-      i_next_pc;
+      32'b1; // Valor por defecto (no debería ocurrir)
       
-  // Indicador para JAL/JALR (para guardar PC+4 en reg destino)
-  assign o_is_jal = (branch_type == `BRANCH_TYPE_JAL || branch_type == `BRANCH_TYPE_JALR);
-
 endmodule

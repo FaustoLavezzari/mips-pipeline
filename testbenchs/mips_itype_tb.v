@@ -110,13 +110,19 @@ module mips_itype_tb();
                dut.if_instr,
                instr_type(dut.if_instr));
                
-      $display("ID: Instr=%0h, RegDst=%0b, ALUOp=%0b, RegWrite=%0b", 
+      $display("ID: Instr=%0h, RegDst=%0b, OpCode=%0b, ALUSrcA=%0b, ALUSrcB=%0b, Function=%0b, RegWrite=%0b", 
                dut.id_instr,
                dut.id_reg_dst,
-               dut.id_alu_op,
+               dut.id_opcode,
+               dut.id_alu_src_a,
+               dut.id_alu_src_b,
+               dut.id_function,
                dut.id_reg_write);
                
-      $display("EX: ALUResult=%0d, RD=%0d, RegWrite=%0b", 
+      $display("EX: ALUinputA=%0d, ALUinputB=%0d, ALUControl=%0d, ALUResult=%0d, RD=%0d, RegWrite=%0b",
+               dut.ex_stage_inst.alu_input_a,
+               dut.ex_stage_inst.alu_input_b, 
+               dut.ex_stage_inst.alu_control,
                dut.ex_alu_result,
                dut.ex_write_register,
                dut.ex_reg_write);
@@ -132,11 +138,6 @@ module mips_itype_tb();
         $display("ID_BRANCH_CONTROL: take_branch=%0b, target=0x%h", 
                  dut.id_take_branch,
                  dut.id_branch_target_addr);
-                 
-        // Agregar check para JAL
-        $display("JAL_CHECK: is_jal=%0b, PC+4=0x%h (ID)", 
-                 dut.id_is_jal,
-                 dut.id_next_pc);
                  
         $display("EX_FORWARDING: UseForwardedA=%0b, UseForwardedB=%0b", 
                  dut.ex_use_forwarded_a,

@@ -2,82 +2,50 @@
 `include "../../mips_pkg.vh"
 
 module alu_control(
-  input  wire [5:0] func_code,   // Campo function de la instrucción
+  input  wire [5:0] i_func_code,   // Campo function de la instrucción
   input  wire [5:0] i_opcode,    // Opcode de la instrucción (para instrucciones I-type)
-  input  wire [2:0] alu_op,      // Señal de control de la ALU del control principal
   output reg  [3:0] alu_control  // Señal de control para la ALU
 );
 
   always @(*) begin
     // Asignación predeterminada inicial
-    alu_control = `ALU_ADD;
+    alu_control = `ALU_BYPASS_A;
     
-    case(alu_op)
-      `ALU_OP_SUB: // BEQ, BNE - siempre resta (para comparar)
-        alu_control = `ALU_SUB;
-        
-      `ALU_OP_LUI: // LUI - operación específica
-        alu_control = `ALU_LUI;
-        
-      `ALU_OP_BYPASS_A: // JAL, JALR - bypass del operando A
-        alu_control = `ALU_BYPASS_A;
-
-      `ALU_OP_RTYPE: begin // Instrucciones R-type - depende del campo function
-        case(func_code)
-          `FUNC_ADD:  alu_control = `ALU_ADD;  // ADD
-          `FUNC_ADDU: alu_control = `ALU_ADD;  // ADDU (misma operación que ADD en la ALU)
-          `FUNC_SUB:  alu_control = `ALU_SUB;  // SUB
-          `FUNC_SUBU: alu_control = `ALU_SUB;  // SUBU (misma operación que SUB en la ALU)
+    case(i_opcode)   
+      `OPCODE_R_TYPE: begin // Instrucciones R-type - depende del campo function
+        case(i_func_code) 
+          `FUNC_ADDU: alu_control = `ALU_ADDU; 
+          `FUNC_SUBU: alu_control = `ALU_SUBU;  // SUBU
           `FUNC_AND:  alu_control = `ALU_AND;  // AND
           `FUNC_OR:   alu_control = `ALU_OR;   // OR  
           `FUNC_NOR:  alu_control = `ALU_NOR;  // NOR
           `FUNC_SLT:  alu_control = `ALU_SLT;  // SLT
           `FUNC_SLTU: alu_control = `ALU_SLTU; // SLTU
           `FUNC_XOR:  alu_control = `ALU_XOR;  // XOR
-          `FUNC_SLL:  begin
-                      alu_control = `ALU_SLL;  // SLL
-                      $display("SLL detectado: func_code=%b, alu_control=%b", func_code, alu_control);
-                      end
-          `FUNC_SRL:  begin
-                      alu_control = `ALU_SRL;  // SRL
-                      $display("SRL detectado: func_code=%b, alu_control=%b", func_code, alu_control);
-                      end
-          `FUNC_SRA:  begin
-                      alu_control = `ALU_SRA;  // SRA
-                      $display("SRA detectado: func_code=%b, alu_control=%b", func_code, alu_control);
-                      end
-          `FUNC_SLLV: begin
-                      alu_control = `ALU_SLL;  // SLLV - Usa misma operación que SLL
-                      $display("SLLV detectado: func_code=%b, alu_control=%b", func_code, alu_control);
-                      end
-          `FUNC_SRLV: begin
-                      alu_control = `ALU_SRL;  // SRLV - Usa misma operación que SRL
-                      $display("SRLV detectado: func_code=%b, alu_control=%b", func_code, alu_control);
-                      end
-          `FUNC_SRAV: begin
-                      alu_control = `ALU_SRA;  // SRAV - Usa misma operación que SRA
-                      $display("SRAV detectado: func_code=%b, alu_control=%b", func_code, alu_control);
-                      end
-          default:    alu_control = `ALU_ADD;  // Por defecto suma
+          `FUNC_SLL:  alu_control = `ALU_SLL;  // SLL
+          `FUNC_SRL:  alu_control = `ALU_SRL;  // SRL
+          `FUNC_SRA:  alu_control = `ALU_SRA;  // SRA
+          `FUNC_SLLV: alu_control = `ALU_SLL;  // SLLV - Usa misma operación que SLL
+          `FUNC_SRLV: alu_control = `ALU_SRL;  // SRLV - Usa misma operación que SRL
+          `FUNC_SRAV: alu_control = `ALU_SRA;  // SRAV - Usa misma operación que SRA   
+          `FUNC_JR:   alu_control = `ALU_BYPASS_A; // JR - No se usa ALU 
+          `FUNC_JALR: alu_control = `ALU_BYPASS_A;  // JALR - No usar PC+4 como operando A
+          default:    alu_control = `ALU_ADD; // Por defecto, no se usa ALU
         endcase
       end
 
-      `ALU_OP_IMM: begin // ANDI, ORI, XORI, SLTI, SLTIU
-        // En lugar de comparar func_code con opcodes, usamos i_opcode pasado directamente
-        case(i_opcode)
-          `OPCODE_ANDI:  alu_control = `ALU_AND;  // ANDI
-          `OPCODE_ORI:   alu_control = `ALU_OR;   // ORI
-          `OPCODE_XORI:  alu_control = `ALU_XOR;  // XORI
-          `OPCODE_SLTI:  alu_control = `ALU_SLT;  // SLTI
-          `OPCODE_SLTIU: alu_control = `ALU_SLTU; // SLTIU - usa comparación sin signo
-          default:       alu_control = `ALU_ADD;  // Default para otras operaciones inmediatas
-        endcase
-      end
-      
-      `ALU_OP_LUI: begin // LUI
-        alu_control = `ALU_LUI;  // Operación específica para LUI
-      end
-      
+      `OPCODE_ADDI:   alu_control = `ALU_ADD; // ADDI - Suma con signo
+      `OPCODE_ADDIU:  alu_control = `ALU_ADDU; // ADDIU - Suma sin signo
+      `OPCODE_ANDI:   alu_control = `ALU_AND; // ANDI - AND con inmediato
+      `OPCODE_ORI:    alu_control = `ALU_OR;  // ORI - OR con inmediato
+      `OPCODE_XORI:   alu_control = `ALU_XOR; // XORI - XOR con inmediato
+      `OPCODE_LUI:    alu_control = `ALU_LUI; // LUI - Carga inmediata superior
+      `OPCODE_SLTI:   alu_control = `ALU_SLT; // SLTI - Comparación con inmediato
+      `OPCODE_SLTIU:  alu_control = `ALU_SLTU; // SLTIU - Comparación sin signo con inmediato
+      `OPCODE_J, `OPCODE_BNE, `OPCODE_BEQ: alu_control = `ALU_BYPASS_A; // J - No se usa ALU
+      `OPCODE_JAL:    alu_control = `ALU_BYPASS_A; // JAL - usar PC+4 como operando A
+
+      default: alu_control = `ALU_ADD; // Por defecto, no se usa ALU
     endcase
   end
 

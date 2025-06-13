@@ -15,7 +15,7 @@ module instr_mem(
     end
     
     // Cargar programa desde archivo
-    $readmemh("/home/fausto/mips-pipeline/instructions/test_itype_instr.mem", memory);
+    $readmemh("/home/fausto/mips-pipeline/instructions/test_jr_instr.mem", memory);
     
   end
   always @(*) begin

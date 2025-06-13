@@ -28,13 +28,13 @@ module if_stage(
   );
     
   // Seleccionar la dirección de destino
-  wire [31:0] next_pc_value = i_take_branch ? i_branch_target_addr : pc_next;
+  wire [31:0] next_pc_selected = i_take_branch ? i_branch_target_addr : pc_next;
 
   // Actualizar el PC con el valor seleccionado
   PC pc_inst(
     .clk           (clk),    
     .reset         (reset),
-    .next_pc       (pc_next),
+    .next_pc       (next_pc_selected),
     .halt          (i_halt),
     .stall         (i_stall),
     .pc            (pc)

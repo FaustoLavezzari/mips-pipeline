@@ -146,30 +146,29 @@ module mips_jr_tb;
                dut.if_instr,
                instr_type(dut.if_instr));
                
-      $display("ID: Instr=%0h, Take Branch=%0b, Function=%0h", 
+      $display("ID: Instr=%0h, RegDst=%0b, OpCode=%0b, ALUSrcA=%0b, ALUSrcB=%0b, Function=%0b, RegWrite=%0b", 
                dut.id_instr,
-               dut.id_take_branch,
-               dut.id_function);
-               
-      $display("ID_BRANCH_CONTROL: take_branch=%0b, target=0x%h, read_data_1=0x%h", 
-               dut.id_take_branch,
-               dut.id_branch_target_addr,
-               dut.id_read_data_1);
-               
-      $display("ID_FORWARDING: UseForwardedA=%0b, UseForwardedB=%0b, RS=%0d, RT=%0d", 
-               dut.id_use_forwarded_a,
-               dut.id_use_forwarded_b,
-               dut.id_rs,
-               dut.id_rt);
-               
-      $display("EX: ALUResult=%0d", 
-               dut.ex_alu_result);
-               
-      // Mostrar opcode y function code en EX para debugging
-      $display("EX Debug: Opcode=%b, Function=%b, forwarded_a=%0d", 
-               dut.ex_stage_inst.i_opcode,
-               dut.ex_stage_inst.i_function,
-               dut.ex_stage_inst.forwarded_a);
+               dut.id_reg_dst,
+               dut.id_opcode,
+               dut.id_alu_src_a,
+               dut.id_alu_src_b,
+               dut.id_function,
+               dut.id_reg_write);
+
+      $display("Branch Control: Take Branch=%0b, Target Address=0x%0h, Branch Type=%0b, PC+4=0x%h", 
+         dut.id_take_branch,
+         dut.id_branch_target_addr,
+         dut.id_stage_inst.branch_type,
+         dut.id_next_pc);
+
+      $display("EX: ALUinputA=%0d, ALUinputB=%0d, ALUControl=%0d, ALUResult=%0d, RD=%0d, RegWrite=%0b",
+               dut.ex_stage_inst.alu_input_a,
+               dut.ex_stage_inst.alu_input_b, 
+               dut.ex_stage_inst.alu_control,
+               dut.ex_alu_result,
+               dut.ex_write_register,
+               dut.ex_reg_write);
+          
     end
   end
 

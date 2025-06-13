@@ -20,7 +20,6 @@
 `define OPCODE_BNE      6'b000101
 `define OPCODE_J        6'b000010
 `define OPCODE_JAL      6'b000011  // Jump And Link
-// Instrucciones de carga adicionales
 `define OPCODE_LB       6'b100000  // Load Byte
 `define OPCODE_LH       6'b100001  // Load Halfword
 `define OPCODE_LWU      6'b100111  // Load Word Unsigned
@@ -49,19 +48,12 @@
 `define FUNC_JR     6'b001000   // Jump Register
 `define FUNC_JALR   6'b001001   // Jump And Link Register
 
-// ALU Operations
-`define ALU_OP_WIDTH    3
-`define ALU_OP_ADD      3'b000
-`define ALU_OP_SUB      3'b001
-`define ALU_OP_RTYPE    3'b010
-`define ALU_OP_IMM      3'b011  // Para operaciones inmediatas como ANDI, ORI, SLTI
-`define ALU_OP_LUI      3'b100  // Operación específica para LUI
-`define ALU_OP_BYPASS_A 3'b101  // Operación para JAL/JALR: bypass del operando A
-
 // ALU Control Signals
 `define ALU_CTRL_WIDTH  4
-`define ALU_ADD         4'b0010  
+`define ALU_ADD         4'b0010
+`define ALU_ADDU        4'b0011
 `define ALU_SUB         4'b0110
+`define ALU_SUBU        4'b0100  // Added for SUB Unsigned
 `define ALU_AND         4'b0000
 `define ALU_OR          4'b0001
 `define ALU_XOR         4'b1101
