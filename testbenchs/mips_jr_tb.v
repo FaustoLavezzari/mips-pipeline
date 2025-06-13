@@ -64,16 +64,26 @@ module mips_jr_tb;
     // Cargar programa de prueba JR
     $readmemh("../instructions/test_jr_instr.mem", dut.if_stage_inst.imem_inst.memory);
     
+    // Mostrar información de la simulación
+    $display("\n==== MIPS Pipeline JR/JALR Testbench ====\n");
+    $display("Este testbench evalúa el funcionamiento de las instrucciones JR y JALR");
+    $display("La simulación terminará automáticamente cuando la señal halt se active");
+    
     // Reiniciar procesador
     #10 reset = 0;
     
-    // Ejecutar la simulación por más ciclos para completar el programa
-    #700;
-    
-    // Verificar resultados
-    $display("\n==== Verificación de resultados ====");
-    $display("$1 = %0d (Esperado: 5)", 
-             dut.id_stage_inst.reg_bank.registers[1]);
+    // Esperar hasta que halt sea 1 o hasta un tiempo máximo por seguridad
+    fork
+      // Opción 1: Terminar cuando halt sea 1
+      begin
+        wait(halt);
+        $display("\n==== Procesador terminado: señal halt detectada (t=%0t ns) ====", $time);
+        
+        // Verificar resultados
+        $display("\n==== VERIFICACIÓN FINAL AL DETECTAR HALT (Ciclo %0d) ====", cycle_count);
+        $display("\n==== Verificación de resultados ====");
+        $display("$1 = %0d (Esperado: 5)", 
+                 dut.id_stage_inst.reg_bank.registers[1]);
     $display("$2 = %0d (Esperado: 100)", 
              dut.id_stage_inst.reg_bank.registers[2]);
     $display("$16 = %0d (Esperado: 24)", // Corregido: debe ser 24, no 16
@@ -129,7 +139,16 @@ module mips_jr_tb;
       $display("\n¡TEST FALLIDO! La instrucción JALR no funciona como se esperada\n");
     end
     
-    $finish;
+        $finish;
+      end
+      
+      // Opción 2: Tiempo máximo de seguridad
+      begin
+        #2000;  // Tiempo máximo de seguridad (2000 ns)
+        $display("\n==== ADVERTENCIA: Se alcanzó tiempo máximo sin detectar señal halt ====");
+        $finish;
+      end
+    join
   end
   
   // Monitorear el estado del procesador en cada ciclo
@@ -168,6 +187,9 @@ module mips_jr_tb;
                dut.ex_alu_result,
                dut.ex_write_register,
                dut.ex_reg_write);
+      
+      // Mostrar estado de señal halt
+      $display("Halt: %0b", halt);
           
     end
   end

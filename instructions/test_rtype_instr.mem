@@ -63,46 +63,4 @@
 2013FFFD  // addi $19, $0, -3     # $19 = -3 (número negativo para probar con signo)
 20140002  // addi $20, $0, 2      # $20 = 2 (cantidad de desplazamiento)
 02939807  // srav $19, $19, $20   # $19 = $19 >>> $20 = -3 >>> 2 = -1
-
-
-// Instrucciones adicionales para que completen los 90 ciclos para la verificación final
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
+FFFFFFFF  // halt

@@ -25,7 +25,8 @@ module id_ex(
   input  wire        mem_read_in,
   input  wire        mem_write_in,
   input  wire        mem_to_reg_in,
-  
+  input  wire        is_halt_in,
+
   // Salidas hacia la etapa EX
   output reg  [31:0] read_data_1_out,
   output reg  [31:0] read_data_2_out,
@@ -46,10 +47,8 @@ module id_ex(
   output reg         mem_read_out,
   output reg         mem_write_out,
   output reg         mem_to_reg_out,
+  output reg         is_halt_out        
   
-  // Salidas de predicción de saltos
-  output reg         branch_prediction_out,     // Señal de predicción
-  output reg  [31:0] branch_target_addr_out     // Dirección destino del salto
 );
   always @(posedge clk) begin
     if (reset || flush) begin
@@ -60,22 +59,22 @@ module id_ex(
       rs_out                <= {`REG_ADDR_WIDTH{1'b0}};
       rt_out                <= {`REG_ADDR_WIDTH{1'b0}};
       rd_out                <= {`REG_ADDR_WIDTH{1'b0}};
-      shamt_out             <= {`DATA_WIDTH{1'b0}};  // Using DATA_WIDTH (32 bits) instead of REG_ADDR_WIDTH (5 bits)
+      shamt_out             <= {`DATA_WIDTH{1'b0}};
       function_out          <= 6'b0;
       opcode_out            <= 6'b0;
-      next_pc_out           <= next_pc_in;
-      
+      next_pc_out           <= {`DATA_WIDTH{1'b0}};
+
       // Señales de control - Desactivar todas en caso de flush o reset
       alu_src_b_out         <= `CTRL_ALU_SRC_B_REG;
-      alu_src_a_out         <= `CTRL_ALU_SRC_A_REG;  // Inicializar ALUSrcA a REG (00)
-
+      alu_src_a_out         <= `CTRL_ALU_SRC_A_REG;
       reg_dst_out           <= `CTRL_REG_DST_RT;
       reg_write_out         <= `CTRL_REG_WRITE_DIS; 
       mem_read_out          <= 1'b0;
       mem_write_out         <= 1'b0;
-      mem_to_reg_out        <= `CTRL_MEM_TO_REG_ALU;
-      
+      mem_to_reg_out        <= `CTRL_MEM_TO_REG_ALU; 
+      is_halt_out           <= reset ? 1'b0 : is_halt_in;
     end
+
     else begin  // Actualizar registros siempre que no haya reset o flush
       // Datos
       read_data_1_out       <= read_data_1_in;
@@ -97,7 +96,7 @@ module id_ex(
       mem_read_out          <= mem_read_in;
       mem_write_out         <= mem_write_in;
       mem_to_reg_out        <= mem_to_reg_in;
-      
+      is_halt_out           <= is_halt_in;
     end
   end
 endmodule

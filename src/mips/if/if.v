@@ -35,7 +35,6 @@ module if_stage(
     .clk           (clk),    
     .reset         (reset),
     .next_pc       (next_pc_selected),
-    .halt          (i_halt),
     .stall         (i_stall),
     .pc            (pc)
   );

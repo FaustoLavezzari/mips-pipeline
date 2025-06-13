@@ -25,13 +25,14 @@ module ex_stage(
   input  wire        i_use_forwarded_b,   // Control de forwarding para RT
 
   // Señales de control
-  input  wire        i_alu_src_b,           // Selección entre rt o inmediato
-  input  wire [1:0]  i_alu_src_a,           // Selección entre rs o PC+4 o shamt
+  input  wire        i_alu_src_b,         // Selección entre rt o inmediato
+  input  wire [1:0]  i_alu_src_a,         // Selección entre rs o PC+4 o shamt
   input  wire        i_reg_dst,           // Selección registro destino
   input  wire        i_reg_write,         // Escritura en registros
   input  wire        i_mem_read,          // Lectura de memoria
   input  wire        i_mem_write,         // Escritura en memoria
   input  wire        i_mem_to_reg,        // Selección entre ALU o memoria
+  input  wire        i_is_halt,           // Señal de HALT (para detener el pipeline)
   
   // Salidas hacia la etapa MEM
   output wire [31:0] o_alu_result,        // Resultado de la ALU
@@ -40,7 +41,8 @@ module ex_stage(
   output wire        o_reg_write,         // Control de escritura
   output wire        o_mem_read,          // Control de lectura
   output wire        o_mem_write,         // Control de escritura
-  output wire        o_mem_to_reg         // Selección para WB
+  output wire        o_mem_to_reg,        // Selección para WB
+  output wire        o_is_halt            // Señal de HALT
 );
 
   //----------------------------------------------------------------------
@@ -104,5 +106,6 @@ module ex_stage(
   assign o_mem_read = i_mem_read;
   assign o_mem_write = i_mem_write;
   assign o_mem_to_reg = i_mem_to_reg;
+  assign o_is_halt = i_is_halt;
 
 endmodule

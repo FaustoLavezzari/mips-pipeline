@@ -75,10 +75,78 @@ module mips_rtype_tb();
     #15;
     reset = 0;
 
-    // Ejecutar por 75 ciclos + margen extra para completar todas las instrucciones
-    #950;
-    $finish;
+    // La verificación y finalización se manejan en el bloque always que detecta halt
   end
+  
+  // Función para verificar los resultados
+  task check_results;
+    begin
+      $display("\n==== VERIFICACIÓN FINAL (Ciclo %0d) ====", cycle_count);
+      $display("Registros finales:");
+      $display("$1=%0d (Esperado: 10)", 
+               dut.id_stage_inst.reg_bank.registers[1]);
+      $display("$2=%0d (Esperado: 20)", 
+               dut.id_stage_inst.reg_bank.registers[2]);
+      $display("$3=%0d (Esperado: 10 & 20 = 0)", 
+               dut.id_stage_inst.reg_bank.registers[3]);
+      $display("$4=%0d (Esperado: 10 | 20 = 30)", 
+               dut.id_stage_inst.reg_bank.registers[4]);
+      $display("$5=%0d (Esperado: 10 ^ 20 = 30)", 
+               dut.id_stage_inst.reg_bank.registers[5]);
+      $display("$6=%0d (Esperado: ~(10 | 20) = -31)", 
+               dut.id_stage_inst.reg_bank.registers[6]);
+      $display("$7=%0d (Esperado: (10 < 20) ? 1 : 0 = 1)", 
+               dut.id_stage_inst.reg_bank.registers[7]);
+      $display("$8=%0d (Esperado: 20 << 2 = 80)", 
+               dut.id_stage_inst.reg_bank.registers[8]);
+      $display("$9=%0d (Esperado: 20 >> 2 = 5)", 
+               dut.id_stage_inst.reg_bank.registers[9]);
+      $display("$10=%0d (Esperado: 10 + 20 = 30)", 
+               dut.id_stage_inst.reg_bank.registers[10]);
+      $display("$11=%0d (Esperado: 20 - 10 = 10)", 
+               dut.id_stage_inst.reg_bank.registers[11]);
+      $display("$12=%0d (Esperado: (10u < 20u) ? 1 : 0 = 1)", 
+               dut.id_stage_inst.reg_bank.registers[12]);
+      $display("$14=%0d (Sin valor esperado específico)", 
+               dut.id_stage_inst.reg_bank.registers[14]);
+      $display("$15=%0d (Esperado: 2)", // Resultado de SRA con desplazamiento de 3 bits
+               dut.id_stage_inst.reg_bank.registers[15]);
+      $display("$16=%0d (Esperado: 100 - dirección base para memoria)", 
+               dut.id_stage_inst.reg_bank.registers[16]);
+      $display("$17=%0d (Esperado: 20 << 3 = 160 - SLLV)", 
+               dut.id_stage_inst.reg_bank.registers[17]);
+      $display("$18=%0d (Esperado: 20 >> 2 = 5 - SRLV)", 
+               dut.id_stage_inst.reg_bank.registers[18]);
+      $display("$19=%0d (Esperado: -3 >>> 2 = -1 - SRAV)", 
+               dut.id_stage_inst.reg_bank.registers[19]);
+      $display("$20=%0d (Esperado: 2 - cantidad desplazamiento)", 
+               dut.id_stage_inst.reg_bank.registers[20]);
+              
+               
+      // Verificar resultado
+      if (dut.id_stage_inst.reg_bank.registers[3] == 0 &&
+          dut.id_stage_inst.reg_bank.registers[4] == 30 &&
+          dut.id_stage_inst.reg_bank.registers[5] == 30 &&
+          dut.id_stage_inst.reg_bank.registers[6] == -31 &&
+          dut.id_stage_inst.reg_bank.registers[7] == 1 &&
+          dut.id_stage_inst.reg_bank.registers[8] == 80 &&
+          dut.id_stage_inst.reg_bank.registers[9] == 5 &&
+          dut.id_stage_inst.reg_bank.registers[10] == 30 &&
+          dut.id_stage_inst.reg_bank.registers[11] == 10 &&
+          dut.id_stage_inst.reg_bank.registers[12] == 1 &&
+          dut.id_stage_inst.reg_bank.registers[15] == 2 &&  
+          dut.id_stage_inst.reg_bank.registers[17] == 160 &&  
+          dut.id_stage_inst.reg_bank.registers[18] == 5 &&   
+          dut.id_stage_inst.reg_bank.registers[19] == -1    
+          ) begin          
+        $display("\n¡PRUEBA EXITOSA! Todas las instrucciones R-Type funcionan correctamente.");
+        $display("\nLas instrucciones AND, OR, XOR, NOR, SLT, SLL, SRL, SRA, ADDU, SUBU, SLTU, SLLV, SRLV, y SRAV han sido verificadas.");
+        $display("La unidad de forwarding ha manejado correctamente los riesgos de datos.");
+      end else begin
+        $display("\n¡PRUEBA FALLIDA! Algunos resultados no coinciden con los valores esperados.");
+      end
+    end
+  endtask
   
   // Imprime el estado de cada etapa en cada ciclo
   always @(posedge clk) begin
@@ -174,72 +242,17 @@ module mips_rtype_tb();
     end
   end
   
-  // Verificación final después de 70 ciclos
+  // Verificamos la señal de halt en cada ciclo y realizamos la verificación final
+  reg halt_detected = 0;
+  
   always @(posedge clk) begin
-    if (!reset && cycle_count == 90) begin
-      $display("\n==== VERIFICACIÓN FINAL (Ciclo %0d) ====", cycle_count);
-      $display("Registros finales:");
-      $display("$1=%0d (Esperado: 10)", 
-               dut.id_stage_inst.reg_bank.registers[1]);
-      $display("$2=%0d (Esperado: 20)", 
-               dut.id_stage_inst.reg_bank.registers[2]);
-      $display("$3=%0d (Esperado: 10 & 20 = 0)", 
-               dut.id_stage_inst.reg_bank.registers[3]);
-      $display("$4=%0d (Esperado: 10 | 20 = 30)", 
-               dut.id_stage_inst.reg_bank.registers[4]);
-      $display("$5=%0d (Esperado: 10 ^ 20 = 30)", 
-               dut.id_stage_inst.reg_bank.registers[5]);
-      $display("$6=%0d (Esperado: ~(10 | 20) = -31)", 
-               dut.id_stage_inst.reg_bank.registers[6]);
-      $display("$7=%0d (Esperado: (10 < 20) ? 1 : 0 = 1)", 
-               dut.id_stage_inst.reg_bank.registers[7]);
-      $display("$8=%0d (Esperado: 20 << 2 = 80)", 
-               dut.id_stage_inst.reg_bank.registers[8]);
-      $display("$9=%0d (Esperado: 20 >> 2 = 5)", 
-               dut.id_stage_inst.reg_bank.registers[9]);
-      $display("$10=%0d (Esperado: 10 + 20 = 30)", 
-               dut.id_stage_inst.reg_bank.registers[10]);
-      $display("$11=%0d (Esperado: 20 - 10 = 10)", 
-               dut.id_stage_inst.reg_bank.registers[11]);
-      $display("$12=%0d (Esperado: (10u < 20u) ? 1 : 0 = 1)", 
-               dut.id_stage_inst.reg_bank.registers[12]);
-      $display("$14=%0d (Sin valor esperado específico)", 
-               dut.id_stage_inst.reg_bank.registers[14]);
-      $display("$15=%0d (Esperado: 2)", // Resultado de SRA con desplazamiento de 3 bits
-               dut.id_stage_inst.reg_bank.registers[15]);
-      $display("$16=%0d (Esperado: 100 - dirección base para memoria)", 
-               dut.id_stage_inst.reg_bank.registers[16]);
-      $display("$17=%0d (Esperado: 20 << 3 = 160 - SLLV)", 
-               dut.id_stage_inst.reg_bank.registers[17]);
-      $display("$18=%0d (Esperado: 20 >> 2 = 5 - SRLV)", 
-               dut.id_stage_inst.reg_bank.registers[18]);
-      $display("$19=%0d (Esperado: -3 >>> 2 = -1 - SRAV)", 
-               dut.id_stage_inst.reg_bank.registers[19]);
-      $display("$20=%0d (Esperado: 2 - cantidad desplazamiento)", 
-               dut.id_stage_inst.reg_bank.registers[20]);
-              
-               
-      // Verificar resultado
-      if (dut.id_stage_inst.reg_bank.registers[3] == 0 &&
-          dut.id_stage_inst.reg_bank.registers[4] == 30 &&
-          dut.id_stage_inst.reg_bank.registers[5] == 30 &&
-          dut.id_stage_inst.reg_bank.registers[6] == -31 &&
-          dut.id_stage_inst.reg_bank.registers[7] == 1 &&
-          dut.id_stage_inst.reg_bank.registers[8] == 80 &&
-          dut.id_stage_inst.reg_bank.registers[9] == 5 &&
-          dut.id_stage_inst.reg_bank.registers[10] == 30 &&
-          dut.id_stage_inst.reg_bank.registers[11] == 10 &&
-          dut.id_stage_inst.reg_bank.registers[12] == 1 &&
-          dut.id_stage_inst.reg_bank.registers[15] == 2 &&  
-          dut.id_stage_inst.reg_bank.registers[17] == 160 &&  
-          dut.id_stage_inst.reg_bank.registers[18] == 5 &&   
-          dut.id_stage_inst.reg_bank.registers[19] == -1    
-          ) begin          
-        $display("\n¡PRUEBA EXITOSA! Todas las instrucciones R-Type funcionan correctamente.");
-        $display("\nLas instrucciones AND, OR, XOR, NOR, SLT, SLL, SRL, SRA, ADDU, SUBU, SLTU, SLLV, SRLV, y SRAV han sido verificadas.");
-        $display("La unidad de forwarding ha manejado correctamente los riesgos de datos.");
-      end else begin
-        $display("\n¡PRUEBA FALLIDA! Algunos resultados no coinciden con los valores esperados.");
+    if (!reset) begin
+      // Verificar si la señal de halt se ha activado en este ciclo
+      if (halt && !halt_detected) begin
+        halt_detected = 1;
+        $display("\n==== HALT DETECTADO (Ciclo %0d) ====", cycle_count);
+        check_results();
+        $finish;
       end
     end
   end
@@ -248,6 +261,15 @@ module mips_rtype_tb();
   initial begin
     $dumpfile("mips_rtype.vcd");
     $dumpvars(0, mips_rtype_tb);
+  end
+  
+  // Timeout de seguridad para evitar simulación infinita
+  initial begin
+    #10000; // Timeout después de 10000 unidades de tiempo (1000 ciclos aprox)
+    $display("\n==== TIMEOUT ALCANZADO - La señal de halt no se activó ====");
+    $display("Realizando verificación de resultados de todas formas...");
+    check_results();
+    $finish;
   end
 
 endmodule

@@ -12,34 +12,32 @@ module mem_wb(
   input  wire [4:0]  write_register_in, // Registro destino para WB
   input  wire        reg_write_in,      // Control de escritura en registros
   input  wire        mem_to_reg_in,     // Selección entre ALU o memoria para WB
-  // Ya no necesitamos señales especiales para JAL/JALR
+  input  wire        is_halt_in,          // Señal de HALT (para detener el pipeline)
   
   // Salidas hacia la etapa WB
   output reg  [31:0] alu_result_out,    // Resultado de la ALU
   output reg  [31:0] read_data_out,     // Dato leído de memoria
   output reg  [4:0]  write_register_out,// Registro destino para WB
   output reg         reg_write_out,     // Control de escritura en registros
-  output reg         mem_to_reg_out    // Selección entre ALU o memoria para WB
-  // Ya no propagamos señales especiales para JAL/JALR
+  output reg         mem_to_reg_out,    // Selección entre ALU o memoria para WB
+  output reg         is_halt_out        // Señal de HALT para la siguiente etapa
 );
 
   always @(posedge clk) begin
     if (reset) begin
-      // En caso de reset o flush, limpiamos todos los valores
       alu_result_out     <= {`DATA_WIDTH{1'b0}};
       read_data_out      <= {`DATA_WIDTH{1'b0}};
       write_register_out <= {`REG_ADDR_WIDTH{1'b0}};
-      reg_write_out      <= `CTRL_REG_WRITE_DIS;  // Deshabilitar la escritura en reset o flush
+      reg_write_out      <= `CTRL_REG_WRITE_DIS;
       mem_to_reg_out     <= `CTRL_MEM_TO_REG_ALU;
-      // Ya no tenemos señales JAL/JALR que resetear
+      is_halt_out        <= 1'b0;                  
     end else begin
-      // Operación normal - actualizar registros con valores de entrada
       alu_result_out     <= alu_result_in;
       read_data_out      <= read_data_in;
       write_register_out <= write_register_in;
       reg_write_out      <= reg_write_in;
       mem_to_reg_out     <= mem_to_reg_in;
-      // Ya no propagamos señales JAL/JALR
+      is_halt_out        <= is_halt_in;            
     end
   end
 

@@ -74,8 +74,10 @@ module mips_load_store_tb;
     // Reiniciar procesador
     #10 reset = 0;
     
-    // Ejecutar la simulación por suficientes ciclos para completar el programa
-    #700;
+    // Esperar a que se active la señal de halt
+    wait(halt);
+    // Añadir un tiempo de espera adicional para asegurar que todos los registros están actualizados
+    #20;
     
     // Verificar resultados de los registros
     $display("\n==== Verificación de resultados de registros ====");
@@ -189,10 +191,6 @@ module mips_load_store_tb;
                dut.id_use_forwarded_b,
                dut.id_rs,
                dut.id_rt);
-               
-      // Mostrar información de la etapa EX
-      $display("EX: ALUResult=%0d",
-               dut.ex_branch_target_addr);
                
       // Mostrar información de memoria en la etapa MEM
       if (dut.mem_mem_write)

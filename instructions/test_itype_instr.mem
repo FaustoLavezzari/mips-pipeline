@@ -118,15 +118,7 @@ A09F001C  // sb  $31, 28($4)      # Mem[(100+28)/4][7:0] = 0xDC (guarda el byte 
 // Prueba SH - Store Halfword - usamos $31 que ya ha sido verificado
 A49F0020  // sh  $31, 32($4)      # Mem[(100+32)/4][15:0] = 0x00DC (guarda el halfword menos significativo de 220 decimal)
 8C920020  // lw  $18, 32($4)      # $18 = 0x000000DC (220 decimal) al cargar la palabra completa
-
-
-// Instrucciones adicionales para asegurar que todo se complete
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
-00000000  // nop
+FFFFFFFF  // halt
 
 // Resumen de registros después de la ejecución (para verificación):
 // Operandos y registros base:

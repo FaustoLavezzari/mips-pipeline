@@ -35,8 +35,4 @@ AC0A0008  // sw   $10,  8($0)        // # mem[8..11] = 0xFFFFFFFF
 A010000C  // sb   $16,12($0)         // # mem[12] = 0xFE
 9011000C  // lbu  $17,12($0)         // # $17 = 0x000000FE
 8012000C  // lb   $18,12($0)         // # $18 = 0xFFFFFFFE
-
-// # NOPs para rellenar
-00000000  // nop
-00000000  // nop
-00000000  // nop
+FFFFFFFF  // halt

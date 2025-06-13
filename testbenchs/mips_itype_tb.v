@@ -91,9 +91,21 @@ module mips_itype_tb();
     #15;
     reset = 0;
 
-    // Ejecutar por 90 ciclos + margen extra para completar todas las instrucciones
-    #950;
+    // Ejecutar hasta que se detecte la señal de halt o se alcance el tiempo límite de seguridad
+    #2000;
+    $display("Tiempo límite de simulación alcanzado sin detectar señal de halt");
     $finish;
+  end
+  
+  // Monitorear la señal de halt para terminar la simulación
+  always @(posedge halt) begin
+    if (!reset) begin
+      $display("\n==== SEÑAL DE HALT DETECTADA EN CICLO %0d ====", cycle_count);
+      // Esperar un ciclo más para asegurar que todas las operaciones en vuelo terminen
+      #10;
+      do_verification();
+      $finish;
+    end
   end
   
   // Imprime el estado de cada etapa en cada ciclo
@@ -233,9 +245,9 @@ module mips_itype_tb();
                  dut.mem_stage_inst.data_mem.memory[33]);
       end
     end
-  end      // Verificación final después de 90 ciclos
-  always @(posedge clk) begin
-    if (!reset && cycle_count == 90) begin
+  end      // Tarea para la verificación final
+  task do_verification;
+    begin
       $display("\n==== VERIFICACIÓN FINAL (Ciclo %0d) ====", cycle_count);
       $display("Registros finales:");
       // Verificación de resultados ADDI, ADDIU
@@ -394,7 +406,7 @@ module mips_itype_tb();
         $display("Revisa los valores en los registros y en la memoria para identificar errores.");
       end
     end
-  end
+  endtask
 
   // Para generar formas de onda (VCD)
   initial begin

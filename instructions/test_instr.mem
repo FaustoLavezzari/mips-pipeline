@@ -63,3 +63,4 @@ AC660004  // sw $6, 4($3)         # Mem[104] = $6 = 5
 200E0005  // addi $14, $0, 5      # $14 = 5 (resetear el valor de $14 directamente)
 21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 6
 21CE0001  // addi $14, $14, 1     # $14 = $14 + 1 = 7
+FFFFFFFF  // halt 

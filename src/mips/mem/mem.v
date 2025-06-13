@@ -14,13 +14,15 @@ module mem_stage(
   input  wire        mem_write_in,     // Control de escritura
   input  wire        mem_to_reg_in,    // Selección ALU/MEM para WB
   input  wire [5:0]  opcode_in,        // Opcode para identificar tipo de carga
-  
+  input  wire        is_halt_in,      // Señal de HALT (para detener el pipeline)
+
   // Salidas
-  output wire [31:0] read_data_out,    // Dato leído de memoria (para LW)
-  output wire [31:0] alu_result_out,   // Pasar el resultado de la ALU a WB
+  output wire [31:0] read_data_out,      // Dato leído de memoria (para LW)
+  output wire [31:0] alu_result_out,     // Pasar el resultado de la ALU a WB
   output wire [4:0]  write_register_out, // Registro destino para WB
-  output wire        reg_write_out,    // Señal de escritura en registros
-  output wire        mem_to_reg_out   // Selección ALU/MEM para WB
+  output wire        reg_write_out,      // Señal de escritura en registros
+  output wire        mem_to_reg_out,      // Selección ALU/MEM para WB
+  output wire        is_halt_out          // Señal de HALT para la siguiente etapa
 );
 
   // Instanciar el módulo de memoria de datos
@@ -40,5 +42,6 @@ module mem_stage(
   assign write_register_out = write_register_in;
   assign reg_write_out = reg_write_in;
   assign mem_to_reg_out = mem_to_reg_in;
+  assign is_halt_out = is_halt_in;
 
 endmodule

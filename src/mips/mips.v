@@ -14,20 +14,20 @@ module mips(
   wire       flush_id_ex;
   wire       control_hazard;
   wire       halt_detected;
+  wire       end_program;
 
   // ======== Etapa IF y señales ========
   wire [31:0] if_next_pc;
   wire [31:0] if_instr;
   
   if_stage if_stage_inst(
-    .clk                (clk),
-    .reset              (reset),
-    .i_take_branch      (id_take_branch),
+    .clk                 (clk),
+    .reset               (reset),
+    .i_take_branch       (id_take_branch),
     .i_branch_target_addr(id_branch_target_addr),
-    .i_halt             (halt_detected),
-    .i_stall            (pipeline_stall),
-    .o_next_pc          (if_next_pc),
-    .o_instr            (if_instr)
+    .i_stall             (pipeline_stall),
+    .o_next_pc           (if_next_pc),
+    .o_instr             (if_instr)
   );
 
   // ======== Latch IF/ID y señales ========
@@ -144,10 +144,11 @@ module mips(
   wire [4:0]  ex_rs;
   wire [4:0]  ex_rt;
   wire [4:0]  ex_rd;
-  wire [31:0]  ex_shamt;
+  wire [31:0] ex_shamt;
   wire [5:0]  ex_function;
   wire [5:0]  ex_opcode;
   wire [31:0] ex_next_pc;
+  wire        i_ex_is_halt;
   wire        i_ex_alu_src_b;
   wire [1:0]  i_ex_alu_src_a;
   wire        i_ex_reg_dst;
@@ -155,7 +156,6 @@ module mips(
   wire        i_ex_mem_read;
   wire        i_ex_mem_write;
   wire        i_ex_mem_to_reg;
-  wire [31:0] ex_branch_target_addr;
   
   id_ex id_ex_latch(
     .clk                  (clk),
@@ -178,6 +178,7 @@ module mips(
     .mem_read_in          (id_mem_read),
     .mem_write_in         (id_mem_write),
     .mem_to_reg_in        (id_mem_to_reg),
+    .is_halt_in           (halt_detected),
     .read_data_1_out      (ex_read_data_1),
     .read_data_2_out      (ex_read_data_2),
     .sign_extended_imm_out(ex_sign_extended_imm),
@@ -194,7 +195,8 @@ module mips(
     .reg_write_out        (i_ex_reg_write),
     .mem_read_out         (i_ex_mem_read),
     .mem_write_out        (i_ex_mem_write),
-    .mem_to_reg_out       (i_ex_mem_to_reg)
+    .mem_to_reg_out       (i_ex_mem_to_reg),
+    .is_halt_out          (i_ex_is_halt)
   );
 
   // ======== EX Forwarding y señales ========
@@ -226,6 +228,7 @@ module mips(
   wire        ex_mem_read;
   wire        ex_mem_write;
   wire        ex_mem_to_reg;
+  wire        ex_is_halt;
   
   ex_stage ex_stage_inst(
     .clk                 (clk),
@@ -251,13 +254,15 @@ module mips(
     .i_mem_read          (i_ex_mem_read),
     .i_mem_write         (i_ex_mem_write),
     .i_mem_to_reg        (i_ex_mem_to_reg),
+    .i_is_halt           (i_ex_is_halt),
     .o_alu_result        (ex_alu_result),
     .o_read_data_2       (ex_write_data),
     .o_write_register    (ex_write_register),
     .o_reg_write         (ex_reg_write),
     .o_mem_read          (ex_mem_read),
     .o_mem_write         (ex_mem_write),
-    .o_mem_to_reg        (ex_mem_to_reg)
+    .o_mem_to_reg        (ex_mem_to_reg),
+    .o_is_halt           (ex_is_halt)
   );
 
   // ======== Latch EX/MEM y señales ========
@@ -269,11 +274,11 @@ module mips(
   wire        mem_mem_write;
   wire        mem_mem_to_reg;
   wire [5:0]  mem_opcode;
+  wire        mem_is_halt;
   
   ex_mem ex_mem_latch(
     .clk                 (clk),
     .reset               (reset),
-    .flush               (1'b0),
     .alu_result_in       (ex_alu_result),
     .read_data_2_in      (ex_write_data),
     .write_register_in   (ex_write_register),
@@ -281,6 +286,7 @@ module mips(
     .mem_read_in         (ex_mem_read),
     .mem_write_in        (ex_mem_write),
     .mem_to_reg_in       (ex_mem_to_reg),
+    .is_halt_in          (ex_is_halt),
     .opcode_in           (ex_opcode),
     .alu_result_out      (mem_alu_result),
     .read_data_2_out     (mem_write_data),
@@ -289,7 +295,8 @@ module mips(
     .mem_read_out        (mem_mem_read),
     .mem_write_out       (mem_mem_write),
     .mem_to_reg_out      (mem_mem_to_reg),
-    .opcode_out          (mem_opcode)
+    .opcode_out          (mem_opcode),
+    .is_halt_out         (mem_is_halt)
   );
 
   // ======== Etapa MEM y señales de salida ========
@@ -298,6 +305,7 @@ module mips(
   wire [4:0]  mem_write_register_out;
   wire        mem_reg_write_out;
   wire        mem_mem_to_reg_out;
+  wire        mem_is_halt_out;
   
   mem_stage mem_stage_inst(
     .clk              (clk),
@@ -309,12 +317,14 @@ module mips(
     .mem_read_in      (mem_mem_read),
     .mem_write_in     (mem_mem_write),
     .mem_to_reg_in    (mem_mem_to_reg),
+    .is_halt_in       (mem_is_halt),
     .opcode_in        (mem_opcode),
     .read_data_out    (mem_read_data),
     .alu_result_out   (mem_alu_result_out),
     .write_register_out(mem_write_register_out),
     .reg_write_out    (mem_reg_write_out),
-    .mem_to_reg_out   (mem_mem_to_reg_out)
+    .mem_to_reg_out   (mem_mem_to_reg_out),
+    .is_halt_out      (mem_is_halt_out)
   );
 
   // ======== Latch MEM/WB y señales ========
@@ -323,7 +333,8 @@ module mips(
   wire [4:0]  wb_write_register;
   wire        wb_reg_write;
   wire        wb_mem_to_reg;
-  
+  wire        wb_is_halt;
+
   mem_wb mem_wb_latch(
     .clk                 (clk),
     .reset               (reset),
@@ -331,13 +342,15 @@ module mips(
     .alu_result_in       (mem_alu_result_out),
     .read_data_in        (mem_read_data),
     .write_register_in   (mem_write_register_out),
+    .is_halt_in          (mem_is_halt_out),
     .reg_write_in        (mem_reg_write_out),
     .mem_to_reg_in       (mem_mem_to_reg_out),
     .alu_result_out      (wb_alu_result),
     .read_data_out       (wb_read_data),
     .write_register_out  (wb_write_register),
     .reg_write_out       (wb_reg_write),
-    .mem_to_reg_out      (wb_mem_to_reg)
+    .mem_to_reg_out      (wb_mem_to_reg),
+    .is_halt_out         (wb_is_halt)
   );
 
   // ======== Etapa WB y señales de salida ========
@@ -353,13 +366,15 @@ module mips(
     .i_write_register (wb_write_register),
     .i_reg_write      (wb_reg_write),
     .i_mem_to_reg     (wb_mem_to_reg),
+    .i_is_halt        (wb_is_halt),    // Conectamos la señal de halt desde el latch MEM/WB
     .o_write_data     (wb_write_data),
     .o_write_register (wb_write_register_out),
-    .o_reg_write      (wb_reg_write_out)
+    .o_reg_write      (wb_reg_write_out),
+    .o_is_halt        (end_program)
   );
 
   // ======== Salidas del módulo ========
   assign result = wb_write_data;
-  assign halt = halt_detected;
+  assign halt = end_program;
 
 endmodule

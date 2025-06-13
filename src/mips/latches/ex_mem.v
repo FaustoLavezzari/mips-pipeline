@@ -16,10 +16,7 @@ module ex_mem(
   input  wire        mem_read_in,       // Control de lectura de memoria
   input  wire        mem_write_in,      // Control de escritura en memoria
   input  wire        mem_to_reg_in,     // Selecciona entre ALU o memoria para WB
-  
-  // Ya no necesitamos señales especiales para JAL/JALR
-  
-  // Opcode para identificar el tipo de instrucción
+  input  wire        is_halt_in,       
   input  wire [5:0]  opcode_in,         // Opcode de la instrucción
   
   // Salidas hacia la etapa MEM
@@ -30,25 +27,23 @@ module ex_mem(
   output reg         mem_read_out,      // Control de lectura de memoria
   output reg         mem_write_out,     // Control de escritura en memoria
   output reg         mem_to_reg_out,    // Selecciona entre ALU o memoria para WB
-  
-  // Ya no necesitamos salidas especiales para JAL/JALR
-  
-  // Salida para identificar el tipo de instrucción
+  output reg         is_halt_out,       // Señal de HALT
   output reg  [5:0]  opcode_out         // Opcode de la instrucción
 );
 
+
   always @(posedge clk) begin
-    if (reset || flush) begin
-      // En caso de reset o flush, limpiamos todos los valores
+    if (reset) begin
+      // En caso de reset, limpiamos todos los valores
       alu_result_out     <= {`DATA_WIDTH{1'b0}};
       read_data_2_out    <= {`DATA_WIDTH{1'b0}};
       write_register_out <= {`REG_ADDR_WIDTH{1'b0}};
-      reg_write_out     <= `CTRL_REG_WRITE_DIS;  // Reset de la señal reg_write - importante para evitar escrituras incorrectas
-      mem_read_out      <= 1'b0;                // Reset de la señal mem_read
-      mem_write_out     <= 1'b0;                // Reset de la señal mem_write
-      mem_to_reg_out    <= `CTRL_MEM_TO_REG_ALU; // Reset de la señal mem_to_reg
-      // Ya no tenemos señales JAL/JALR que resetear
-      opcode_out        <= 6'b0;              // Reset del opcode
+      reg_write_out     <= `CTRL_REG_WRITE_DIS;   // Reset de la señal reg_write - importante para evitar escrituras incorrectas
+      mem_read_out      <= 1'b0;                  // Reset de la señal mem_read
+      mem_write_out     <= 1'b0;                  // Reset de la señal mem_write
+      mem_to_reg_out    <= `CTRL_MEM_TO_REG_ALU;  // Reset de la señal mem_to_reg
+      is_halt_out       <= 1'b0;                  // Reset de la señal is_halt
+      opcode_out        <= 6'b0;                  // Reset del opcode
     end else begin
       alu_result_out     <= alu_result_in;
       read_data_2_out    <= read_data_2_in;
@@ -57,8 +52,8 @@ module ex_mem(
       mem_read_out      <= mem_read_in;    // Propagar la señal mem_read
       mem_write_out     <= mem_write_in;   // Propagar la señal mem_write
       mem_to_reg_out    <= mem_to_reg_in;  // Propagar la señal mem_to_reg
-      // Ya no propagamos señales JAL/JALR
-      opcode_out        <= opcode_in;     // Propagar el opcode
+      opcode_out        <= opcode_in;      // Propagar el opcode
+      is_halt_out       <= is_halt_in;     // Propagar la señal is_halt
     end
   end
 
