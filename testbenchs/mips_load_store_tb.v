@@ -13,7 +13,8 @@ module mips_load_store_tb;
     .clk(clk), 
     .reset(reset),
     .result(result),
-    .halt(halt)
+    .halt(halt),
+    .stall(1'b0)
   );
   
   // Generar señal de reloj

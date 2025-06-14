@@ -7,11 +7,10 @@ module if_stage(
   
   // Entradas para control de saltos desde ID (simplificadas)
   input  wire        i_take_branch,           // Señal unificada: saltar (1) o no (0)
-  input  wire [31:0] i_branch_target_addr,   // Dirección de destino del salto
+  input  wire [31:0] i_branch_target_addr,    // Dirección de destino del salto
   
   // Entradas para manejo de stalls
-  input  wire       i_halt,                  // Señal de HALT para detener el PC
-  input  wire       i_stall,                 // Señal de stall para detener el PC
+  input  wire        i_stall,                  // Señal de stall para detener el PC
   
   output wire [31:0] o_next_pc,
   output wire [31:0] o_instr

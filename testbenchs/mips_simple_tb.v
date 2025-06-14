@@ -14,7 +14,8 @@ module mips_simple_tb();
     .clk    (clk),
     .reset  (reset),
     .result (result),
-    .halt   (halt)  // Conectamos la señal de halt para detectar fin de ejecución
+    .halt   (halt),  // Conectamos la señal de halt para detectar fin de ejecución
+    .stall  (1'b0)   // No se usa stall en este testbench
   );
   
   // Genera un reloj de 10ns (100 MHz)

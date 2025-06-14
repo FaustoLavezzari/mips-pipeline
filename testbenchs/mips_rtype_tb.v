@@ -14,7 +14,8 @@ module mips_rtype_tb();
     .clk    (clk),
     .reset  (reset),
     .result (result),
-    .halt   (halt)
+    .halt   (halt),
+    .stall  (1'b0)
   );
   
   // Genera un reloj de 10ns (100 MHz)

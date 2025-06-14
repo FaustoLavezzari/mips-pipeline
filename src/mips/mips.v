@@ -4,15 +4,16 @@
 module mips(
   input  wire        clk,
   input  wire        reset,
+  input  wire        stall,
   output wire [31:0] result,
   output wire        halt
 );
 
   // ======== Señales de control de pipeline ========
-  wire       pipeline_stall;
   wire       flush_if_id;
   wire       flush_id_ex;
-  wire       control_hazard;
+  wire       stall_first_half;
+  wire       stall_second_half;
   wire       halt_detected;
   wire       end_program;
 
@@ -25,7 +26,7 @@ module mips(
     .reset               (reset),
     .i_take_branch       (id_take_branch),
     .i_branch_target_addr(id_branch_target_addr),
-    .i_stall             (pipeline_stall),
+    .i_stall             (stall_first_half),
     .o_next_pc           (if_next_pc),
     .o_instr             (if_instr)
   );
@@ -38,7 +39,7 @@ module mips(
     .clk         (clk),
     .reset       (reset),
     .flush       (flush_if_id),
-    .stall       (pipeline_stall),
+    .stall       (stall_first_half),
     .next_pc_in  (if_next_pc),
     .instr_in    (if_instr),
     .next_pc_out (id_next_pc),
@@ -128,12 +129,12 @@ module mips(
     .i_id_ex_rt            (ex_rt),
     .i_id_ex_mem_read      (i_ex_mem_read),
     .i_if_id_opcode        (id_opcode),
-    .i_if_id_funct         (id_function),
     .i_id_take_branch      (id_take_branch),
-    .o_stall              (pipeline_stall),
+    .i_total_stall         (stall),
     .o_flush_id_ex        (flush_id_ex),
     .o_flush_if_id        (flush_if_id),
-    .o_ctrl_hazard        (control_hazard),
+    .o_stall_first_half    (stall_first_half),
+    .o_stall_second_half   (stall_second_half),
     .o_halt               (halt_detected)
   );
 

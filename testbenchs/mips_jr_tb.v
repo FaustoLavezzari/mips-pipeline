@@ -13,9 +13,10 @@ module mips_jr_tb;
     .clk(clk), 
     .reset(reset),
     .result(result),
-    .halt(halt)
+    .halt(halt),
+    .stall(1'b0)
   );
-  
+
   // Generar señal de reloj
   always #5 clk = ~clk;
   
