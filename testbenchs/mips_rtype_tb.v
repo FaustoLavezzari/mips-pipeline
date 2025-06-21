@@ -6,16 +6,25 @@ module mips_rtype_tb();
   // Señales para conectar al DUT
   reg clk;
   reg reset;
+  reg inst_write_en;        // Nueva señal para escritura de instrucciones
+  reg [31:0] inst_write_addr;   // Nueva señal para dirección de escritura
+  reg [31:0] inst_write_data;   // Nueva señal para datos de escritura
   wire [`DATA_WIDTH-1:0] result;
-  wire halt;
+  wire halt;  // Agregamos un wire para la señal de halt
+  
+  // Señal de stall para cargar instrucciones
+  reg stall;
   
   // Instancia del módulo MIPS
   mips dut (
-    .clk    (clk),
-    .reset  (reset),
-    .result (result),
-    .halt   (halt),
-    .stall  (1'b0)
+    .clk            (clk),
+    .reset          (reset),
+    .inst_write_en  (inst_write_en),     // Conectamos los nuevos puertos
+    .inst_write_addr(inst_write_addr),
+    .inst_write_data(inst_write_data),
+    .result         (result),
+    .halt           (halt),  
+    .stall          (stall)   
   );
   
   // Genera un reloj de 10ns (100 MHz)
@@ -26,6 +35,11 @@ module mips_rtype_tb();
   
   // Variables para el ciclo
   integer cycle_count;
+  
+  // Variables para cargar instrucciones
+  reg [31:0] instructions [0:255]; // Arreglo para almacenar las instrucciones
+  integer num_instructions;
+  integer i;
   
   // Función para mostrar el tipo de instrucción
   function [8*20:1] instr_type;
@@ -66,15 +80,57 @@ module mips_rtype_tb();
   initial begin
     // Inicialización de señales
     reset = 1;
+    stall = 1;              // Iniciar con stall activado
+    inst_write_en = 0;
     cycle_count = 0;
     
     // Mostrar encabezado
     $display("\n==== MIPS Pipeline R-Type Instructions Testbench ====\n");
     $display("Este testbench evalúa el funcionamiento de las instrucciones R-Type en el pipeline MIPS");
+    $display("La simulación terminará automáticamente cuando la señal halt se active");
     
-    // Liberar el reset después de unos ciclos
+    // Cargar instrucciones desde el archivo
+    $readmemh("/home/fausto/mips-pipeline/instructions/test_rtype_instr.mem", instructions);
+    
+    // Contar número de instrucciones no vacías (distintas de 32'h0)
+    num_instructions = 0;
+    for (i = 0; i < 256; i = i + 1) begin
+      if (instructions[i] !== 32'h0 && ^instructions[i] !== 1'bx) begin
+        num_instructions = num_instructions + 1;
+      end
+    end
+    
+    // Liberar el reset después de unos ciclos, pero mantener el stall
     #15;
     reset = 0;
+
+    // Cargar instrucciones una por una
+    $display("\n==== Cargando %0d instrucciones en la memoria ====", num_instructions);
+    for (i = 0; i < 256; i = i + 1) begin
+      // Solo cargar instrucciones válidas (no comentarios o líneas vacías)
+      if (instructions[i] !== 32'h0 && ^instructions[i] !== 1'bx) begin
+        inst_write_addr = i*4; // Dirección = índice * 4
+        inst_write_data = instructions[i];
+        inst_write_en = 1;
+        $display("Ciclo de carga %0d: Escribiendo instrucción 0x%h en dirección 0x%h", 
+                 i+1, inst_write_data, inst_write_addr);
+        @(negedge clk);
+
+        // Esperar un ciclo de reloj para que se escriba
+      end
+    end
+    
+    inst_write_en = 0;
+    
+    // Esperar un ciclo más para asegurar que la última instrucción se haya escrito
+    @(posedge clk);
+    
+    $display("\n==== Carga de instrucciones completada, comenzando ejecución ====");
+    
+    // Desactivar stall para comenzar la ejecución
+    stall = 0;
+    @(posedge clk);      // ciclo de "llenado" del IF
+    @(posedge clk);      
 
     // La verificación y finalización se manejan en el bloque always que detecta halt
   end
@@ -173,7 +229,7 @@ module mips_rtype_tb();
                  dut.id_function,
                  dut.id_reg_write);
 
-        $display("Branch Control: Take Branch=%0b, Target Address=0x%0h, Branch Type=%0b, PC+4=0x%h", 
+        $display("Branch Control: Take Branch=%0b, Target Address=0x%0h, Branch Type=%0b, PC+4=0x%0h", 
                   dut.id_take_branch,
                   dut.id_branch_target_addr,
                   dut.id_stage_inst.branch_type,
@@ -272,5 +328,7 @@ module mips_rtype_tb();
     check_results();
     $finish;
   end
+
+
 
 endmodule

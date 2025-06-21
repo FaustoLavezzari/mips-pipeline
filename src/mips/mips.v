@@ -5,6 +5,10 @@ module mips(
   input  wire        clk,
   input  wire        reset,
   input  wire        stall,
+  // Nuevos puertos para escritura de instrucciones
+  input  wire        inst_write_en,        // Habilitar escritura de instrucción
+  input  wire [31:0] inst_write_addr,      // Dirección a escribir
+  input  wire [31:0] inst_write_data,      // Datos a escribir (instrucción)
   output wire [31:0] result,
   output wire        halt
 );
@@ -27,6 +31,9 @@ module mips(
     .i_take_branch       (id_take_branch),
     .i_branch_target_addr(id_branch_target_addr),
     .i_stall             (stall_first_half),
+    .i_inst_write_en     (inst_write_en),      // Pasar señal de escritura
+    .i_inst_write_addr   (inst_write_addr),    // Pasar dirección de escritura
+    .i_inst_write_data   (inst_write_data),    // Pasar datos a escribir
     .o_next_pc           (if_next_pc),
     .o_instr             (if_instr)
   );

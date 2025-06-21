@@ -6,16 +6,25 @@ module mips_itype_tb();
   // Señales para conectar al DUT
   reg clk;
   reg reset;
+  reg inst_write_en;        // Nueva señal para escritura de instrucciones
+  reg [31:0] inst_write_addr;   // Nueva señal para dirección de escritura
+  reg [31:0] inst_write_data;   // Nueva señal para datos de escritura
   wire [`DATA_WIDTH-1:0] result;
-  wire halt;
+  wire halt;  // Agregamos un wire para la señal de halt
+  
+  // Señal de stall para cargar instrucciones
+  reg stall;
   
   // Instancia del módulo MIPS
   mips dut (
-    .clk    (clk),
-    .reset  (reset),
-    .result (result),
-    .halt   (halt),
-    .stall  (1'b0)
+    .clk            (clk),
+    .reset          (reset),
+    .inst_write_en  (inst_write_en),     // Conectamos los nuevos puertos
+    .inst_write_addr(inst_write_addr),
+    .inst_write_data(inst_write_data),
+    .result         (result),
+    .halt           (halt),
+    .stall          (stall)   
   );
   
   // Genera un reloj de 10ns (100 MHz)
@@ -78,35 +87,85 @@ module mips_itype_tb();
     end
   endfunction
   
+  // Variables para cargar instrucciones
+  reg [31:0] instructions [0:255]; // Arreglo para almacenar las instrucciones
+  integer num_instructions;
+  integer i;
+  
   // Inicio de la simulación
   initial begin
     // Inicialización de señales
     reset = 1;
+    stall = 1;              // Iniciar con stall activado
+    inst_write_en = 0;
     cycle_count = 0;
     
     // Mostrar encabezado
     $display("\n==== MIPS Pipeline I-Type Instructions Testbench ====\n");
     $display("Este testbench evalúa el funcionamiento de las instrucciones I-Type en el pipeline MIPS");
+    $display("La simulación terminará automáticamente cuando la señal halt se active");
     
-    // Liberar el reset después de unos ciclos
+    // Cargar instrucciones desde el archivo
+    $readmemh("/home/fausto/mips-pipeline/instructions/test_itype_instr.mem", instructions);
+    
+    // Contar número de instrucciones no vacías (distintas de 32'h0)
+    num_instructions = 0;
+    for (i = 0; i < 256; i = i + 1) begin
+      if (instructions[i] !== 32'h0 && ^instructions[i] !== 1'bx) begin
+        num_instructions = num_instructions + 1;
+      end
+    end
+    
+    // Liberar el reset después de unos ciclos, pero mantener el stall
     #15;
     reset = 0;
 
-    // Ejecutar hasta que se detecte la señal de halt o se alcance el tiempo límite de seguridad
-    #2000;
-    $display("Tiempo límite de simulación alcanzado sin detectar señal de halt");
-    $finish;
-  end
-  
-  // Monitorear la señal de halt para terminar la simulación
-  always @(posedge halt) begin
-    if (!reset) begin
-      $display("\n==== SEÑAL DE HALT DETECTADA EN CICLO %0d ====", cycle_count);
-      // Esperar un ciclo más para asegurar que todas las operaciones en vuelo terminen
-      #10;
-      do_verification();
-      $finish;
+    // Cargar instrucciones una por una
+    $display("\n==== Cargando %0d instrucciones en la memoria ====", num_instructions);
+    for (i = 0; i < 256; i = i + 1) begin
+      // Solo cargar instrucciones válidas (no comentarios o líneas vacías)
+      if (instructions[i] !== 32'h0 && ^instructions[i] !== 1'bx) begin
+        inst_write_addr = i*4; // Dirección = índice * 4
+        inst_write_data = instructions[i];
+        inst_write_en = 1;
+        $display("Ciclo de carga %0d: Escribiendo instrucción 0x%h en dirección 0x%h", 
+                 i+1, inst_write_data, inst_write_addr);
+        @(negedge clk);
+        // Esperar un ciclo de reloj para que se escriba
+      end
     end
+    
+    inst_write_en = 0;
+    
+    // Esperar un ciclo más para asegurar que la última instrucción se haya escrito
+    @(posedge clk);
+    
+    $display("\n==== Carga de instrucciones completada, comenzando ejecución ====");
+    
+    // Desactivar stall para comenzar la ejecución
+    stall = 0;
+    @(posedge clk);      // ciclo de "llenado" del IF
+    @(posedge clk);   
+    
+    // Ejecutar hasta que se detecte la señal de halt o se alcance el tiempo límite de seguridad
+    fork
+      // Opción 1: Terminar cuando halt sea 1
+      begin
+        wait(halt);
+        $display("\n==== Procesador terminado: señal halt detectada (t=%0t ns) ====", $time);
+        // Esperar un ciclo más para asegurar que todas las operaciones en vuelo terminen
+        #10;
+        do_verification();
+        $finish;
+      end
+      
+      // Opción 2: Tiempo máximo de seguridad
+      begin
+        #2000;  // Tiempo máximo de seguridad (2000 ns)
+        $display("\n==== ADVERTENCIA: Se alcanzó tiempo máximo sin detectar señal halt ====");
+        $finish;
+      end
+    join
   end
   
   // Imprime el estado de cada etapa en cada ciclo

@@ -28,7 +28,7 @@ module id_stage(
   output wire [4:0]  o_rs,                // Campo rs
   output wire [4:0]  o_rt,                // Campo rt
   output wire [4:0]  o_rd,                // Campo rd
-  output wire [31:0] o_shamt,            // Campo shamt
+  output wire [31:0] o_shamt,             // Campo shamt
   output wire [5:0]  o_function,          // Campo function
   output wire [5:0]  o_opcode,            // Opcode
   

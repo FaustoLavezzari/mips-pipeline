@@ -12,6 +12,11 @@ module if_stage(
   // Entradas para manejo de stalls
   input  wire        i_stall,                  // Señal de stall para detener el PC
   
+  // Entradas para escritura de instrucciones desde fuera
+  input  wire        i_inst_write_en,          // Señal de habilitación de escritura
+  input  wire [31:0] i_inst_write_addr,        // Dirección a escribir
+  input  wire [31:0] i_inst_write_data,        // Instrucción a escribir
+  
   output wire [31:0] o_next_pc,
   output wire [31:0] o_instr
 );
@@ -38,10 +43,16 @@ module if_stage(
     .pc            (pc)
   );
 
-  // Leer la instrucción de memoria
+  // Leer la instrucción de memoria - ahora con señales de escritura y lectura separadas
   instr_mem imem_inst ( 
-    .addr   (pc),    
-    .instr  (o_instr)
+    .clk       (clk),
+    .reset     (reset),
+    .write_en  (i_inst_write_en),
+    .read_en   (1'b1),                
+    .read_addr (pc),                  // Leer desde el PC actual
+    .write_addr(i_inst_write_addr),   // Dirección de escritura separada
+    .write_data(i_inst_write_data),
+    .instr     (o_instr)
   );
 
   // Enviar PC+4 a la siguiente etapa
