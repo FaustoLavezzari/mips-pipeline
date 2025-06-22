@@ -41,6 +41,9 @@ module mips_rtype_tb();
   integer num_instructions;
   integer i;
   
+  // Variable para controlar el inicio de la ejecución real
+  reg execution_started;
+  
   // Función para mostrar el tipo de instrucción
   function [8*20:1] instr_type;
     input [`DATA_WIDTH-1:0] instr;
@@ -83,6 +86,7 @@ module mips_rtype_tb();
     stall = 1;              // Iniciar con stall activado
     inst_write_en = 0;
     cycle_count = 0;
+    execution_started = 0;  // Inicialmente no estamos en ejecución
     
     // Mostrar encabezado
     $display("\n==== MIPS Pipeline R-Type Instructions Testbench ====\n");
@@ -127,8 +131,12 @@ module mips_rtype_tb();
     
     $display("\n==== Carga de instrucciones completada, comenzando ejecución ====");
     
+    // Reiniciar contador de ciclos para la ejecución real
+    cycle_count = 0;
+    
     // Desactivar stall para comenzar la ejecución
     stall = 0;
+    execution_started = 1;  // Ahora comenzamos la ejecución real
     @(posedge clk);      // ciclo de "llenado" del IF
     @(posedge clk);      
 
@@ -207,7 +215,7 @@ module mips_rtype_tb();
   
   // Imprime el estado de cada etapa en cada ciclo
   always @(posedge clk) begin
-    if (!reset) begin
+    if (!reset && !stall && !inst_write_en) begin
       cycle_count = cycle_count + 1;
       
       // Mostrar información del ciclo
