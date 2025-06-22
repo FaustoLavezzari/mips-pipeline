@@ -284,25 +284,38 @@ module mips_itype_tb();
                  dut.id_stage_inst.reg_bank.registers[30],
                  dut.id_stage_inst.reg_bank.registers[31]);
                  
-        // Mostrar contenido de memoria relevante
-        $display("Memoria: Mem[0]=%0d, Mem[1]=%0d, Mem[2]=%0d, Mem[25]=%0d, Mem[26]=%0d",
-                 dut.mem_stage_inst.data_mem.memory[0],
-                 dut.mem_stage_inst.data_mem.memory[1],
-                 dut.mem_stage_inst.data_mem.memory[2],
-                 dut.mem_stage_inst.data_mem.memory[25],  // 100/4 = 25
-                 dut.mem_stage_inst.data_mem.memory[26]); // 104/4 = 26
-        $display("Mem[29]=%0d, Mem[30]=%0d, Mem[31]=%0d (valores para pruebas de LB/LH)",
-                 dut.mem_stage_inst.data_mem.memory[29],  // (16+100)/4 = 29 (Mem para byte load)
-                 dut.mem_stage_inst.data_mem.memory[30],  // (20+100)/4 = 30 (Mem para half load)
-                 dut.mem_stage_inst.data_mem.memory[31]); // (24+100)/4 = 31 (Mem para half load negativo)
+        // Mostrar contenido de memoria relevante - accediendo por bytes
+        $display("Memoria: Mem[0]=%0d, Mem[4]=%0d, Mem[8]=%0d, Mem[100]=%0d, Mem[104]=%0d",
+                 {dut.mem_stage_inst.data_mem.memory[3], dut.mem_stage_inst.data_mem.memory[2], 
+                  dut.mem_stage_inst.data_mem.memory[1], dut.mem_stage_inst.data_mem.memory[0]},
+                 {dut.mem_stage_inst.data_mem.memory[7], dut.mem_stage_inst.data_mem.memory[6], 
+                  dut.mem_stage_inst.data_mem.memory[5], dut.mem_stage_inst.data_mem.memory[4]},
+                 {dut.mem_stage_inst.data_mem.memory[11], dut.mem_stage_inst.data_mem.memory[10], 
+                  dut.mem_stage_inst.data_mem.memory[9], dut.mem_stage_inst.data_mem.memory[8]},
+                 {dut.mem_stage_inst.data_mem.memory[103], dut.mem_stage_inst.data_mem.memory[102], 
+                  dut.mem_stage_inst.data_mem.memory[101], dut.mem_stage_inst.data_mem.memory[100]},
+                 {dut.mem_stage_inst.data_mem.memory[107], dut.mem_stage_inst.data_mem.memory[106], 
+                  dut.mem_stage_inst.data_mem.memory[105], dut.mem_stage_inst.data_mem.memory[104]}); 
+
+        $display("Mem[116]=%0d, Mem[120]=%0d, Mem[124]=%0d (valores para pruebas de LB/LH)",
+                 {dut.mem_stage_inst.data_mem.memory[119], dut.mem_stage_inst.data_mem.memory[118], 
+                  dut.mem_stage_inst.data_mem.memory[117], dut.mem_stage_inst.data_mem.memory[116]},
+                 {dut.mem_stage_inst.data_mem.memory[123], dut.mem_stage_inst.data_mem.memory[122], 
+                  dut.mem_stage_inst.data_mem.memory[121], dut.mem_stage_inst.data_mem.memory[120]},
+                 {dut.mem_stage_inst.data_mem.memory[127], dut.mem_stage_inst.data_mem.memory[126], 
+                  dut.mem_stage_inst.data_mem.memory[125], dut.mem_stage_inst.data_mem.memory[124]});
                          
         // Añadir valores para SB y SH
-        $display("Mem[32]=%0d / 0x%h (SB - guarda solo un byte)", 
-                 dut.mem_stage_inst.data_mem.memory[32],  // (28+100)/4 = 32 (SB - memoria)
-                 dut.mem_stage_inst.data_mem.memory[32]);
-        $display("Mem[33]=%0d / 0x%h (SH - guarda solo halfword)", 
-                 dut.mem_stage_inst.data_mem.memory[33],  // (32+100)/4 = 33 (SH - memoria)
-                 dut.mem_stage_inst.data_mem.memory[33]);
+        $display("Mem[128]=%0d / 0x%h (SB - guarda solo un byte)", 
+                 {dut.mem_stage_inst.data_mem.memory[131], dut.mem_stage_inst.data_mem.memory[130], 
+                  dut.mem_stage_inst.data_mem.memory[129], dut.mem_stage_inst.data_mem.memory[128]},
+                 {dut.mem_stage_inst.data_mem.memory[131], dut.mem_stage_inst.data_mem.memory[130], 
+                  dut.mem_stage_inst.data_mem.memory[129], dut.mem_stage_inst.data_mem.memory[128]});
+        $display("Mem[132]=%0d / 0x%h (SH - guarda solo halfword)", 
+                 {dut.mem_stage_inst.data_mem.memory[135], dut.mem_stage_inst.data_mem.memory[134], 
+                  dut.mem_stage_inst.data_mem.memory[133], dut.mem_stage_inst.data_mem.memory[132]},
+                 {dut.mem_stage_inst.data_mem.memory[135], dut.mem_stage_inst.data_mem.memory[134], 
+                  dut.mem_stage_inst.data_mem.memory[133], dut.mem_stage_inst.data_mem.memory[132]});
       end
     end
   end      // Tarea para la verificación final
@@ -391,30 +404,64 @@ module mips_itype_tb();
                
       // Verificación de memoria
       $display("\n==== VERIFICACIÓN DE MEMORIA ====");
+      
+      // Usar la misma lógica de acceso a memoria por bytes que usa el módulo data_memory
+      // Para Mem[0] (dirección 0) - ahora accediendo byte a byte y mostrando el valor completo de 32 bits
       $display("Mem[0]=%0d (Esperado: 10 - SW)", 
-               dut.mem_stage_inst.data_mem.memory[0]);
-      $display("Mem[1]=%0d (Esperado: 20 - SW)", 
-               dut.mem_stage_inst.data_mem.memory[1]);
-      $display("Mem[2]=%0d (Esperado: -10 - SW)", 
-               dut.mem_stage_inst.data_mem.memory[2]);
-      $display("Mem[25]=%0d (Esperado: 20 - SW con offset)", 
-               dut.mem_stage_inst.data_mem.memory[25]);  // 100/4 = 25
-      $display("Mem[26]=%0d (Esperado: 10 - SW con offset)", 
-               dut.mem_stage_inst.data_mem.memory[26]);  // 104/4 = 26
-      $display("Mem[29]=%0d (Esperado: 255 - SW con offset)", 
-               dut.mem_stage_inst.data_mem.memory[29]);  // 116/4 = 29 (16+100)/4
-      $display("Mem[30]=%0d (Esperado: 258 - SW con offset)", 
-               dut.mem_stage_inst.data_mem.memory[30]);  // 120/4 = 30 (20+100)/4
-      $display("Mem[31]=%0d (Esperado: -256 - SW con offset)", 
-               dut.mem_stage_inst.data_mem.memory[31]);  // 124/4 = 31 (24+100)/4
-      $display("Mem[32]=%0d / 0x%h (Esperado: 0x000000dc - SB)", 
-               dut.mem_stage_inst.data_mem.memory[32],   // 128/4 = 32 (28+100)/4
-               dut.mem_stage_inst.data_mem.memory[32]);
-      $display("Mem[33]=%0d / 0x%h (Esperado: 0x000000dc - SH)", 
-               dut.mem_stage_inst.data_mem.memory[33],   // 132/4 = 33 (32+100)/4
-               dut.mem_stage_inst.data_mem.memory[33]);
+               {dut.mem_stage_inst.data_mem.memory[3], dut.mem_stage_inst.data_mem.memory[2], 
+                dut.mem_stage_inst.data_mem.memory[1], dut.mem_stage_inst.data_mem.memory[0]});
+                
+      // Para Mem[1] (dirección 4) - ahora dirección 4-7
+      $display("Mem[4]=%0d (Esperado: 20 - SW)", 
+               {dut.mem_stage_inst.data_mem.memory[7], dut.mem_stage_inst.data_mem.memory[6], 
+                dut.mem_stage_inst.data_mem.memory[5], dut.mem_stage_inst.data_mem.memory[4]});
+                
+      // Para Mem[2] (dirección 8) - ahora dirección 8-11
+      $display("Mem[8]=%0d (Esperado: -10 - SW)", 
+               {dut.mem_stage_inst.data_mem.memory[11], dut.mem_stage_inst.data_mem.memory[10], 
+                dut.mem_stage_inst.data_mem.memory[9], dut.mem_stage_inst.data_mem.memory[8]});
+                
+      // Para Mem[25] (dirección 100) - ahora dirección 100-103
+      $display("Mem[100]=%0d (Esperado: 20 - SW con offset)", 
+               {dut.mem_stage_inst.data_mem.memory[103], dut.mem_stage_inst.data_mem.memory[102], 
+                dut.mem_stage_inst.data_mem.memory[101], dut.mem_stage_inst.data_mem.memory[100]});
+                
+      // Para Mem[26] (dirección 104) - ahora dirección 104-107
+      $display("Mem[104]=%0d (Esperado: 10 - SW con offset)", 
+               {dut.mem_stage_inst.data_mem.memory[107], dut.mem_stage_inst.data_mem.memory[106], 
+                dut.mem_stage_inst.data_mem.memory[105], dut.mem_stage_inst.data_mem.memory[104]});
+                
+      // Para Mem[29] (dirección 116) - ahora dirección 116-119
+      $display("Mem[116]=%0d (Esperado: 255 - SW con offset)", 
+               {dut.mem_stage_inst.data_mem.memory[119], dut.mem_stage_inst.data_mem.memory[118], 
+                dut.mem_stage_inst.data_mem.memory[117], dut.mem_stage_inst.data_mem.memory[116]});
+                
+      // Para Mem[30] (dirección 120) - ahora dirección 120-123
+      $display("Mem[120]=%0d (Esperado: 258 - SW con offset)", 
+               {dut.mem_stage_inst.data_mem.memory[123], dut.mem_stage_inst.data_mem.memory[122], 
+                dut.mem_stage_inst.data_mem.memory[121], dut.mem_stage_inst.data_mem.memory[120]});
+                
+      // Para Mem[31] (dirección 124) - ahora dirección 124-127
+      $display("Mem[124]=%0d (Esperado: -256 - SW con offset)", 
+               {dut.mem_stage_inst.data_mem.memory[127], dut.mem_stage_inst.data_mem.memory[126], 
+                dut.mem_stage_inst.data_mem.memory[125], dut.mem_stage_inst.data_mem.memory[124]});
+                
+      // Para Mem[32] (dirección 128) - ahora dirección 128-131
+      $display("Mem[128]=%0d / 0x%h (Esperado: 0x000000dc - SB)", 
+               {dut.mem_stage_inst.data_mem.memory[131], dut.mem_stage_inst.data_mem.memory[130], 
+                dut.mem_stage_inst.data_mem.memory[129], dut.mem_stage_inst.data_mem.memory[128]},
+               {dut.mem_stage_inst.data_mem.memory[131], dut.mem_stage_inst.data_mem.memory[130], 
+                dut.mem_stage_inst.data_mem.memory[129], dut.mem_stage_inst.data_mem.memory[128]});
+                
+      // Para Mem[33] (dirección 132) - ahora dirección 132-135
+      $display("Mem[132]=%0d / 0x%h (Esperado: 0x000000dc - SH)", 
+               {dut.mem_stage_inst.data_mem.memory[135], dut.mem_stage_inst.data_mem.memory[134], 
+                dut.mem_stage_inst.data_mem.memory[133], dut.mem_stage_inst.data_mem.memory[132]},
+               {dut.mem_stage_inst.data_mem.memory[135], dut.mem_stage_inst.data_mem.memory[134], 
+                dut.mem_stage_inst.data_mem.memory[133], dut.mem_stage_inst.data_mem.memory[132]});
       
       // Verificar si todas las instrucciones funcionan correctamente
+      // Actualizar las comparaciones de memoria para usar las direcciones de byte correctas
       if (dut.id_stage_inst.reg_bank.registers[1] == 170 &&
           dut.id_stage_inst.reg_bank.registers[2] == 20 &&
           dut.id_stage_inst.reg_bank.registers[3] == 0 &&
@@ -446,16 +493,26 @@ module mips_itype_tb();
           dut.id_stage_inst.reg_bank.registers[29] == 258 && // LWU
           dut.id_stage_inst.reg_bank.registers[30] == -256 &&
           dut.id_stage_inst.reg_bank.registers[31] == 220 && 
-          dut.mem_stage_inst.data_mem.memory[0] == 10 &&
-          dut.mem_stage_inst.data_mem.memory[1] == 20 &&
-          dut.mem_stage_inst.data_mem.memory[2] == -10 &&
-          dut.mem_stage_inst.data_mem.memory[25] == 20 &&
-          dut.mem_stage_inst.data_mem.memory[26] == 10 &&
-          dut.mem_stage_inst.data_mem.memory[29] == 255 &&
-          dut.mem_stage_inst.data_mem.memory[30] == 258 &&
-          dut.mem_stage_inst.data_mem.memory[31] == -256 &&
-          dut.mem_stage_inst.data_mem.memory[32] == 220 && // SB - verificar solo el byte bajo
-          dut.mem_stage_inst.data_mem.memory[33] == 220  // SH - verificar solo el halfword bajo
+          {dut.mem_stage_inst.data_mem.memory[3], dut.mem_stage_inst.data_mem.memory[2], 
+           dut.mem_stage_inst.data_mem.memory[1], dut.mem_stage_inst.data_mem.memory[0]} == 10 &&
+          {dut.mem_stage_inst.data_mem.memory[7], dut.mem_stage_inst.data_mem.memory[6], 
+           dut.mem_stage_inst.data_mem.memory[5], dut.mem_stage_inst.data_mem.memory[4]} == 20 &&
+          {dut.mem_stage_inst.data_mem.memory[11], dut.mem_stage_inst.data_mem.memory[10], 
+           dut.mem_stage_inst.data_mem.memory[9], dut.mem_stage_inst.data_mem.memory[8]} == -10 &&
+          {dut.mem_stage_inst.data_mem.memory[103], dut.mem_stage_inst.data_mem.memory[102], 
+           dut.mem_stage_inst.data_mem.memory[101], dut.mem_stage_inst.data_mem.memory[100]} == 20 &&
+          {dut.mem_stage_inst.data_mem.memory[107], dut.mem_stage_inst.data_mem.memory[106], 
+           dut.mem_stage_inst.data_mem.memory[105], dut.mem_stage_inst.data_mem.memory[104]} == 10 &&
+          {dut.mem_stage_inst.data_mem.memory[119], dut.mem_stage_inst.data_mem.memory[118], 
+           dut.mem_stage_inst.data_mem.memory[117], dut.mem_stage_inst.data_mem.memory[116]} == 255 &&
+          {dut.mem_stage_inst.data_mem.memory[123], dut.mem_stage_inst.data_mem.memory[122], 
+           dut.mem_stage_inst.data_mem.memory[121], dut.mem_stage_inst.data_mem.memory[120]} == 258 &&
+          {dut.mem_stage_inst.data_mem.memory[127], dut.mem_stage_inst.data_mem.memory[126], 
+           dut.mem_stage_inst.data_mem.memory[125], dut.mem_stage_inst.data_mem.memory[124]} == -256 &&
+          {dut.mem_stage_inst.data_mem.memory[131], dut.mem_stage_inst.data_mem.memory[130], 
+           dut.mem_stage_inst.data_mem.memory[129], dut.mem_stage_inst.data_mem.memory[128]} == 220 && // SB
+          {dut.mem_stage_inst.data_mem.memory[135], dut.mem_stage_inst.data_mem.memory[134], 
+           dut.mem_stage_inst.data_mem.memory[133], dut.mem_stage_inst.data_mem.memory[132]} == 220  // SH
           ) begin          
         $display("\n¡PRUEBA EXITOSA! Todas las instrucciones I-Type implementadas funcionan correctamente.");
         $display("\nLas instrucciones ADDI, ADDIU, ANDI, ORI, XORI, SLTI, SLTIU, LW, SW, LB, SB, LH, SH,");

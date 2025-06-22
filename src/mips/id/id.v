@@ -40,6 +40,8 @@ module id_stage(
   output wire        o_mem_read,          // Control de lectura de memoria
   output wire        o_mem_write,         // Control de escritura en memoria
   output wire        o_mem_to_reg,        // Selección entre ALU o memoria para WB
+  output wire [3:0]  o_byte_mask,         // Máscara de bytes para memoria
+  output wire        o_is_signed_load,    // Indica si es una carga con extensión de signo
   
   // Salidas para control de saltos
   output wire [31:0] o_branch_target_addr, // Dirección de destino del salto
@@ -109,9 +111,11 @@ module id_stage(
     .reg_write    (o_reg_write),
     .alu_src_b    (o_alu_src_b),
     .alu_src_a    (o_alu_src_a),
-    .mem_read     (o_mem_read), 
+    .mem_read     (o_mem_read),
     .mem_write    (o_mem_write),
     .mem_to_reg   (o_mem_to_reg),
+    .byte_mask    (o_byte_mask),
+    .is_signed_load(o_is_signed_load),
     .o_branch_type(branch_type) 
   );
 

@@ -33,16 +33,20 @@ module ex_stage(
   input  wire        i_mem_write,         // Escritura en memoria
   input  wire        i_mem_to_reg,        // Selección entre ALU o memoria
   input  wire        i_is_halt,           // Señal de HALT (para detener el pipeline)
+  input  wire [3:0]  i_byte_mask,         // Máscara de bytes para memoria
+  input  wire        i_is_signed_load,    // Indica si es una carga con extensión de signo
   
   // Salidas hacia la etapa MEM
   output wire [31:0] o_alu_result,        // Resultado de la ALU
   output wire [31:0] o_read_data_2,       // Valor rt para store
   output wire [4:0]  o_write_register,    // Registro destino
-  output wire        o_reg_write,         // Control de escritura
+  output wire        o_reg_write,         // Control de escritura 
   output wire        o_mem_read,          // Control de lectura
   output wire        o_mem_write,         // Control de escritura
   output wire        o_mem_to_reg,        // Selección para WB
-  output wire        o_is_halt            // Señal de HALT
+  output wire        o_is_halt,           // Señal de HALT
+  output wire [3:0]  o_byte_mask,         // Máscara de bytes para memoria
+  output wire        o_is_signed_load     // Indica si es una carga con extensión de signo
 );
 
   //----------------------------------------------------------------------
@@ -107,5 +111,7 @@ module ex_stage(
   assign o_mem_write = i_mem_write;
   assign o_mem_to_reg = i_mem_to_reg;
   assign o_is_halt = i_is_halt;
+  assign o_byte_mask = i_byte_mask;
+  assign o_is_signed_load = i_is_signed_load;
 
 endmodule

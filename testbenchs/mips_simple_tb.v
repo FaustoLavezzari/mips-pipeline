@@ -156,16 +156,20 @@ module mips_simple_tb();
         $display("$15=%0d (Esperado: 20)", 
                dut.id_stage_inst.reg_bank.registers[15]);
                
-        // Verificar memoria
+        // Verificar memoria - accediendo por bytes como en data_memory.v
         $display("\nMemoria final:");
         $display("Mem[100]=%0d (Esperado: 5)", 
-               dut.mem_stage_inst.data_mem.memory[25]);
+               {dut.mem_stage_inst.data_mem.memory[103], dut.mem_stage_inst.data_mem.memory[102], 
+                dut.mem_stage_inst.data_mem.memory[101], dut.mem_stage_inst.data_mem.memory[100]});
         $display("Mem[104]=%0d (Esperado: 5)", 
-               dut.mem_stage_inst.data_mem.memory[26]);
+               {dut.mem_stage_inst.data_mem.memory[107], dut.mem_stage_inst.data_mem.memory[106], 
+                dut.mem_stage_inst.data_mem.memory[105], dut.mem_stage_inst.data_mem.memory[104]});
         $display("Mem[35]=%0d (Esperado: 15)", 
-               dut.mem_stage_inst.data_mem.memory[8]);
+               {dut.mem_stage_inst.data_mem.memory[38], dut.mem_stage_inst.data_mem.memory[37], 
+                dut.mem_stage_inst.data_mem.memory[36], dut.mem_stage_inst.data_mem.memory[35]});
         $display("Mem[39]=%0d (Esperado: 35)", 
-               dut.mem_stage_inst.data_mem.memory[9]);
+               {dut.mem_stage_inst.data_mem.memory[42], dut.mem_stage_inst.data_mem.memory[41], 
+                dut.mem_stage_inst.data_mem.memory[40], dut.mem_stage_inst.data_mem.memory[39]});
                
         // Verificar resultado
         if (dut.id_stage_inst.reg_bank.registers[1] == 5 &&
@@ -182,10 +186,14 @@ module mips_simple_tb();
             dut.id_stage_inst.reg_bank.registers[13] == 0 &&
             dut.id_stage_inst.reg_bank.registers[14] == 7 &&
             dut.id_stage_inst.reg_bank.registers[15] == 20 &&
-            dut.mem_stage_inst.data_mem.memory[25] == 5 &&
-            dut.mem_stage_inst.data_mem.memory[26] == 5 &&
-            dut.mem_stage_inst.data_mem.memory[8] == 15 &&
-            dut.mem_stage_inst.data_mem.memory[9] == 35) begin
+            {dut.mem_stage_inst.data_mem.memory[103], dut.mem_stage_inst.data_mem.memory[102], 
+             dut.mem_stage_inst.data_mem.memory[101], dut.mem_stage_inst.data_mem.memory[100]} == 5 &&
+            {dut.mem_stage_inst.data_mem.memory[107], dut.mem_stage_inst.data_mem.memory[106], 
+             dut.mem_stage_inst.data_mem.memory[105], dut.mem_stage_inst.data_mem.memory[104]} == 5 &&
+            {dut.mem_stage_inst.data_mem.memory[38], dut.mem_stage_inst.data_mem.memory[37], 
+             dut.mem_stage_inst.data_mem.memory[36], dut.mem_stage_inst.data_mem.memory[35]} == 15 &&
+            {dut.mem_stage_inst.data_mem.memory[42], dut.mem_stage_inst.data_mem.memory[41], 
+             dut.mem_stage_inst.data_mem.memory[40], dut.mem_stage_inst.data_mem.memory[39]} == 35) begin
           $display("\n¡PRUEBA EXITOSA! Todos los resultados son correctos.");
           $display("\nLa unidad de forwarding ha manejado correctamente los riesgos de datos resolubles.");
           $display("Los NOPs insertados han ayudado a evitar los riesgos no resolubles mediante forwarding.");

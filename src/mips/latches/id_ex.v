@@ -26,6 +26,8 @@ module id_ex(
   input  wire        mem_write_in,
   input  wire        mem_to_reg_in,
   input  wire        is_halt_in,
+  input  wire [3:0]  byte_mask_in,
+  input  wire        is_signed_load_in,
 
   // Salidas hacia la etapa EX
   output reg  [31:0] read_data_1_out,
@@ -47,7 +49,9 @@ module id_ex(
   output reg         mem_read_out,
   output reg         mem_write_out,
   output reg         mem_to_reg_out,
-  output reg         is_halt_out        
+  output reg         is_halt_out,
+  output reg  [3:0]  byte_mask_out,
+  output reg         is_signed_load_out
   
 );
   always @(posedge clk) begin
@@ -68,11 +72,13 @@ module id_ex(
       alu_src_b_out         <= `CTRL_ALU_SRC_B_REG;
       alu_src_a_out         <= `CTRL_ALU_SRC_A_REG;
       reg_dst_out           <= `CTRL_REG_DST_RT;
-      reg_write_out         <= `CTRL_REG_WRITE_DIS; 
+      reg_write_out         <= `CTRL_REG_WRITE_DIS;
       mem_read_out          <= 1'b0;
       mem_write_out         <= 1'b0;
       mem_to_reg_out        <= `CTRL_MEM_TO_REG_ALU; 
       is_halt_out           <= reset ? 1'b0 : is_halt_in;
+      byte_mask_out         <= 4'b0;
+      is_signed_load_out    <= 1'b0;
     end
 
     else begin  // Actualizar registros siempre que no haya reset o flush
@@ -97,6 +103,8 @@ module id_ex(
       mem_write_out         <= mem_write_in;
       mem_to_reg_out        <= mem_to_reg_in;
       is_halt_out           <= is_halt_in;
+      byte_mask_out         <= byte_mask_in;
+      is_signed_load_out    <= is_signed_load_in;
     end
   end
 endmodule

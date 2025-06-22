@@ -17,7 +17,8 @@ module ex_mem(
   input  wire        mem_write_in,      // Control de escritura en memoria
   input  wire        mem_to_reg_in,     // Selecciona entre ALU o memoria para WB
   input  wire        is_halt_in,       
-  input  wire [5:0]  opcode_in,         // Opcode de la instrucción
+  input  wire [3:0]  byte_mask_in,      // Máscara de bytes para memoria
+  input  wire        is_signed_load_in, // Indica si es una carga con extensión de signo
   
   // Salidas hacia la etapa MEM
   output reg  [31:0] alu_result_out,    // Resultado de la ALU
@@ -28,7 +29,8 @@ module ex_mem(
   output reg         mem_write_out,     // Control de escritura en memoria
   output reg         mem_to_reg_out,    // Selecciona entre ALU o memoria para WB
   output reg         is_halt_out,       // Señal de HALT
-  output reg  [5:0]  opcode_out         // Opcode de la instrucción
+  output reg  [3:0]  byte_mask_out,     // Máscara de bytes para memoria
+  output reg         is_signed_load_out // Indica si es una carga con extensión de signo
 );
 
 
@@ -43,7 +45,8 @@ module ex_mem(
       mem_write_out     <= 1'b0;                  // Reset de la señal mem_write
       mem_to_reg_out    <= `CTRL_MEM_TO_REG_ALU;  // Reset de la señal mem_to_reg
       is_halt_out       <= 1'b0;                  // Reset de la señal is_halt
-      opcode_out        <= 6'b0;                  // Reset del opcode
+      byte_mask_out     <= 4'b0;                  // Reset de la máscara de bytes
+      is_signed_load_out <= 1'b0;                 // Reset de la señal is_signed_load
     end else begin
       alu_result_out     <= alu_result_in;
       read_data_2_out    <= read_data_2_in;
@@ -52,8 +55,9 @@ module ex_mem(
       mem_read_out      <= mem_read_in;    // Propagar la señal mem_read
       mem_write_out     <= mem_write_in;   // Propagar la señal mem_write
       mem_to_reg_out    <= mem_to_reg_in;  // Propagar la señal mem_to_reg
-      opcode_out        <= opcode_in;      // Propagar el opcode
       is_halt_out       <= is_halt_in;     // Propagar la señal is_halt
+      byte_mask_out     <= byte_mask_in;   // Propagar la máscara de bytes
+      is_signed_load_out <= is_signed_load_in; // Propagar la señal is_signed_load
     end
   end
 

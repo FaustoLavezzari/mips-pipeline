@@ -70,6 +70,7 @@ module mips(
   wire        id_mem_read;
   wire        id_mem_write;
   wire        id_mem_to_reg;
+  wire [3:0]  id_byte_mask;
   wire [31:0] id_branch_target_addr;
   wire        id_take_branch;
 
@@ -118,13 +119,15 @@ module mips(
     .o_shamt            (id_shamt),
     .o_function         (id_function),
     .o_opcode           (id_opcode),
-    .o_alu_src_b          (id_alu_src_b),
-    .o_alu_src_a          (id_alu_src_a),
+    .o_alu_src_b        (id_alu_src_b),
+    .o_alu_src_a        (id_alu_src_a),
     .o_reg_dst          (id_reg_dst),
     .o_reg_write        (id_reg_write),
     .o_mem_read         (id_mem_read),
     .o_mem_write        (id_mem_write),
     .o_mem_to_reg       (id_mem_to_reg),
+    .o_byte_mask        (id_byte_mask),
+    .o_is_signed_load   (id_is_signed_load),
     .o_branch_target_addr(id_branch_target_addr),
     .o_take_branch      (id_take_branch)
   );
@@ -134,7 +137,7 @@ module mips(
     .i_if_id_rs            (id_rs),
     .i_if_id_rt            (id_rt),
     .i_id_ex_rt            (ex_rt),
-    .i_id_ex_mem_read      (i_ex_mem_read),
+    .i_id_ex_mem_read      (ex_mem_read),
     .i_if_id_opcode        (id_opcode),
     .i_id_take_branch      (id_take_branch),
     .i_total_stall         (stall),
@@ -164,6 +167,9 @@ module mips(
   wire        i_ex_mem_read;
   wire        i_ex_mem_write;
   wire        i_ex_mem_to_reg;
+  wire [3:0]  i_ex_byte_mask;
+  wire        id_is_signed_load;
+  wire        i_ex_is_signed_load;
   
   id_ex id_ex_latch(
     .clk                  (clk),
@@ -187,6 +193,8 @@ module mips(
     .mem_write_in         (id_mem_write),
     .mem_to_reg_in        (id_mem_to_reg),
     .is_halt_in           (halt_detected),
+    .byte_mask_in         (id_byte_mask),
+    .is_signed_load_in    (id_is_signed_load),
     .read_data_1_out      (ex_read_data_1),
     .read_data_2_out      (ex_read_data_2),
     .sign_extended_imm_out(ex_sign_extended_imm),
@@ -204,7 +212,9 @@ module mips(
     .mem_read_out         (i_ex_mem_read),
     .mem_write_out        (i_ex_mem_write),
     .mem_to_reg_out       (i_ex_mem_to_reg),
-    .is_halt_out          (i_ex_is_halt)
+    .is_halt_out          (i_ex_is_halt),
+    .byte_mask_out        (i_ex_byte_mask),
+    .is_signed_load_out   (i_ex_is_signed_load)
   );
 
   // ======== EX Forwarding y señales ========
@@ -237,6 +247,7 @@ module mips(
   wire        ex_mem_write;
   wire        ex_mem_to_reg;
   wire        ex_is_halt;
+  wire [3:0]  ex_byte_mask;
   
   ex_stage ex_stage_inst(
     .clk                 (clk),
@@ -255,22 +266,26 @@ module mips(
     .i_forwarded_value_b (ex_forwarded_value_b),
     .i_use_forwarded_a   (ex_use_forwarded_a),
     .i_use_forwarded_b   (ex_use_forwarded_b),
-    .i_alu_src_b           (i_ex_alu_src_b),
-    .i_alu_src_a           (i_ex_alu_src_a),
+    .i_alu_src_b         (i_ex_alu_src_b),
+    .i_alu_src_a         (i_ex_alu_src_a),
     .i_reg_dst           (i_ex_reg_dst),
     .i_reg_write         (i_ex_reg_write),
     .i_mem_read          (i_ex_mem_read),
     .i_mem_write         (i_ex_mem_write),
     .i_mem_to_reg        (i_ex_mem_to_reg),
     .i_is_halt           (i_ex_is_halt),
+    .i_byte_mask         (i_ex_byte_mask),
+    .i_is_signed_load    (i_ex_is_signed_load),
     .o_alu_result        (ex_alu_result),
     .o_read_data_2       (ex_write_data),
     .o_write_register    (ex_write_register),
     .o_reg_write         (ex_reg_write),
     .o_mem_read          (ex_mem_read),
     .o_mem_write         (ex_mem_write),
+    .o_byte_mask         (ex_byte_mask),
     .o_mem_to_reg        (ex_mem_to_reg),
-    .o_is_halt           (ex_is_halt)
+    .o_is_halt           (ex_is_halt),
+    .o_is_signed_load    (ex_is_signed_load)
   );
 
   // ======== Latch EX/MEM y señales ========
@@ -281,8 +296,10 @@ module mips(
   wire        mem_mem_read;
   wire        mem_mem_write;
   wire        mem_mem_to_reg;
+  wire [3:0]  mem_byte_mask;
   wire [5:0]  mem_opcode;
   wire        mem_is_halt;
+  wire        mem_is_signed_load;
   
   ex_mem ex_mem_latch(
     .clk                 (clk),
@@ -295,7 +312,9 @@ module mips(
     .mem_write_in        (ex_mem_write),
     .mem_to_reg_in       (ex_mem_to_reg),
     .is_halt_in          (ex_is_halt),
-    .opcode_in           (ex_opcode),
+    .byte_mask_in        (ex_byte_mask),
+    .is_signed_load_in   (ex_is_signed_load),
+    .flush               (1'b0),
     .alu_result_out      (mem_alu_result),
     .read_data_2_out     (mem_write_data),
     .write_register_out  (mem_write_register),
@@ -303,8 +322,9 @@ module mips(
     .mem_read_out        (mem_mem_read),
     .mem_write_out       (mem_mem_write),
     .mem_to_reg_out      (mem_mem_to_reg),
-    .opcode_out          (mem_opcode),
-    .is_halt_out         (mem_is_halt)
+    .byte_mask_out       (mem_byte_mask),
+    .is_halt_out         (mem_is_halt),
+    .is_signed_load_out  (mem_is_signed_load)
   );
 
   // ======== Etapa MEM y señales de salida ========
@@ -326,7 +346,8 @@ module mips(
     .mem_write_in     (mem_mem_write),
     .mem_to_reg_in    (mem_mem_to_reg),
     .is_halt_in       (mem_is_halt),
-    .opcode_in        (mem_opcode),
+    .byte_mask_in     (mem_byte_mask),
+    .is_signed_load_in(mem_is_signed_load),
     .read_data_out    (mem_read_data),
     .alu_result_out   (mem_alu_result_out),
     .write_register_out(mem_write_register_out),
