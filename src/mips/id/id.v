@@ -29,8 +29,6 @@ module id_stage(
   output wire [4:0]  o_rt,                // Campo rt
   output wire [4:0]  o_rd,                // Campo rd
   output wire [31:0] o_shamt,             // Campo shamt
-  output wire [5:0]  o_function,          // Campo function
-  output wire [5:0]  o_opcode,            // Opcode
   
   // Señales de control para EX
   output wire        o_alu_src_b,         // Selección del segundo operando ALU
@@ -42,6 +40,7 @@ module id_stage(
   output wire        o_mem_to_reg,        // Selección entre ALU o memoria para WB
   output wire [3:0]  o_byte_mask,         // Máscara de bytes para memoria
   output wire        o_is_signed_load,    // Indica si es una carga con extensión de signo
+  output wire [3:0]  o_alu_control,       // Control de la ALU (nueva)
   
   // Salidas para control de saltos
   output wire [31:0] o_branch_target_addr, // Dirección de destino del salto
@@ -116,7 +115,8 @@ module id_stage(
     .mem_to_reg   (o_mem_to_reg),
     .byte_mask    (o_byte_mask),
     .is_signed_load(o_is_signed_load),
-    .o_branch_type(branch_type) 
+    .o_branch_type(branch_type),
+    .alu_control  (o_alu_control)  // Nueva conexión
   );
 
   // Extensión de signo del inmediato
@@ -127,8 +127,6 @@ module id_stage(
   assign o_rt = rt;
   assign o_rd = (branch_type == `BRANCH_TYPE_JAL) ? 5'b11111 : rd;  // JAL: rd = $31
   assign o_shamt = {27'b0, shamt};
-  assign o_function = funct;
-  assign o_opcode = opcode;
 
   //----------------------------------------------------------------------
   // 4. LÓGICA DE CONTROL DE SALTOS

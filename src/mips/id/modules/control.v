@@ -12,7 +12,8 @@ module control(
   output reg        reg_write,    // Habilitación de escritura en banco de registros
   output reg  [3:0] byte_mask,    // Máscara de bytes para operaciones de memoria
   output reg        is_signed_load, // Indica si es una carga con extensión de signo
-  output reg  [2:0] o_branch_type // Tipo de instrucción de salto:
+  output reg  [2:0] o_branch_type, // Tipo de instrucción de salto:
+  output reg  [3:0] alu_control   // Señal de control para la ALU (nueva)
 );
 
   always @(*) begin
@@ -27,12 +28,14 @@ module control(
     byte_mask  = 4'b0000;              // Por defecto no accede a ningún byte
     is_signed_load = 1'b0;             // Por defecto no es una carga con extensión de signo
     o_branch_type = `BRANCH_TYPE_NONE; // Por defecto no es un salto
+    alu_control = `ALU_BYPASS_A;       // Por defecto usa operando A directamente
     
     case(opcode)
       `OPCODE_R_TYPE: begin
         case(funct)
           `FUNC_JR: begin
             o_branch_type = `BRANCH_TYPE_JR;
+            alu_control = `ALU_BYPASS_A;     // JR - No se usa ALU
           end
           
           `FUNC_JALR: begin
@@ -40,31 +43,105 @@ module control(
             alu_src_a     = `CTRL_ALU_SRC_A_PC;    // Usa el PC+4
             reg_write     = `CTRL_REG_WRITE_EN;    // Escribe en $31 (ra) o el registro rd
             o_branch_type = `BRANCH_TYPE_JALR;
+            alu_control   = `ALU_BYPASS_A;         // JALR - Usa PC+4 para guardar en rd
           end
 
           `FUNC_SRA, `FUNC_SRL, `FUNC_SLL: begin
             reg_dst       = `CTRL_REG_DST_RD;      
             alu_src_a     = `CTRL_ALU_SRC_A_SHAMT;
             reg_write     = `CTRL_REG_WRITE_EN;
+            // Operaciones de desplazamiento
+            case(funct)
+              `FUNC_SLL:  alu_control = `ALU_SLL;  // Shift Left Logical
+              `FUNC_SRL:  alu_control = `ALU_SRL;  // Shift Right Logical
+              `FUNC_SRA:  alu_control = `ALU_SRA;  // Shift Right Arithmetic
+            endcase
+          end
+          
+          // Otras instrucciones tipo R
+          `FUNC_ADDU: begin
+            reg_dst     = `CTRL_REG_DST_RD;      // Usa rd como destino
+            reg_write   = `CTRL_REG_WRITE_EN;    // Escribe en registros
+            alu_control = `ALU_ADDU;             // Add Unsigned
+          end
+          `FUNC_SUBU: begin
+            reg_dst     = `CTRL_REG_DST_RD;      // Usa rd como destino
+            reg_write   = `CTRL_REG_WRITE_EN;    // Escribe en registros
+            alu_control = `ALU_SUBU;             // Subtract Unsigned
+          end
+          `FUNC_AND: begin
+            reg_dst     = `CTRL_REG_DST_RD;      // Usa rd como destino
+            reg_write   = `CTRL_REG_WRITE_EN;    // Escribe en registros
+            alu_control = `ALU_AND;              // AND
+          end
+          `FUNC_OR: begin
+            reg_dst     = `CTRL_REG_DST_RD;      // Usa rd como destino
+            reg_write   = `CTRL_REG_WRITE_EN;    // Escribe en registros
+            alu_control = `ALU_OR;               // OR
+          end
+          `FUNC_NOR: begin
+            reg_dst     = `CTRL_REG_DST_RD;      // Usa rd como destino
+            reg_write   = `CTRL_REG_WRITE_EN;    // Escribe en registros
+            alu_control = `ALU_NOR;              // NOR
+          end
+          `FUNC_SLT: begin
+            reg_dst     = `CTRL_REG_DST_RD;      // Usa rd como destino
+            reg_write   = `CTRL_REG_WRITE_EN;    // Escribe en registros
+            alu_control = `ALU_SLT;              // Set Less Than
+          end
+          `FUNC_SLTU: begin
+            reg_dst     = `CTRL_REG_DST_RD;      // Usa rd como destino
+            reg_write   = `CTRL_REG_WRITE_EN;    // Escribe en registros
+            alu_control = `ALU_SLTU;             // Set Less Than Unsigned
+          end
+          `FUNC_XOR: begin
+            reg_dst     = `CTRL_REG_DST_RD;      // Usa rd como destino
+            reg_write   = `CTRL_REG_WRITE_EN;    // Escribe en registros
+            alu_control = `ALU_XOR;              // XOR
+          end
+          `FUNC_SLLV: begin
+            reg_dst     = `CTRL_REG_DST_RD;      // Usa rd como destino
+            reg_write   = `CTRL_REG_WRITE_EN;    // Escribe en registros
+            alu_control = `ALU_SLL;              // Shift Left Logical Variable
+          end
+          `FUNC_SRLV: begin
+            reg_dst     = `CTRL_REG_DST_RD;      // Usa rd como destino
+            reg_write   = `CTRL_REG_WRITE_EN;    // Escribe en registros
+            alu_control = `ALU_SRL;              // Shift Right Logical Variable
+          end
+          `FUNC_SRAV: begin
+            reg_dst     = `CTRL_REG_DST_RD;      // Usa rd como destino
+            reg_write   = `CTRL_REG_WRITE_EN;    // Escribe en registros
+            alu_control = `ALU_SRA;              // Shift Right Arithmetic Variable
           end
           
           default: begin
             reg_dst       = `CTRL_REG_DST_RD;      
             reg_write     = `CTRL_REG_WRITE_EN;
+            alu_control   = `ALU_ADD;              // Por defecto ADD
           end
         endcase
       end
       
-      `OPCODE_ADDI, `OPCODE_ADDIU: begin
+      `OPCODE_ADDI: begin
         reg_dst    = `CTRL_REG_DST_RT;      // Usa el campo rt
-        alu_src_b  = `CTRL_ALU_SRC_B_IMM; // Usa el inmediato
+        alu_src_b  = `CTRL_ALU_SRC_B_IMM;   // Usa el inmediato
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+        alu_control = `ALU_ADD;             // ADDI - Suma con signo
+      end
+      
+      `OPCODE_ADDIU: begin
+        reg_dst    = `CTRL_REG_DST_RT;      // Usa el campo rt
+        alu_src_b  = `CTRL_ALU_SRC_B_IMM;   // Usa el inmediato
+        reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+        alu_control = `ALU_ADDU;            // ADDIU - Suma sin signo
       end
 
       `OPCODE_LUI: begin
         reg_dst    = `CTRL_REG_DST_RT;      // Usa rt como destino
         alu_src_b  = `CTRL_ALU_SRC_B_IMM;   // Usa el inmediato
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+        alu_control = `ALU_LUI;             // LUI - Carga inmediata superior
       end
       
       // Instrucciones de carga (Load)
@@ -76,6 +153,7 @@ module control(
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
         byte_mask  = 4'b1111;               // Lee todos los bytes
         is_signed_load = 1'b1;              // LW extiende el signo
+        alu_control = `ALU_ADD;             // Usa suma para calcular dirección
       end
       
       `OPCODE_LWU: begin
@@ -86,6 +164,7 @@ module control(
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
         byte_mask  = 4'b1111;               // Lee todos los bytes
         is_signed_load = 1'b0;              // LWU no extiende el signo
+        alu_control = `ALU_ADD;             // Usa suma para calcular dirección
       end
       
       `OPCODE_LH: begin
@@ -96,6 +175,7 @@ module control(
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
         byte_mask  = 4'b0011;               // Lee los dos bytes menos significativos
         is_signed_load = 1'b1;              // LH extiende el signo
+        alu_control = `ALU_ADD;             // Usa suma para calcular dirección
       end
       
       `OPCODE_LHU: begin
@@ -106,6 +186,7 @@ module control(
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
         byte_mask  = 4'b0011;               // Lee los dos bytes menos significativos
         is_signed_load = 1'b0;              // LHU no extiende el signo
+        alu_control = `ALU_ADD;             // Usa suma para calcular dirección
       end
       
       `OPCODE_LB: begin
@@ -116,6 +197,7 @@ module control(
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
         byte_mask  = 4'b0001;               // Lee el byte menos significativo
         is_signed_load = 1'b1;              // LB extiende el signo
+        alu_control = `ALU_ADD;             // Usa suma para calcular dirección
       end
       
       `OPCODE_LBU: begin
@@ -126,6 +208,7 @@ module control(
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
         byte_mask  = 4'b0001;               // Lee el byte menos significativo
         is_signed_load = 1'b0;              // LBU no extiende el signo
+        alu_control = `ALU_ADD;             // Usa suma para calcular dirección
       end
       
       // Instrucciones de almacenamiento (Store)
@@ -135,6 +218,7 @@ module control(
         mem_write  = `CTRL_MEM_WRITE_EN;    // Escribe en memoria
         reg_write  = `CTRL_REG_WRITE_DIS;   // No escribe en registros
         byte_mask  = 4'b1111;               // Escribe todos los bytes
+        alu_control = `ALU_ADD;             // Usa suma para calcular dirección
       end
       
       `OPCODE_SH: begin
@@ -143,6 +227,7 @@ module control(
         mem_write  = `CTRL_MEM_WRITE_EN;    // Escribe en memoria
         reg_write  = `CTRL_REG_WRITE_DIS;   // No escribe en registros
         byte_mask  = 4'b0011;               // Escribe los dos bytes menos significativos
+        alu_control = `ALU_ADD;             // Usa suma para calcular dirección
       end
       
       `OPCODE_SB: begin
@@ -151,25 +236,64 @@ module control(
         mem_write  = `CTRL_MEM_WRITE_EN;    // Escribe en memoria
         reg_write  = `CTRL_REG_WRITE_DIS;   // No escribe en registros
         byte_mask  = 4'b0001;               // Escribe el byte menos significativo
+        alu_control = `ALU_ADD;             // Usa suma para calcular dirección
       end
       
-      `OPCODE_ANDI, `OPCODE_ORI, `OPCODE_XORI, `OPCODE_SLTI, `OPCODE_SLTIU, `OPCODE_XORI, `OPCODE_SLTI, `OPCODE_SLTIU: begin
+      // Instrucciones de operación lógica con inmediato
+      `OPCODE_ANDI: begin
         reg_dst    = `CTRL_REG_DST_RT;      // Usa rt como destino
         alu_src_b  = `CTRL_ALU_SRC_B_IMM;   // Usa el inmediato
         mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+        alu_control = `ALU_AND;             // AND con inmediato
       end
       
+      `OPCODE_ORI: begin
+        reg_dst    = `CTRL_REG_DST_RT;      // Usa rt como destino
+        alu_src_b  = `CTRL_ALU_SRC_B_IMM;   // Usa el inmediato
+        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
+        reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+        alu_control = `ALU_OR;              // OR con inmediato
+      end
+      
+      `OPCODE_XORI: begin
+        reg_dst    = `CTRL_REG_DST_RT;      // Usa rt como destino
+        alu_src_b  = `CTRL_ALU_SRC_B_IMM;   // Usa el inmediato
+        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
+        reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+        alu_control = `ALU_XOR;             // XOR con inmediato
+      end
+      
+      `OPCODE_SLTI: begin
+        reg_dst    = `CTRL_REG_DST_RT;      // Usa rt como destino
+        alu_src_b  = `CTRL_ALU_SRC_B_IMM;   // Usa el inmediato
+        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
+        reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+        alu_control = `ALU_SLT;             // Set Less Than con inmediato
+      end
+      
+      `OPCODE_SLTIU: begin
+        reg_dst    = `CTRL_REG_DST_RT;      // Usa rt como destino
+        alu_src_b  = `CTRL_ALU_SRC_B_IMM;   // Usa el inmediato
+        mem_to_reg = `CTRL_MEM_TO_REG_ALU;  // Usa resultado de ALU
+        reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en registros
+        alu_control = `ALU_SLTU;            // Set Less Than Unsigned con inmediato
+      end
+      
+      // Instrucciones de salto
       `OPCODE_BEQ: begin
         o_branch_type = `BRANCH_TYPE_BEQ;
+        alu_control = `ALU_BYPASS_A;        // No se usa ALU en BEQ
       end
       
       `OPCODE_BNE: begin
         o_branch_type = `BRANCH_TYPE_BNE;
+        alu_control = `ALU_BYPASS_A;        // No se usa ALU en BNE
       end
       
       `OPCODE_J: begin
-        o_branch_type = `BRANCH_TYPE_J;    
+        o_branch_type = `BRANCH_TYPE_J;
+        alu_control = `ALU_BYPASS_A;        // No se usa ALU en J    
       end
       
       `OPCODE_JAL: begin
@@ -177,7 +301,10 @@ module control(
         alu_src_a  = `CTRL_ALU_SRC_A_PC;    // Usa el PC+4  
         reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en $31 (ra)
         o_branch_type = `BRANCH_TYPE_JAL;
+        alu_control = `ALU_BYPASS_A;        // JAL - usar PC+4 como operando A
       end
+      
+      default: alu_control = `ALU_ADD;      // Por defecto, suma
     endcase
   end
 

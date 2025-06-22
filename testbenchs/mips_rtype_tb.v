@@ -219,14 +219,14 @@ module mips_rtype_tb();
                dut.if_instr,
                instr_type(dut.if_instr));
       
-        $display("ID: Instr=%0h, RegDst=%0b, OpCode=%0b, ALUSrcA=%0b, ALUSrcB=%0b, Shamt=0x%h, Function=%0b, RegWrite=%0b", 
+        $display("ID: Instr=%0h, RegDst=%0b, OpCode=%0b, ALUSrcA=%0b, ALUSrcB=%0b, Shamt=0x%h, ALU_Control=%0h, RegWrite=%0b", 
                  dut.id_instr,
                  dut.id_reg_dst,
-                 dut.id_opcode,
+                 dut.id_instr[31:26], // Extract opcode directly from instruction
                  dut.id_alu_src_a,
                  dut.id_alu_src_b,
                  dut.id_shamt,
-                 dut.id_function,
+                 dut.id_alu_control,
                  dut.id_reg_write);
 
         $display("Branch Control: Take Branch=%0b, Target Address=0x%0h, Branch Type=%0b, PC+4=0x%0h", 
@@ -240,7 +240,7 @@ module mips_rtype_tb();
                  dut.ex_stage_inst.alu_input_a,
                  dut.ex_stage_inst.alu_input_b, 
                  dut.ex_stage_inst.i_shamt,
-                 dut.ex_stage_inst.alu_control,
+                 dut.ex_stage_inst.i_alu_control,
                  dut.ex_alu_result,
                  dut.ex_write_register,
                  dut.ex_reg_write);

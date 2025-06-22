@@ -61,9 +61,8 @@ module mips(
   wire [4:0]  id_rt;
   wire [4:0]  id_rd;
   wire [31:0] id_shamt;
-  wire [5:0]  id_function;
-  wire [5:0]  id_opcode;
   wire        id_alu_src_b;
+  wire [3:0]  id_alu_control;
   wire [1:0]  id_alu_src_a;
   wire        id_reg_dst;
   wire        id_reg_write;
@@ -117,9 +116,8 @@ module mips(
     .o_rt               (id_rt),
     .o_rd               (id_rd),
     .o_shamt            (id_shamt),
-    .o_function         (id_function),
-    .o_opcode           (id_opcode),
     .o_alu_src_b        (id_alu_src_b),
+    .o_alu_control      (id_alu_control),
     .o_alu_src_a        (id_alu_src_a),
     .o_reg_dst          (id_reg_dst),
     .o_reg_write        (id_reg_write),
@@ -131,6 +129,9 @@ module mips(
     .o_branch_target_addr(id_branch_target_addr),
     .o_take_branch      (id_take_branch)
   );
+
+  // Extracción de opcode para unidad de detección de riesgos
+  wire [5:0] id_opcode = id_instr[31:26];
 
   // ======== Unidad de detección de riesgos ========
   hazard_detection hazard_detection_unit(
@@ -156,9 +157,8 @@ module mips(
   wire [4:0]  ex_rt;
   wire [4:0]  ex_rd;
   wire [31:0] ex_shamt;
-  wire [5:0]  ex_function;
-  wire [5:0]  ex_opcode;
   wire [31:0] ex_next_pc;
+  wire [3:0]  ex_alu_control;
   wire        i_ex_is_halt;
   wire        i_ex_alu_src_b;
   wire [1:0]  i_ex_alu_src_a;
@@ -182,9 +182,8 @@ module mips(
     .rt_in                (id_rt),
     .rd_in                (id_rd),
     .shamt_in             (id_shamt),
-    .function_in          (id_function),
-    .opcode_in            (id_opcode),
     .next_pc_in           (id_next_pc),
+    .alu_control_in       (id_alu_control),
     .alu_src_b_in         (id_alu_src_b),
     .alu_src_a_in         (id_alu_src_a),
     .reg_dst_in           (id_reg_dst),
@@ -202,9 +201,8 @@ module mips(
     .rt_out               (ex_rt),
     .rd_out               (ex_rd),
     .shamt_out            (ex_shamt),
-    .function_out         (ex_function),
-    .opcode_out           (ex_opcode),
     .next_pc_out          (ex_next_pc),
+    .alu_control_out      (ex_alu_control),
     .alu_src_b_out        (i_ex_alu_src_b),
     .alu_src_a_out        (i_ex_alu_src_a),
     .reg_dst_out          (i_ex_reg_dst),
@@ -255,12 +253,10 @@ module mips(
     .i_read_data_1       (ex_read_data_1),
     .i_read_data_2       (ex_read_data_2),
     .i_sign_extended_imm (ex_sign_extended_imm),
-    .i_function          (ex_function),
     .i_rs                (ex_rs),
     .i_rt                (ex_rt),
     .i_rd                (ex_rd),
     .i_shamt             (ex_shamt),
-    .i_opcode            (ex_opcode),
     .i_next_pc           (ex_next_pc),
     .i_forwarded_value_a (ex_forwarded_value_a),
     .i_forwarded_value_b (ex_forwarded_value_b),
@@ -276,6 +272,7 @@ module mips(
     .i_is_halt           (i_ex_is_halt),
     .i_byte_mask         (i_ex_byte_mask),
     .i_is_signed_load    (i_ex_is_signed_load),
+    .i_alu_control       (ex_alu_control),
     .o_alu_result        (ex_alu_result),
     .o_read_data_2       (ex_write_data),
     .o_write_register    (ex_write_register),

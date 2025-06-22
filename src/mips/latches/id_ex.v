@@ -13,8 +13,6 @@ module id_ex(
   input  wire [4:0]  rt_in,
   input  wire [4:0]  rd_in,
   input  wire [31:0]  shamt_in,            // Campo shamt para instrucciones SLL/SRL
-  input  wire [5:0]  function_in,
-  input  wire [5:0]  opcode_in,
   input  wire [31:0] next_pc_in,          // PC+4 (solo para uso general)
   
   // Señales de control de ID
@@ -28,6 +26,7 @@ module id_ex(
   input  wire        is_halt_in,
   input  wire [3:0]  byte_mask_in,
   input  wire        is_signed_load_in,
+  input  wire [3:0]  alu_control_in,      // Nueva señal para control de la ALU
 
   // Salidas hacia la etapa EX
   output reg  [31:0] read_data_1_out,
@@ -37,8 +36,6 @@ module id_ex(
   output reg  [4:0]  rt_out,
   output reg  [4:0]  rd_out,
   output reg  [31:0]  shamt_out,           
-  output reg  [5:0]  function_out,
-  output reg  [5:0]  opcode_out,
   output reg  [31:0] next_pc_out,         
 
   // Señales de control hacia EX
@@ -51,8 +48,8 @@ module id_ex(
   output reg         mem_to_reg_out,
   output reg         is_halt_out,
   output reg  [3:0]  byte_mask_out,
-  output reg         is_signed_load_out
-  
+  output reg         is_signed_load_out,
+  output reg  [3:0]  alu_control_out      // Nueva señal para control de la ALU
 );
   always @(posedge clk) begin
     if (reset || flush) begin
@@ -64,8 +61,6 @@ module id_ex(
       rt_out                <= {`REG_ADDR_WIDTH{1'b0}};
       rd_out                <= {`REG_ADDR_WIDTH{1'b0}};
       shamt_out             <= {`DATA_WIDTH{1'b0}};
-      function_out          <= 6'b0;
-      opcode_out            <= 6'b0;
       next_pc_out           <= {`DATA_WIDTH{1'b0}};
 
       // Señales de control - Desactivar todas en caso de flush o reset
@@ -79,6 +74,7 @@ module id_ex(
       is_halt_out           <= reset ? 1'b0 : is_halt_in;
       byte_mask_out         <= 4'b0;
       is_signed_load_out    <= 1'b0;
+      alu_control_out       <= 4'b0;    // Nueva señal reseteo a 0
     end
 
     else begin  // Actualizar registros siempre que no haya reset o flush
@@ -90,8 +86,6 @@ module id_ex(
       rt_out                <= rt_in;
       shamt_out             <= shamt_in;
       rd_out                <= rd_in;
-      function_out          <= function_in;
-      opcode_out            <= opcode_in;
       next_pc_out           <= next_pc_in;
       
       // Señales de control
@@ -105,6 +99,7 @@ module id_ex(
       is_halt_out           <= is_halt_in;
       byte_mask_out         <= byte_mask_in;
       is_signed_load_out    <= is_signed_load_in;
+      alu_control_out       <= alu_control_in;  // Nueva asignación
     end
   end
 endmodule

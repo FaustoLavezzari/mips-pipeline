@@ -253,9 +253,9 @@ module mips_load_store_tb();
                dut.if_instr,
                instr_type(dut.if_instr));
                
-      $display("ID: Instr=%0h, Function=%0h", 
+      $display("ID: Instr=%0h, ALU_Control=%0h", 
                dut.id_instr,
-               dut.id_function);
+               dut.id_alu_control);
                
       $display("ID_BRANCH_CONTROL: take_branch=%0b, target=0x%h, read_data_1=0x%h", 
                dut.id_take_branch,

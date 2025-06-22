@@ -10,12 +10,10 @@ module ex_stage(
   input  wire [31:0] i_read_data_1,       // Valor del registro rs
   input  wire [31:0] i_read_data_2,       // Valor del registro rt
   input  wire [31:0] i_sign_extended_imm, // Immediate con extensión de signo
-  input  wire [5:0]  i_function,          // Campo function
   input  wire [4:0]  i_rt,                // Registro RT
   input  wire [4:0]  i_rd,                // Registro RD
   input  wire [4:0]  i_rs,                // Registro RS (para forwarding)
   input  wire [31:0] i_shamt,             // Campo shamt ya extendido a 32 bits
-  input  wire [5:0]  i_opcode,            // Código de operación
   input  wire [31:0] i_next_pc,           // PC+4 para JAL/JALR
   
   // Entradas para forwarding
@@ -35,6 +33,7 @@ module ex_stage(
   input  wire        i_is_halt,           // Señal de HALT (para detener el pipeline)
   input  wire [3:0]  i_byte_mask,         // Máscara de bytes para memoria
   input  wire        i_is_signed_load,    // Indica si es una carga con extensión de signo
+  input  wire [3:0]  i_alu_control,       // Control de la ALU (nueva)
   
   // Salidas hacia la etapa MEM
   output wire [31:0] o_alu_result,        // Resultado de la ALU
@@ -76,23 +75,13 @@ module ex_stage(
   end
 
   //----------------------------------------------------------------------
-  // 2. CONTROL DE LA ALU Y EJECUCIÓN
+  // 2. EJECUCIÓN DE LA ALU
   //----------------------------------------------------------------------
-  // Señal de control para la ALU
-  wire [3:0] alu_control;
-
-  // Controlador de la ALU
-  alu_control alu_control_inst (
-    .i_func_code   (i_function),
-    .i_opcode    (i_opcode),
-    .alu_control (alu_control)
-  );
-  
-  // Unidad ALU
+  // Unidad ALU - Usa directamente la señal de control generada en la etapa ID
   alu alu_inst (
     .a           (alu_input_a),
     .b           (alu_input_b),
-    .alu_control (alu_control),
+    .alu_control (i_alu_control),  // Usa señal de control desde ID
     .result      (o_alu_result)
   );
   
