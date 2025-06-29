@@ -13,10 +13,14 @@ module if_id(
 );
 
   always @(posedge clk) begin
-    if (reset || flush) begin
+    if (reset) begin
       next_pc_out <= 32'b0;
       instr_out   <= 32'b0;
     end 
+    else if (flush && !stall) begin  // Solo se hace flush si no está en stall
+      next_pc_out <= 32'b0;
+      instr_out   <= 32'b0;
+    end
     else if (!stall) begin
       next_pc_out <= next_pc_in;
       instr_out   <= instr_in;

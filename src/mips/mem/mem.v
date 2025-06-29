@@ -16,7 +16,9 @@ module mem_stage(
   input  wire        is_halt_in,       // Señal de HALT (para detener el pipeline)
   input  wire [3:0]  byte_mask_in,     // Máscara de bytes para memoria
   input  wire        is_signed_load_in, // Indica si es una carga con extensión de signo
-
+  // Debug ports
+  input  wire [31:0] i_debug_addr,      // Dirección de depuración
+  output wire [31:0] o_debug_data,      // Dato leído de depuración
   // Salidas
   output wire [31:0] read_data_out,      // Dato leído de memoria (para LW)
   output wire [31:0] alu_result_out,     // Pasar el resultado de la ALU a WB
@@ -38,7 +40,9 @@ module mem_stage(
     .mem_write_in(mem_write_in),
     .mem_read_in(mem_read_in),
     .byte_mask(byte_mask_in),
-    .read_data_out(raw_read_data)
+    .read_data_out(raw_read_data),
+    .i_debug_addr(i_debug_addr),
+    .o_debug_data(o_debug_data)
   );
   
   // Filtrar los datos leídos según la máscara de bytes

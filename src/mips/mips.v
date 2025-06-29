@@ -9,8 +9,61 @@ module mips(
   input  wire        inst_write_en,        // Habilitar escritura de instrucción
   input  wire [31:0] inst_write_addr,      // Dirección a escribir
   input  wire [31:0] inst_write_data,      // Datos a escribir (instrucción)
+
   output wire [31:0] result,
-  output wire        halt
+  output wire        halt,
+
+  // Debug register ports
+  input  wire [4:0]  reg_addr,
+  output wire [31:0] reg_data,
+  // Debug memory ports
+  input  wire [31:0] mem_debug_addr,
+  output wire [31:0] mem_debug_data,
+  
+  // Debug latch signals - IF/ID
+  output wire [31:0] debug_if_id_instr,
+  output wire [31:0] debug_if_id_next_pc,
+  
+  // Debug latch signals - ID/EX
+  output wire [31:0] debug_id_ex_read_data1,
+  output wire [31:0] debug_id_ex_read_data2,
+  output wire [31:0] debug_id_ex_sign_ext_imm,
+  output wire [4:0]  debug_id_ex_rs,
+  output wire [4:0]  debug_id_ex_rt,
+  output wire [4:0]  debug_id_ex_rd,
+  output wire [31:0] debug_id_ex_shamt,
+  output wire [31:0] debug_id_ex_next_pc,
+  output wire        debug_id_ex_reg_dst,
+  output wire        debug_id_ex_alu_src_b,
+  output wire [1:0]  debug_id_ex_alu_src_a,
+  output wire [3:0]  debug_id_ex_alu_control,
+  output wire        debug_id_ex_mem_read,
+  output wire        debug_id_ex_mem_write,
+  output wire        debug_id_ex_reg_write,
+  output wire        debug_id_ex_mem_to_reg,
+  output wire        debug_id_ex_is_halt,
+  output wire [3:0]  debug_id_ex_byte_mask,
+  output wire        debug_id_ex_is_signed_load,
+  
+  // Debug latch signals - EX/MEM
+  output wire [31:0] debug_ex_mem_alu_result,
+  output wire [31:0] debug_ex_mem_write_data,
+  output wire [4:0]  debug_ex_mem_write_reg,
+  output wire        debug_ex_mem_reg_write,
+  output wire        debug_ex_mem_mem_read,
+  output wire        debug_ex_mem_mem_write,
+  output wire        debug_ex_mem_mem_to_reg,
+  output wire        debug_ex_mem_is_halt,
+  output wire [3:0]  debug_ex_mem_byte_mask,
+  output wire        debug_ex_mem_is_signed_load,
+  
+  // Debug latch signals - MEM/WB
+  output wire [31:0] debug_mem_wb_alu_result,
+  output wire [31:0] debug_mem_wb_read_data,
+  output wire [4:0]  debug_mem_wb_write_reg,
+  output wire        debug_mem_wb_reg_write,
+  output wire        debug_mem_wb_mem_to_reg,
+  output wire        debug_mem_wb_is_halt
 );
 
   // ======== Señales de control de pipeline ========
@@ -72,7 +125,7 @@ module mips(
   wire [3:0]  id_byte_mask;
   wire [31:0] id_branch_target_addr;
   wire        id_take_branch;
-
+  wire [5:0]  id_opcode;
   // ID Forwarding señales
   wire        id_use_forwarded_a;
   wire        id_use_forwarded_b;
@@ -109,6 +162,8 @@ module mips(
     .i_forwarded_value_b(id_forwarded_value_b),
     .i_use_forwarded_a  (id_use_forwarded_a),
     .i_use_forwarded_b  (id_use_forwarded_b),
+    .i_debug_reg        (reg_addr),
+    .o_debug_reg_value  (reg_data),
     .o_read_data_1      (id_read_data_1),
     .o_read_data_2      (id_read_data_2),
     .o_sign_extended_imm(id_sign_extended_imm),
@@ -116,6 +171,7 @@ module mips(
     .o_rt               (id_rt),
     .o_rd               (id_rd),
     .o_shamt            (id_shamt),
+    .o_opcode           (id_opcode),
     .o_alu_src_b        (id_alu_src_b),
     .o_alu_control      (id_alu_control),
     .o_alu_src_a        (id_alu_src_a),
@@ -130,8 +186,7 @@ module mips(
     .o_take_branch      (id_take_branch)
   );
 
-  // Extracción de opcode para unidad de detección de riesgos
-  wire [5:0] id_opcode = id_instr[31:26];
+  // El opcode ahora viene directamente de la etapa ID
 
   // ======== Unidad de detección de riesgos ========
   hazard_detection hazard_detection_unit(
@@ -175,6 +230,7 @@ module mips(
     .clk                  (clk),
     .reset                (reset),
     .flush                (flush_id_ex),
+    .stall                (stall_second_half),
     .read_data_1_in       (id_read_data_1),
     .read_data_2_in       (id_read_data_2),
     .sign_extended_imm_in (id_sign_extended_imm),
@@ -301,6 +357,7 @@ module mips(
   ex_mem ex_mem_latch(
     .clk                 (clk),
     .reset               (reset),
+    .stall               (stall_second_half),
     .alu_result_in       (ex_alu_result),
     .read_data_2_in      (ex_write_data),
     .write_register_in   (ex_write_register),
@@ -311,7 +368,6 @@ module mips(
     .is_halt_in          (ex_is_halt),
     .byte_mask_in        (ex_byte_mask),
     .is_signed_load_in   (ex_is_signed_load),
-    .flush               (1'b0),
     .alu_result_out      (mem_alu_result),
     .read_data_2_out     (mem_write_data),
     .write_register_out  (mem_write_register),
@@ -345,6 +401,8 @@ module mips(
     .is_halt_in       (mem_is_halt),
     .byte_mask_in     (mem_byte_mask),
     .is_signed_load_in(mem_is_signed_load),
+    .i_debug_addr     (mem_debug_addr),
+    .o_debug_data     (mem_debug_data),
     .read_data_out    (mem_read_data),
     .alu_result_out   (mem_alu_result_out),
     .write_register_out(mem_write_register_out),
@@ -364,7 +422,7 @@ module mips(
   mem_wb mem_wb_latch(
     .clk                 (clk),
     .reset               (reset),
-    .flush               (1'b0),
+    .stall               (stall_second_half),
     .alu_result_in       (mem_alu_result_out),
     .read_data_in        (mem_read_data),
     .write_register_in   (mem_write_register_out),
@@ -402,5 +460,51 @@ module mips(
   // ======== Salidas del módulo ========
   assign result = wb_write_data;
   assign halt = end_program;
+  
+  // ======== Conexión de señales de debug para los latches ========
+  // IF/ID
+  assign debug_if_id_instr = id_instr;
+  assign debug_if_id_next_pc = id_next_pc;
+  
+  // ID/EX
+  assign debug_id_ex_read_data1 = ex_read_data_1;
+  assign debug_id_ex_read_data2 = ex_read_data_2;
+  assign debug_id_ex_sign_ext_imm = ex_sign_extended_imm;
+  assign debug_id_ex_rs = ex_rs;
+  assign debug_id_ex_rt = ex_rt;
+  assign debug_id_ex_rd = ex_rd;
+  assign debug_id_ex_shamt = ex_shamt;
+  assign debug_id_ex_next_pc = ex_next_pc;
+  assign debug_id_ex_reg_dst = i_ex_reg_dst;
+  assign debug_id_ex_alu_src_b = i_ex_alu_src_b;
+  assign debug_id_ex_alu_src_a = i_ex_alu_src_a;
+  assign debug_id_ex_alu_control = ex_alu_control;
+  assign debug_id_ex_mem_read = i_ex_mem_read;
+  assign debug_id_ex_mem_write = i_ex_mem_write;
+  assign debug_id_ex_reg_write = i_ex_reg_write;
+  assign debug_id_ex_mem_to_reg = i_ex_mem_to_reg;
+  assign debug_id_ex_is_halt = i_ex_is_halt;
+  assign debug_id_ex_byte_mask = i_ex_byte_mask;
+  assign debug_id_ex_is_signed_load = i_ex_is_signed_load;
+  
+  // EX/MEM
+  assign debug_ex_mem_alu_result = mem_alu_result;
+  assign debug_ex_mem_write_data = mem_write_data;
+  assign debug_ex_mem_write_reg = mem_write_register;
+  assign debug_ex_mem_reg_write = mem_reg_write;
+  assign debug_ex_mem_mem_read = mem_mem_read;
+  assign debug_ex_mem_mem_write = mem_mem_write;
+  assign debug_ex_mem_mem_to_reg = mem_mem_to_reg;
+  assign debug_ex_mem_is_halt = mem_is_halt;
+  assign debug_ex_mem_byte_mask = mem_byte_mask;
+  assign debug_ex_mem_is_signed_load = mem_is_signed_load;
+  
+  // MEM/WB
+  assign debug_mem_wb_alu_result = wb_alu_result;
+  assign debug_mem_wb_read_data = wb_read_data;
+  assign debug_mem_wb_write_reg = wb_write_register;
+  assign debug_mem_wb_reg_write = wb_reg_write;
+  assign debug_mem_wb_mem_to_reg = wb_mem_to_reg;
+  assign debug_mem_wb_is_halt = wb_is_halt;
 
 endmodule

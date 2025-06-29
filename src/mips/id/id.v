@@ -29,7 +29,12 @@ module id_stage(
   output wire [4:0]  o_rt,                // Campo rt
   output wire [4:0]  o_rd,                // Campo rd
   output wire [31:0] o_shamt,             // Campo shamt
-  
+  output wire [5:0]  o_opcode,            // Campo opcode de la instrucción
+
+  // debugging i/o
+  input wire [4:0]  i_debug_reg,
+  output wire [31:0] o_debug_reg_value,   // Valor del registro de depuración
+
   // Señales de control para EX
   output wire        o_alu_src_b,         // Selección del segundo operando ALU
   output wire [1:0]  o_alu_src_a,         // Selección del primer operando ALU
@@ -59,6 +64,9 @@ module id_stage(
   wire [25:0] target = i_instruction[25:0];
   wire [5:0]  funct  = i_instruction[5:0];
 
+  // Asignar el opcode como salida
+  assign o_opcode = opcode;
+
   //----------------------------------------------------------------------
   // 2. BANCO DE REGISTROS Y FORWARDING
   //----------------------------------------------------------------------
@@ -80,7 +88,9 @@ module id_stage(
     .i_write_register (i_write_register),
     .i_write_data     (i_write_data),
     .o_read_data_1    (reg_data_1),
-    .o_read_data_2    (reg_data_2)
+    .o_read_data_2    (reg_data_2),
+    .i_debug_reg      (i_debug_reg),
+    .o_debug_reg_value(o_debug_reg_value)
   );
   
   // Lógica de forwarding para operando A (RS), incluye caso especial JAL/JALR
@@ -116,7 +126,7 @@ module id_stage(
     .byte_mask    (o_byte_mask),
     .is_signed_load(o_is_signed_load),
     .o_branch_type(branch_type),
-    .alu_control  (o_alu_control)  // Nueva conexión
+    .alu_control  (o_alu_control)
   );
 
   // Extensión de signo del inmediato
@@ -127,6 +137,7 @@ module id_stage(
   assign o_rt = rt;
   assign o_rd = (branch_type == `BRANCH_TYPE_JAL) ? 5'b11111 : rd;  // JAL: rd = $31
   assign o_shamt = {27'b0, shamt};
+  assign o_opcode = opcode;
 
   //----------------------------------------------------------------------
   // 4. LÓGICA DE CONTROL DE SALTOS

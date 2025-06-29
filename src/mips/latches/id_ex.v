@@ -4,7 +4,8 @@
 module id_ex(
   input  wire        clk,
   input  wire        reset,
-  input  wire        flush,         // Nueva señal para invalidar el latch cuando hay misprediction
+  input  wire        flush,
+  input  wire        stall,
   // Datos de la etapa ID
   input  wire [31:0] read_data_1_in,
   input  wire [31:0] read_data_2_in,
@@ -52,8 +53,8 @@ module id_ex(
   output reg  [3:0]  alu_control_out      // Nueva señal para control de la ALU
 );
   always @(posedge clk) begin
-    if (reset || flush) begin
-      // Datos - Insertar NOPs cuando hay flush o reset
+    if (reset) begin
+      // Datos - Insertar NOPs cuando hay reset
       read_data_1_out       <= {`DATA_WIDTH{1'b0}};
       read_data_2_out       <= {`DATA_WIDTH{1'b0}};
       sign_extended_imm_out <= {`DATA_WIDTH{1'b0}};
@@ -63,7 +64,7 @@ module id_ex(
       shamt_out             <= {`DATA_WIDTH{1'b0}};
       next_pc_out           <= {`DATA_WIDTH{1'b0}};
 
-      // Señales de control - Desactivar todas en caso de flush o reset
+      // Señales de control - Desactivar todas en caso de reset
       alu_src_b_out         <= `CTRL_ALU_SRC_B_REG;
       alu_src_a_out         <= `CTRL_ALU_SRC_A_REG;
       reg_dst_out           <= `CTRL_REG_DST_RT;
@@ -71,13 +72,36 @@ module id_ex(
       mem_read_out          <= 1'b0;
       mem_write_out         <= 1'b0;
       mem_to_reg_out        <= `CTRL_MEM_TO_REG_ALU; 
-      is_halt_out           <= reset ? 1'b0 : is_halt_in;
+      is_halt_out           <= 1'b0;
       byte_mask_out         <= 4'b0;
       is_signed_load_out    <= 1'b0;
-      alu_control_out       <= 4'b0;    // Nueva señal reseteo a 0
+      alu_control_out       <= 4'b0;
     end
+    else if (flush && !stall) begin // Solo se hace flush si no está en stall
+      // Datos - Insertar NOPs cuando hay flush
+      read_data_1_out       <= {`DATA_WIDTH{1'b0}};
+      read_data_2_out       <= {`DATA_WIDTH{1'b0}};
+      sign_extended_imm_out <= {`DATA_WIDTH{1'b0}};
+      rs_out                <= {`REG_ADDR_WIDTH{1'b0}};
+      rt_out                <= {`REG_ADDR_WIDTH{1'b0}};
+      rd_out                <= {`REG_ADDR_WIDTH{1'b0}};
+      shamt_out             <= {`DATA_WIDTH{1'b0}};
+      next_pc_out           <= {`DATA_WIDTH{1'b0}};
 
-    else begin  // Actualizar registros siempre que no haya reset o flush
+      // Señales de control - Desactivar todas en caso de flush
+      alu_src_b_out         <= `CTRL_ALU_SRC_B_REG;
+      alu_src_a_out         <= `CTRL_ALU_SRC_A_REG;
+      reg_dst_out           <= `CTRL_REG_DST_RT;
+      reg_write_out         <= `CTRL_REG_WRITE_DIS;
+      mem_read_out          <= 1'b0;
+      mem_write_out         <= 1'b0;
+      mem_to_reg_out        <= `CTRL_MEM_TO_REG_ALU; 
+      is_halt_out           <= is_halt_in;
+      byte_mask_out         <= 4'b0;
+      is_signed_load_out    <= 1'b0;
+      alu_control_out       <= 4'b0;
+    end
+    else if (!stall) begin  // Actualizar registros siempre que no haya stall
       // Datos
       read_data_1_out       <= read_data_1_in;
       read_data_2_out       <= read_data_2_in;
@@ -99,7 +123,7 @@ module id_ex(
       is_halt_out           <= is_halt_in;
       byte_mask_out         <= byte_mask_in;
       is_signed_load_out    <= is_signed_load_in;
-      alu_control_out       <= alu_control_in;  // Nueva asignación
+      alu_control_out       <= alu_control_in;
     end
   end
 endmodule

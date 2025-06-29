@@ -4,7 +4,7 @@
 module ex_mem(
   input  wire        clk,
   input  wire        reset,
-  input  wire        flush,             // Señal para limpiar el registro en caso de salto mal predicho
+  input  wire        stall,
   
   // Entradas desde la etapa EX
   input  wire [31:0] alu_result_in,     // Resultado de la ALU
@@ -47,7 +47,7 @@ module ex_mem(
       is_halt_out       <= 1'b0;                  // Reset de la señal is_halt
       byte_mask_out     <= 4'b0;                  // Reset de la máscara de bytes
       is_signed_load_out <= 1'b0;                 // Reset de la señal is_signed_load
-    end else begin
+    end else if (!stall) begin
       alu_result_out     <= alu_result_in;
       read_data_2_out    <= read_data_2_in;
       write_register_out <= write_register_in;

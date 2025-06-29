@@ -34,7 +34,7 @@ module id_forwarding (
   // 10: Forwarding desde etapa MEM
   // 11: Forwarding desde etapa WB
   
-  // Señales de control para forwarding
+  // Señales de control para forwarding - mejorado para permitir mejor detección de dependencias
   wire forward_ex_rs = (i_ex_rd == i_id_rs && i_id_rs != 0 && i_ex_reg_write);
   wire forward_mem_rs = (i_mem_rd == i_id_rs && i_id_rs != 0 && i_mem_reg_write);
   wire forward_wb_rs = (i_wb_rd == i_id_rs && i_id_rs != 0 && i_wb_reg_write);
@@ -47,7 +47,8 @@ module id_forwarding (
   assign o_use_forwarded_a = forward_ex_rs || forward_mem_rs || forward_wb_rs;
   assign o_use_forwarded_b = forward_ex_rt || forward_mem_rt || forward_wb_rt;
   
-  // Selección de los valores forwardeados (prioridad: EX > MEM > WB)
+  // Selección de los valores forwardeados con prioridad correcta: EX > MEM > WB
+  // Esto es crucial para branches que necesitan valores actualizados
   assign o_forwarded_value_a = forward_ex_rs ? i_ex_alu_result :
                               forward_mem_rs ? i_mem_alu_result :
                               forward_wb_rs ? i_wb_write_data :

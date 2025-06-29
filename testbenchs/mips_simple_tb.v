@@ -113,8 +113,6 @@ module mips_simple_tb();
     
     // Desactivar stall para comenzar la ejecución
     stall = 0;
-    @(posedge clk);      // ciclo de “llenado” del IF
-    @(posedge clk);   
     
     // Esperar hasta que halt sea 1 o hasta un tiempo máximo por seguridad
     fork
@@ -215,7 +213,7 @@ module mips_simple_tb();
   end
   
   // Imprime el estado de cada etapa en cada ciclo
-  always @(posedge clk) begin
+  always @(negedge clk) begin
     if (!reset && !stall) begin
       cycle_count = cycle_count + 1;
       

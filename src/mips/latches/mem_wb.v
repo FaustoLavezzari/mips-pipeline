@@ -4,7 +4,7 @@
 module mem_wb(
   input  wire        clk,
   input  wire        reset,
-  input  wire        flush,            // Señal para limpiar el registro en caso de salto mal predicho
+  input  wire        stall,
   
   // Entradas desde la etapa MEM
   input  wire [31:0] alu_result_in,     // Resultado de la ALU
@@ -31,7 +31,7 @@ module mem_wb(
       reg_write_out      <= `CTRL_REG_WRITE_DIS;
       mem_to_reg_out     <= `CTRL_MEM_TO_REG_ALU;
       is_halt_out        <= 1'b0;                  
-    end else begin
+    end else if (!stall) begin
       alu_result_out     <= alu_result_in;
       read_data_out      <= read_data_in;
       write_register_out <= write_register_in;

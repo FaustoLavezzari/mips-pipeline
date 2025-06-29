@@ -43,8 +43,8 @@ module hazard_detection(
     // Control hazard (branch/jump) requires flushing IF/ID
     assign o_flush_if_id = i_id_take_branch;
 
-    // Stall management signals
-    assign o_stall_first_half = (load_use_hazard && !i_id_take_branch) || is_halt || i_total_stall;
+    // Stall management signals - Mejorada: Priorizar el salto sobre el stall para permitir actualizar el PC
+    assign o_stall_first_half = ((load_use_hazard && !i_id_take_branch) || is_halt || i_total_stall);
     assign o_stall_second_half = i_total_stall;
 
 endmodule

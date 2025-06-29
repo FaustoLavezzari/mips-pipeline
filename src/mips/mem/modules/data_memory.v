@@ -11,7 +11,9 @@ module data_memory(
   input  wire        mem_write_in,     // Control de escritura
   input  wire        mem_read_in,      // Control de lectura
   input  wire [3:0]  byte_mask,        // Máscara de bytes (1 bit por cada byte, activo alto)
-  
+  // Debug ports
+  input  wire [31:0] i_debug_addr,     // Dirección de depuración
+  output wire [31:0] o_debug_data,     // Dato leído de depuración
   // Salidas
   output wire [31:0] read_data_out     // Dato leído de memoria
 );
@@ -49,5 +51,8 @@ module data_memory(
   assign read_data_out = mem_read_in ? 
                         {memory[base_addr+3], memory[base_addr+2], memory[base_addr+1], memory[base_addr]} : 
                         32'b0;
+
+  // Debug read: siempre disponible, sin control de mem_read_in
+  assign o_debug_data = {memory[i_debug_addr+3], memory[i_debug_addr+2], memory[i_debug_addr+1], memory[i_debug_addr]};
 
 endmodule
