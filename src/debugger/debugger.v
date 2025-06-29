@@ -5,10 +5,13 @@ module debugger(
     input  wire        reset,
     
     // UART interface
-    input  wire [7:0]  uart_rx_data,
-    input  wire        uart_rx_valid,
-    output reg  [7:0]  uart_tx_data,
-    output reg         uart_tx_valid,
+    input  wire [7:0]  uart_r_data,      // Datos leídos del UART
+    input  wire        uart_rx_empty,    // FIFO RX vacío
+    input  wire        uart_tx_full,     // FIFO TX lleno
+    input  wire        uart_tx_done_tick,// Tick de transmisión completa
+    output reg         uart_rd_uart,     // Señal para leer del UART
+    output reg         uart_wr_uart,     // Señal para escribir al UART
+    output reg  [7:0]  uart_w_data,      // Datos para escribir al UART
     
     // MIPS interface
     output reg         mips_reset,
@@ -58,6 +61,12 @@ module debugger(
     reg [4:0]  reg_addr_buffer;  // Buffer para dirección de registro
     reg [31:0] read_data_buffer; // Buffer para datos leídos
     reg [1:0]  tx_byte_counter;  // Contador para envío de bytes
+    
+    // Nuevos registros para control UART
+    reg        uart_rx_available;    // Datos RX disponibles
+    reg        uart_tx_in_progress;  // Transmisión en progreso
+    reg        uart_read_request;    // Solicitud de lectura pendiente
+    reg [7:0]  uart_rx_data_reg;     // Registro para datos RX leídos
 
     // Lógica secuencial para cambio de estados
     always @(posedge clk or posedge reset) begin
@@ -71,18 +80,36 @@ module debugger(
             reg_addr_buffer <= 5'h00;
             read_data_buffer <= 32'h00000000;
             tx_byte_counter <= 2'b00;
+            uart_rx_available <= 1'b0;
+            uart_tx_in_progress <= 1'b0;
+            uart_read_request <= 1'b0;
+            uart_rx_data_reg <= 8'h00;
         end else begin
             state <= next_state;
             
+            // Detección de datos RX disponibles
+            uart_rx_available <= ~uart_rx_empty;
+            
+            // Control de solicitud de lectura UART
+            if (uart_rx_available && !uart_read_request && 
+                (state == IDLE || state == WAIT_INSTR_BYTES || 
+                 state == WAIT_REG_ADDR || state == WAIT_MEM_ADDR_BYTES || 
+                 state == FREE_RUN)) begin
+                uart_read_request <= 1'b1;
+            end else if (uart_read_request) begin
+                uart_read_request <= 1'b0;
+                uart_rx_data_reg <= uart_r_data;
+            end
+            
             // Contador para los bytes de instrucción
-            if (state == WAIT_INSTR_BYTES && uart_rx_valid) begin
+            if (state == WAIT_INSTR_BYTES && uart_read_request) begin
                 byte_counter <= byte_counter + 1;
             end else if (state == IDLE) begin
                 byte_counter <= 2'b00;
             end
             
             // Contador para bytes de dirección de memoria
-            if (state == WAIT_MEM_ADDR_BYTES && uart_rx_valid) begin
+            if (state == WAIT_MEM_ADDR_BYTES && uart_read_request) begin
                 byte_counter <= byte_counter + 1;
             end else if (state == IDLE || state == WAIT_REG_ADDR) begin
                 byte_counter <= 2'b00;
@@ -96,20 +123,20 @@ module debugger(
                 reset_counter <= 4'h0;
             end
             
-            // Contador para transmisión de bytes
-            if ((state == SEND_REG_DATA || state == SEND_MEM_DATA) && uart_tx_valid && !tx_done_flag) begin
-                tx_byte_counter <= tx_byte_counter + 1;
-            end else if (state == IDLE || state == READ_REGISTER || state == READ_MEMORY) begin
-                tx_byte_counter <= 2'b00;
-            end
-            
-            // Flag para indicar que la transmisión UART está completa
-            if (uart_tx_valid) begin
+            // Control de transmisión TX
+            if (uart_tx_done_tick) begin
+                uart_tx_in_progress <= 1'b0;
                 if (state == SEND_ACK) begin
                     tx_done_flag <= 1'b1;
-                end else if ((state == SEND_REG_DATA || state == SEND_MEM_DATA) && tx_byte_counter == 2'b11) begin
-                    tx_done_flag <= 1'b1;
+                end else if ((state == SEND_REG_DATA || state == SEND_MEM_DATA)) begin
+                    tx_byte_counter <= tx_byte_counter + 1;
+                    if (tx_byte_counter == 2'b11) begin
+                        tx_done_flag <= 1'b1;
+                    end
                 end
+            end else if (state == IDLE || state == READ_REGISTER || state == READ_MEMORY) begin
+                tx_byte_counter <= 2'b00;
+                tx_done_flag <= 1'b0;
             end else if (state != SEND_ACK && state != SEND_REG_DATA && state != SEND_MEM_DATA) begin
                 tx_done_flag <= 1'b0;
             end
@@ -122,8 +149,8 @@ module debugger(
         
         case (state)
             IDLE: begin
-                if (uart_rx_valid) begin
-                    case (uart_rx_data)
+                if (uart_read_request && !uart_rx_empty) begin
+                    case (uart_r_data)
                         CMD_LOAD_INSTRUCTION: next_state = WAIT_INSTR_BYTES;
                         CMD_RESET:            next_state = RESET_MIPS;
                         CMD_REG:              next_state = WAIT_REG_ADDR;
@@ -135,7 +162,7 @@ module debugger(
             end
             
             WAIT_INSTR_BYTES: begin
-                if (uart_rx_valid && byte_counter == 2'b11)
+                if (uart_read_request && byte_counter == 2'b11)
                     next_state = WRITE_INSTRUCTION;
             end
             
@@ -144,7 +171,7 @@ module debugger(
             end
             
             WAIT_REG_ADDR: begin
-                if (uart_rx_valid)
+                if (uart_read_request)
                     next_state = READ_REGISTER;
             end
             
@@ -158,7 +185,7 @@ module debugger(
             end
             
             WAIT_MEM_ADDR_BYTES: begin
-                if (uart_rx_valid && byte_counter == 2'b11)
+                if (uart_read_request && byte_counter == 2'b11)
                     next_state = READ_MEMORY;
             end
             
@@ -183,7 +210,7 @@ module debugger(
             
             FREE_RUN: begin
                 // Si recibimos un comando de RESET, interrumpir la ejecución
-                if (uart_rx_valid && uart_rx_data == CMD_RESET) begin
+                if (uart_read_request && uart_r_data == CMD_RESET) begin
                     next_state = RESET_MIPS;
                 end
                 // Si el MIPS indica HALT, enviar ACK y volver a IDLE
@@ -204,27 +231,27 @@ module debugger(
             reg_addr_buffer <= 5'h00;
         end else begin
             // Captura de bytes de instrucción
-            if (state == WAIT_INSTR_BYTES && uart_rx_valid) begin
+            if (state == WAIT_INSTR_BYTES && uart_read_request) begin
                 case (byte_counter)
-                    2'b00: instruction_buffer[31:24] <= uart_rx_data;  // Primer byte (MSB)
-                    2'b01: instruction_buffer[23:16] <= uart_rx_data;  // Segundo byte
-                    2'b10: instruction_buffer[15:8]  <= uart_rx_data;  // Tercer byte
-                    2'b11: instruction_buffer[7:0]   <= uart_rx_data;  // Cuarto byte (LSB)
+                    2'b00: instruction_buffer[31:24] <= uart_rx_data_reg;  // Primer byte (MSB)
+                    2'b01: instruction_buffer[23:16] <= uart_rx_data_reg;  // Segundo byte
+                    2'b10: instruction_buffer[15:8]  <= uart_rx_data_reg;  // Tercer byte
+                    2'b11: instruction_buffer[7:0]   <= uart_rx_data_reg;  // Cuarto byte (LSB)
                 endcase
             end
             
             // Captura de dirección de registro (1 byte, solo 5 bits usados)
-            if (state == WAIT_REG_ADDR && uart_rx_valid) begin
-                reg_addr_buffer <= uart_rx_data[4:0];
+            if (state == WAIT_REG_ADDR && uart_read_request) begin
+                reg_addr_buffer <= uart_rx_data_reg[4:0];
             end
             
             // Captura de bytes de dirección de memoria
-            if (state == WAIT_MEM_ADDR_BYTES && uart_rx_valid) begin
+            if (state == WAIT_MEM_ADDR_BYTES && uart_read_request) begin
                 case (byte_counter)
-                    2'b00: mem_addr_buffer[31:24] <= uart_rx_data;  // Primer byte (MSB)
-                    2'b01: mem_addr_buffer[23:16] <= uart_rx_data;  // Segundo byte
-                    2'b10: mem_addr_buffer[15:8]  <= uart_rx_data;  // Tercer byte
-                    2'b11: mem_addr_buffer[7:0]   <= uart_rx_data;  // Cuarto byte (LSB)
+                    2'b00: mem_addr_buffer[31:24] <= uart_rx_data_reg;  // Primer byte (MSB)
+                    2'b01: mem_addr_buffer[23:16] <= uart_rx_data_reg;  // Segundo byte
+                    2'b10: mem_addr_buffer[15:8]  <= uart_rx_data_reg;  // Tercer byte
+                    2'b11: mem_addr_buffer[7:0]   <= uart_rx_data_reg;  // Cuarto byte (LSB)
                 endcase
             end
         end
@@ -255,13 +282,20 @@ module debugger(
             mips_stall <= 1'b1;  // Iniciar con MIPS en stall
             mips_reg_addr <= 5'h00;
             mips_mem_addr <= 32'h00000000;
-            uart_tx_data <= 8'h00;
-            uart_tx_valid <= 1'b0;
+            uart_w_data <= 8'h00;
+            uart_wr_uart <= 1'b0;
+            uart_rd_uart <= 1'b0;
         end else begin
             // Valores por defecto
             mips_inst_write_en <= 1'b0;
-            uart_tx_valid <= 1'b0;
+            uart_wr_uart <= 1'b0;
+            uart_rd_uart <= 1'b0;
             mips_stall <= 1'b1;  // Por defecto MIPS en stall
+            
+            // Control de lectura UART
+            if (uart_read_request && uart_rx_available) begin
+                uart_rd_uart <= 1'b1;
+            end
             
             case (state)
                 IDLE: begin
@@ -289,21 +323,23 @@ module debugger(
                 end
                 
                 SEND_REG_DATA, SEND_MEM_DATA: begin
-                    if (!tx_done_flag) begin
+                    if (!tx_done_flag && !uart_tx_full && !uart_tx_in_progress) begin
                         case (tx_byte_counter)
-                            2'b00: uart_tx_data <= read_data_buffer[31:24];  // MSB
-                            2'b01: uart_tx_data <= read_data_buffer[23:16];
-                            2'b10: uart_tx_data <= read_data_buffer[15:8];
-                            2'b11: uart_tx_data <= read_data_buffer[7:0];    // LSB
+                            2'b00: uart_w_data <= read_data_buffer[31:24];  // MSB
+                            2'b01: uart_w_data <= read_data_buffer[23:16];
+                            2'b10: uart_w_data <= read_data_buffer[15:8];
+                            2'b11: uart_w_data <= read_data_buffer[7:0];    // LSB
                         endcase
-                        uart_tx_valid <= 1'b1;
+                        uart_wr_uart <= 1'b1;
+                        uart_tx_in_progress <= 1'b1;
                     end
                 end
                 
                 SEND_ACK: begin
-                    if (!tx_done_flag) begin
-                        uart_tx_data <= ACK_CODE;
-                        uart_tx_valid <= 1'b1;
+                    if (!tx_done_flag && !uart_tx_full && !uart_tx_in_progress) begin
+                        uart_w_data <= ACK_CODE;
+                        uart_wr_uart <= 1'b1;
+                        uart_tx_in_progress <= 1'b1;
                     end
                 end
                 
