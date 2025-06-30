@@ -20,7 +20,7 @@ module wb_stage(
   output reg         o_is_halt         // Señal de HALT para la siguiente etapa
 );
 
-  always @(negedge clk or reset) begin
+  always @(negedge clk) begin
     if (reset) begin
       o_is_halt <= 1'b0;
     end else begin

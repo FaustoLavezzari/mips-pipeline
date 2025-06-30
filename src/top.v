@@ -15,7 +15,7 @@ module top(
     output wire        uart_rx_empty,
     
     // LED debug outputs
-    output wire        mips_stall     // Para LED1 - MIPS stall
+    output wire        mips_stall_out     // Para LED1 - MIPS stall
 );
 
     // ======== Señales de Clock Wizard ========
@@ -42,7 +42,7 @@ module top(
     wire        mips_inst_write_en;
     wire [31:0] mips_inst_write_addr;
     wire [31:0] mips_inst_write_data;
-    wire        mips_stall;
+    wire        mips_stall;     // Wire interno para stall
     wire        mips_halt;
     wire [31:0] mips_result_int;
 
@@ -57,13 +57,13 @@ module top(
     assign mips_halt_out = mips_halt;
     assign uart_tx_full = uart_tx_full_int;
     assign uart_rx_empty = uart_rx_empty_int;
-    assign mips_stall = mips_stall;          // Para LED debug
+    assign mips_stall_out = mips_stall;      // Conectar wire interno a output
 
     // ======== Instancia del Clock Wizard ========
     // NOTA: Este debe ser generado como IP en Vivado con el nombre 'clk_wiz_0'
     clk_wiz_0 u_clk_wiz_0 (
         // Clock out ports
-        .clk_50mhz(clk_50mhz),      // Salida de 50MHz
+        .clk_out1(clk_50mhz),      // Salida de 50MHz
         // Status and control signals  
         .reset(reset),              // Reset de entrada
         .locked(),                  // Señal locked (no usada por ahora)
@@ -111,7 +111,7 @@ module top(
         .mips_inst_write_en(mips_inst_write_en),
         .mips_inst_write_addr(mips_inst_write_addr),
         .mips_inst_write_data(mips_inst_write_data),
-        .mips_stall(mips_stall),
+        .mips_stall(mips_stall),        
         .mips_halt(mips_halt),
         
         // MIPS debug read interface
@@ -125,8 +125,7 @@ module top(
     mips mips_inst (
         .clk(clk_50mhz),            // Usar reloj de 50MHz del Clock Wizard
         .reset(mips_reset),
-        .stall(mips_stall),
-        
+        .stall(mips_stall),    
         // Instruction memory write interface
         .inst_write_en(mips_inst_write_en),
         .inst_write_addr(mips_inst_write_addr),
