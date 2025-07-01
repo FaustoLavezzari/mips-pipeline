@@ -9,13 +9,8 @@ module top(
     output wire        uart_tx,
     
     // Optional debug outputs
-    output wire [31:0] mips_result,
     output wire        mips_halt_out,
-    output wire        uart_tx_full,
-    output wire        uart_rx_empty,
-    
-    // LED debug outputs
-    output wire        mips_stall_out     // Para LED1 - MIPS stall
+    output wire        mips_stall_out
 );
 
     // ======== Señales de Clock Wizard ========
@@ -130,9 +125,7 @@ module top(
         .inst_write_en(mips_inst_write_en),
         .inst_write_addr(mips_inst_write_addr),
         .inst_write_data(mips_inst_write_data),
-        
-        // Main outputs
-        .result(mips_result_int),
+    
         .halt(mips_halt),
         
         // Debug register interface

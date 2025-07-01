@@ -10,7 +10,6 @@ module mips(
   input  wire [31:0] inst_write_addr,      // Dirección a escribir
   input  wire [31:0] inst_write_data,      // Datos a escribir (instrucción)
 
-  output wire [31:0] result,
   output wire        halt,
 
   // Debug register ports
@@ -457,8 +456,7 @@ module mips(
     .o_is_halt        (end_program)
   );
 
-  // ======== Salidas del módulo ========
-  assign result = wb_write_data;
+
   assign halt = end_program;
   
   // ======== Conexión de señales de debug para los latches ========

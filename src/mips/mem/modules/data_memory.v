@@ -18,8 +18,8 @@ module data_memory(
   output wire [31:0] read_data_out     // Dato leído de memoria
 );
 
-  // Memoria de datos (1016 bytes = 254 palabras de 32 bits)
-  reg [7:0] memory [0:1015];
+  // Memoria de datos (128 bytes = 32 palabras de 32 bits)
+  reg [7:0] memory [0:127];
   
   // Direcciones de byte para acceso a memoria
   wire [31:0] base_addr = address_in;
@@ -30,7 +30,7 @@ module data_memory(
   // Escritura en memoria (síncrona) con reset
   always @(posedge clk) begin
     if (reset) begin
-      for (i = 0; i < 1016; i = i + 1) begin
+      for (i = 0; i < 128; i = i + 1) begin
         memory[i] <= 8'b0;
       end
     end
