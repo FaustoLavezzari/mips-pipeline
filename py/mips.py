@@ -12,18 +12,24 @@ import serial.tools.list_ports
 # Obtener una lista de todos los puertos seriales disponibles
 ports = list(serial.tools.list_ports.comports())
 
-# Mostrar puertos disponibles
-print("Puertos seriales disponibles:")
-for i, port_info in enumerate(ports):
-    print(f"  {i}: {port_info.device} - {port_info.description}")
-
 if not ports:
     print("No se encontro ningun puerto serial disponible.")
     sys.exit(1)
 
-# Seleccionar puerto (puedes cambiar esto para seleccionar un puerto específico)
-selected_port = ports[0].device
-print(f"Intentando conectar a: {selected_port}")
+# Buscar automáticamente un puerto USB (probablemente la FPGA)
+selected_port = None
+for port_info in ports:
+    if "USB" in port_info.device or "Digilent" in port_info.description:
+        selected_port = port_info.device
+        print(f"Puerto USB/FPGA detectado: {selected_port}")
+        break
+
+# Si no se encuentra un puerto USB, usar el primero disponible
+if selected_port is None:
+    selected_port = ports[0].device
+    print(f"Usando puerto: {selected_port}")
+
+print(f"Conectando a: {selected_port}")
 
 # Intentar abrir el puerto serial con manejo de errores
 serial_port = None

@@ -1,357 +1,371 @@
 `timescale 1ns / 1ps
 
+//===========================================
+// Module: debugger
+//
+// Description:
+//    Simple debugger for MIPS pipeline processor.
+//    Handles instruction loading via UART and free-run execution.
+//    Sends ACK after each instruction write and final result after halt.
+//
+// Author: Assistant based on reference design
+// Created: 2025
+//
+// Commands (1 byte):
+// - 0x4C ('L'): Load Program mode - start receiving instructions
+// - 0x52 ('R'): Run mode - execute loaded program until halt
+// - 0x48 ('H'): Reset MIPS processor
+//
+// Protocol:
+// 1. Send 'L' to enter load mode
+// 2. Send 4 bytes per instruction (big-endian: [31:24][23:16][15:8][7:0])
+// 3. Receive ACK (0x41) after each complete instruction
+// 4. Send 'R' to start execution
+// 5. Processor runs until halt, then sends result
+//===========================================
+
 module debugger(
+    // Clock and reset
     input  wire        clk,
     input  wire        reset,
     
     // UART interface
-    input  wire [7:0]  uart_r_data,      // Datos leídos del UART
-    input  wire        uart_rx_empty,    // FIFO RX vacío
-    input  wire        uart_tx_full,     // FIFO TX lleno
-    input  wire        uart_tx_done_tick,// Tick de transmisión completa
-    output reg         uart_rd_uart,     // Señal para leer del UART
-    output reg         uart_wr_uart,     // Señal para escribir al UART
-    output reg  [7:0]  uart_w_data,      // Datos para escribir al UART
+    input  wire [7:0]  uart_r_data,
+    input  wire        uart_rx_empty,
+    input  wire        uart_tx_full,
+    input  wire        uart_tx_done_tick,
+    output reg         uart_rd_uart,
+    output reg         uart_wr_uart,
+    output reg  [7:0]  uart_w_data,
     
-    // MIPS interface
+    // MIPS control interface
     output reg         mips_reset,
     output reg         mips_inst_write_en,
     output reg  [31:0] mips_inst_write_addr,
     output reg  [31:0] mips_inst_write_data,
-    output reg         mips_stall,        // Control de stall del MIPS
-    input  wire        mips_halt,         // Señal de halt del MIPS
+    output reg         mips_stall,
+    input  wire        mips_halt,
     
     // MIPS debug read interface
-    output reg  [4:0]  mips_reg_addr,     // Dirección de registro para debug
-    input  wire [31:0] mips_reg_data,     // Datos del registro
-    output reg  [31:0] mips_mem_addr,     // Dirección de memoria para debug
-    input  wire [31:0] mips_mem_data      // Datos de memoria
+    output reg  [4:0]  mips_reg_addr,
+    input  wire [31:0] mips_reg_data,
+    output reg  [31:0] mips_mem_addr,
+    input  wire [31:0] mips_mem_data,
+    
+    // Debugger state output for LEDs
+    output wire [3:0]  debugger_state
 );
 
-    // Estados de la máquina de estados
-    localparam IDLE                 = 4'b0000;
-    localparam WAIT_INSTR_BYTES     = 4'b0001;
-    localparam WRITE_INSTRUCTION    = 4'b0010;
-    localparam SEND_ACK             = 4'b0011;
-    localparam RESET_MIPS           = 4'b0100;
-    localparam WAIT_REG_ADDR        = 4'b0101;
-    localparam READ_REGISTER        = 4'b0110;
-    localparam SEND_REG_DATA        = 4'b0111;
-    localparam WAIT_MEM_ADDR_BYTES  = 4'b1000;
-    localparam READ_MEMORY          = 4'b1001;
-    localparam SEND_MEM_DATA        = 4'b1010;
-    localparam FREE_RUN             = 4'b1011;
-
-    // Códigos de comando
-    localparam CMD_LOAD_INSTRUCTION = 8'b00000001;
-    localparam CMD_RESET            = 8'b11111111;
-    localparam CMD_REG              = 8'b00000010;
-    localparam CMD_MEM              = 8'b00000011;
-    localparam CMD_FREE_RUN         = 8'b00000100;
-    localparam ACK_CODE             = 8'b11111111;
-
-    // Registros internos
-    reg [3:0]  state, next_state;
-    reg [31:0] instruction_buffer;
-    reg [31:0] instruction_address;
-    reg [3:0]  reset_counter;
-    reg [1:0]  byte_counter;  // Contador para los 4 bytes
-    reg        tx_done_flag;
-    reg [31:0] mem_addr_buffer;  // Buffer para direcciones de memoria
-    reg [4:0]  reg_addr_buffer;  // Buffer para dirección de registro
-    reg [31:0] read_data_buffer; // Buffer para datos leídos
-    reg [1:0]  tx_byte_counter;  // Contador para envío de bytes
+    // ======== State Machine Parameters ========
+    localparam IDLE         = 4'b0000;  // Esperando comando
+    localparam LOAD_PROG    = 4'b0001;  // Cargando programa
+    localparam WRITE_INST   = 4'b0010;  // Escribiendo instrucción en memoria
+    localparam SEND_ACK     = 4'b0011;  // Enviando ACK
+    localparam RUN          = 4'b0100;  // Ejecutando programa
+    localparam SEND_RESULT  = 4'b0101;  // Enviando resultado
+    localparam MIPS_RESET   = 4'b0110;  // Reseteando MIPS
+    localparam WAIT_RX      = 4'b0111;  // Esperando datos UART RX
+    localparam WAIT_TX      = 4'b1000;  // Esperando que UART TX esté libre
     
-    // Nuevos registros para control UART
-    reg        uart_rx_available;    // Datos RX disponibles
-    reg        uart_tx_in_progress;  // Transmisión en progreso
-    reg        uart_read_request;    // Solicitud de lectura pendiente
-    reg [7:0]  uart_rx_data_reg;     // Registro para datos RX leídos
-
-    // Lógica secuencial para cambio de estados
-    always @(posedge clk or posedge reset) begin
+    // ======== Command Codes ========
+    localparam CMD_LOAD     = 8'h4C;    // 'L' - Load program
+    localparam CMD_RUN      = 8'h52;    // 'R' - Run program
+    localparam CMD_RESET    = 8'h48;    // 'H' - Reset (Halt)
+    localparam ACK_BYTE     = 8'h41;    // 'A' - Acknowledgment
+    localparam HALT_INST    = 32'hFFFFFFFF;   // Halt instruction code
+    
+    // ======== State Machine Registers ========
+    reg [3:0]  state, next_state;
+    reg [3:0]  waiting_state, next_waiting_state;
+    reg [1:0]  byte_counter, next_byte_counter;
+    reg [31:0] instruction_buffer, next_instruction_buffer;
+    reg [31:0] inst_addr, next_inst_addr;
+    reg [1:0]  result_byte_counter, next_result_byte_counter;
+    
+    // ======== State Register Update ========
+    always @(posedge clk) begin
         if (reset) begin
             state <= IDLE;
-            instruction_address <= 32'h00000000;
-            reset_counter <= 4'h0;
+            waiting_state <= IDLE;
             byte_counter <= 2'b00;
-            tx_done_flag <= 1'b0;
-            mem_addr_buffer <= 32'h00000000;
-            reg_addr_buffer <= 5'h00;
-            read_data_buffer <= 32'h00000000;
-            tx_byte_counter <= 2'b00;
-            uart_rx_available <= 1'b0;
-            uart_tx_in_progress <= 1'b0;
-            uart_read_request <= 1'b0;
-            uart_rx_data_reg <= 8'h00;
+            instruction_buffer <= 32'h00000000;
+            inst_addr <= 32'h00000000;
+            result_byte_counter <= 2'b00;
         end else begin
             state <= next_state;
-            
-            // Detección de datos RX disponibles
-            uart_rx_available <= ~uart_rx_empty;
-            
-            // Control de solicitud de lectura UART
-            if (uart_rx_available && !uart_read_request && 
-                (state == IDLE || state == WAIT_INSTR_BYTES || 
-                 state == WAIT_REG_ADDR || state == WAIT_MEM_ADDR_BYTES || 
-                 state == FREE_RUN)) begin
-                uart_read_request <= 1'b1;
-            end else if (uart_read_request) begin
-                uart_read_request <= 1'b0;
-                uart_rx_data_reg <= uart_r_data;
-            end
-            
-            // Contador para los bytes de instrucción
-            if (state == WAIT_INSTR_BYTES && uart_read_request) begin
-                byte_counter <= byte_counter + 1;
-            end else if (state == IDLE) begin
-                byte_counter <= 2'b00;
-            end
-            
-            // Contador para bytes de dirección de memoria
-            if (state == WAIT_MEM_ADDR_BYTES && uart_read_request) begin
-                byte_counter <= byte_counter + 1;
-            end else if (state == IDLE || state == WAIT_REG_ADDR) begin
-                byte_counter <= 2'b00;
-            end
-            
-            // Contador para el reset del MIPS
-            if (state == RESET_MIPS) begin
-                if (reset_counter < 4'hF)
-                    reset_counter <= reset_counter + 1;
-            end else begin
-                reset_counter <= 4'h0;
-            end
-            
-            // Control de transmisión TX
-            if (uart_tx_done_tick) begin
-                uart_tx_in_progress <= 1'b0;
-                if (state == SEND_ACK) begin
-                    tx_done_flag <= 1'b1;
-                end else if ((state == SEND_REG_DATA || state == SEND_MEM_DATA)) begin
-                    tx_byte_counter <= tx_byte_counter + 1;
-                    if (tx_byte_counter == 2'b11) begin
-                        tx_done_flag <= 1'b1;
-                    end
-                end
-            end else if (state == IDLE || state == READ_REGISTER || state == READ_MEMORY) begin
-                tx_byte_counter <= 2'b00;
-                tx_done_flag <= 1'b0;
-            end else if (state != SEND_ACK && state != SEND_REG_DATA && state != SEND_MEM_DATA) begin
-                tx_done_flag <= 1'b0;
-            end
+            waiting_state <= next_waiting_state;
+            byte_counter <= next_byte_counter;
+            instruction_buffer <= next_instruction_buffer;
+            inst_addr <= next_inst_addr;
+            result_byte_counter <= next_result_byte_counter;
         end
     end
-
-    // Lógica combinacional para próximo estado
+    
+    // ======== Next State Logic ========
     always @(*) begin
+        // Default values
         next_state = state;
+        next_waiting_state = waiting_state;
+        next_byte_counter = byte_counter;
+        next_instruction_buffer = instruction_buffer;
+        next_inst_addr = inst_addr;
+        next_result_byte_counter = result_byte_counter;
         
         case (state)
             IDLE: begin
-                if (uart_read_request && !uart_rx_empty) begin
-                    case (uart_r_data)
-                        CMD_LOAD_INSTRUCTION: next_state = WAIT_INSTR_BYTES;
-                        CMD_RESET:            next_state = RESET_MIPS;
-                        CMD_REG:              next_state = WAIT_REG_ADDR;
-                        CMD_MEM:              next_state = WAIT_MEM_ADDR_BYTES;
-                        CMD_FREE_RUN:         next_state = FREE_RUN;
-                        default:              next_state = IDLE;
-                    endcase
+                next_inst_addr = 32'h00000000;
+                next_byte_counter = 2'b00;
+                next_result_byte_counter = 2'b00;
+                
+                if (!uart_rx_empty) begin
+                    // Comando disponible en UART
+                    if (uart_r_data == CMD_LOAD) begin
+                        next_state = LOAD_PROG;
+                    end else if (uart_r_data == CMD_RUN) begin
+                        next_state = RUN;
+                    end else if (uart_r_data == CMD_RESET) begin
+                        next_state = MIPS_RESET;
+                    end
+                    // Si no es un comando válido, permanece en IDLE
                 end
             end
             
-            WAIT_INSTR_BYTES: begin
-                if (uart_read_request && byte_counter == 2'b11)
-                    next_state = WRITE_INSTRUCTION;
+            LOAD_PROG: begin
+                if (uart_rx_empty) begin
+                    next_state = WAIT_RX;
+                    next_waiting_state = LOAD_PROG;
+                end else begin
+                    // Recibir bytes de la instrucción (big-endian)
+                    case (byte_counter)
+                        2'b00: next_instruction_buffer = {uart_r_data, 24'h000000};
+                        2'b01: next_instruction_buffer = {instruction_buffer[31:24], uart_r_data, 16'h0000};
+                        2'b10: next_instruction_buffer = {instruction_buffer[31:16], uart_r_data, 8'h00};
+                        2'b11: next_instruction_buffer = {instruction_buffer[31:8], uart_r_data};
+                    endcase
+                    
+                    next_byte_counter = byte_counter + 1;
+                    
+                    if (byte_counter == 2'b11) begin
+                        // Instrucción completa recibida
+                        next_byte_counter = 2'b00;
+                        next_state = WRITE_INST;
+                    end
+                end
             end
             
-            WRITE_INSTRUCTION: begin
-                next_state = SEND_ACK;
-            end
-            
-            WAIT_REG_ADDR: begin
-                if (uart_read_request)
-                    next_state = READ_REGISTER;
-            end
-            
-            READ_REGISTER: begin
-                next_state = SEND_REG_DATA;
-            end
-            
-            SEND_REG_DATA: begin
-                if (tx_done_flag)
+            WRITE_INST: begin
+                // Escribir instrucción en memoria y avanzar dirección
+                next_inst_addr = inst_addr + 4;
+                
+                if (instruction_buffer == HALT_INST) begin
+                    // Si es instrucción HALT, volver a IDLE (programa completo)
                     next_state = SEND_ACK;
-            end
-            
-            WAIT_MEM_ADDR_BYTES: begin
-                if (uart_read_request && byte_counter == 2'b11)
-                    next_state = READ_MEMORY;
-            end
-            
-            READ_MEMORY: begin
-                next_state = SEND_MEM_DATA;
-            end
-            
-            SEND_MEM_DATA: begin
-                if (tx_done_flag)
+                    next_waiting_state = IDLE;
+                end else begin
+                    // Continuar cargando más instrucciones
                     next_state = SEND_ACK;
+                    next_waiting_state = LOAD_PROG;
+                end
             end
             
             SEND_ACK: begin
-                if (tx_done_flag)
-                    next_state = IDLE;
-            end
-            
-            RESET_MIPS: begin
-                if (reset_counter >= 4'hF)
-                    next_state = IDLE;
-            end
-            
-            FREE_RUN: begin
-                // Si recibimos un comando de RESET, interrumpir la ejecución
-                if (uart_read_request && uart_r_data == CMD_RESET) begin
-                    next_state = RESET_MIPS;
-                end
-                // Si el MIPS indica HALT, enviar ACK y volver a IDLE
-                else if (mips_halt) begin
-                    next_state = SEND_ACK;
+                if (uart_tx_full) begin
+                    next_state = WAIT_TX;
+                    next_waiting_state = SEND_ACK;
+                end else begin
+                    next_state = waiting_state;
                 end
             end
             
-            default: next_state = IDLE;
+            RUN: begin
+                if (mips_halt) begin
+                    // Programa terminado, enviar resultado
+                    next_state = SEND_RESULT;
+                    next_result_byte_counter = 2'b00;
+                end
+                // Mientras no haya halt, seguir ejecutando
+            end
+            
+            SEND_RESULT: begin
+                if (uart_tx_full) begin
+                    next_state = WAIT_TX;
+                    next_waiting_state = SEND_RESULT;
+                end else begin
+                    next_result_byte_counter = result_byte_counter + 1;
+                    
+                    if (result_byte_counter == 2'b11) begin
+                        // Resultado completo enviado
+                        next_state = IDLE;
+                        next_result_byte_counter = 2'b00;
+                    end
+                end
+            end
+            
+            MIPS_RESET: begin
+                next_state = IDLE;
+            end
+            
+            WAIT_RX: begin
+                if (!uart_rx_empty) begin
+                    next_state = waiting_state;
+                end
+            end
+            
+            WAIT_TX: begin
+                if (!uart_tx_full) begin
+                    next_state = waiting_state;
+                end
+            end
+            
+            default: begin
+                next_state = IDLE;
+            end
         endcase
     end
-
-    // Lógica para capturar los bytes de la instrucción y direcciones
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
-            instruction_buffer <= 32'h00000000;
-            mem_addr_buffer <= 32'h00000000;
-            reg_addr_buffer <= 5'h00;
-        end else begin
-            // Captura de bytes de instrucción
-            if (state == WAIT_INSTR_BYTES && uart_read_request) begin
-                case (byte_counter)
-                    2'b00: instruction_buffer[31:24] <= uart_rx_data_reg;  // Primer byte (MSB)
-                    2'b01: instruction_buffer[23:16] <= uart_rx_data_reg;  // Segundo byte
-                    2'b10: instruction_buffer[15:8]  <= uart_rx_data_reg;  // Tercer byte
-                    2'b11: instruction_buffer[7:0]   <= uart_rx_data_reg;  // Cuarto byte (LSB)
+    
+    // ======== Output Logic ========
+    always @(*) begin
+        case (state)
+            IDLE: begin
+                uart_rd_uart = !uart_rx_empty;
+                uart_wr_uart = 1'b0;
+                uart_w_data = 8'h00;
+                mips_reset = 1'b0;
+                mips_inst_write_en = 1'b0;
+                mips_inst_write_addr = 32'h00000000;
+                mips_inst_write_data = 32'h00000000;
+                mips_stall = 1'b1;
+                mips_reg_addr = 5'b00000;
+                mips_mem_addr = 32'h00000000;
+            end
+            
+            LOAD_PROG: begin
+                uart_rd_uart = !uart_rx_empty;
+                uart_wr_uart = 1'b0;
+                uart_w_data = 8'h00;
+                mips_reset = 1'b0;
+                mips_inst_write_en = 1'b0;
+                mips_inst_write_addr = 32'h00000000;
+                mips_inst_write_data = 32'h00000000;
+                mips_stall = 1'b1;
+                mips_reg_addr = 5'b00000;
+                mips_mem_addr = 32'h00000000;
+            end
+            
+            WRITE_INST: begin
+                uart_rd_uart = 1'b0;
+                uart_wr_uart = 1'b0;
+                uart_w_data = 8'h00;
+                mips_reset = 1'b0;
+                mips_inst_write_en = 1'b1;
+                mips_inst_write_addr = inst_addr;
+                mips_inst_write_data = instruction_buffer;
+                mips_stall = 1'b1;
+                mips_reg_addr = 5'b00000;
+                mips_mem_addr = 32'h00000000;
+            end
+            
+            SEND_ACK: begin
+                uart_rd_uart = 1'b0;
+                uart_wr_uart = !uart_tx_full;
+                uart_w_data = ACK_BYTE;
+                mips_reset = 1'b0;
+                mips_inst_write_en = 1'b0;
+                mips_inst_write_addr = 32'h00000000;
+                mips_inst_write_data = 32'h00000000;
+                mips_stall = 1'b1;
+                mips_reg_addr = 5'b00000;
+                mips_mem_addr = 32'h00000000;
+            end
+            
+            RUN: begin
+                uart_rd_uart = 1'b0;
+                uart_wr_uart = 1'b0;
+                uart_w_data = 8'h00;
+                mips_reset = 1'b0;
+                mips_inst_write_en = 1'b0;
+                mips_inst_write_addr = 32'h00000000;
+                mips_inst_write_data = 32'h00000000;
+                mips_stall = 1'b0;  // ¡MIPS corriendo!
+                mips_reg_addr = 5'b00000;
+                mips_mem_addr = 32'h00000000;
+            end
+            
+            SEND_RESULT: begin
+                uart_rd_uart = 1'b0;
+                uart_wr_uart = !uart_tx_full;
+                mips_reset = 1'b0;
+                mips_inst_write_en = 1'b0;
+                mips_inst_write_addr = 32'h00000000;
+                mips_inst_write_data = 32'h00000000;
+                mips_stall = 1'b1;
+                mips_reg_addr = 5'b00010;  // Registro $v0 (resultado)
+                mips_mem_addr = 32'h00000000;
+                
+                // Enviar resultado en big-endian
+                case (result_byte_counter)
+                    2'b00: uart_w_data = mips_reg_data[31:24];
+                    2'b01: uart_w_data = mips_reg_data[23:16];
+                    2'b10: uart_w_data = mips_reg_data[15:8];
+                    2'b11: uart_w_data = mips_reg_data[7:0];
                 endcase
             end
             
-            // Captura de dirección de registro (1 byte, solo 5 bits usados)
-            if (state == WAIT_REG_ADDR && uart_read_request) begin
-                reg_addr_buffer <= uart_rx_data_reg[4:0];
+            MIPS_RESET: begin
+                uart_rd_uart = 1'b0;
+                uart_wr_uart = 1'b0;
+                uart_w_data = 8'h00;
+                mips_reset = 1'b1;  // ¡Reset activo!
+                mips_inst_write_en = 1'b0;
+                mips_inst_write_addr = 32'h00000000;
+                mips_inst_write_data = 32'h00000000;
+                mips_stall = 1'b1;
+                mips_reg_addr = 5'b00000;
+                mips_mem_addr = 32'h00000000;
             end
             
-            // Captura de bytes de dirección de memoria
-            if (state == WAIT_MEM_ADDR_BYTES && uart_read_request) begin
-                case (byte_counter)
-                    2'b00: mem_addr_buffer[31:24] <= uart_rx_data_reg;  // Primer byte (MSB)
-                    2'b01: mem_addr_buffer[23:16] <= uart_rx_data_reg;  // Segundo byte
-                    2'b10: mem_addr_buffer[15:8]  <= uart_rx_data_reg;  // Tercer byte
-                    2'b11: mem_addr_buffer[7:0]   <= uart_rx_data_reg;  // Cuarto byte (LSB)
-                endcase
-            end
-        end
-    end
-
-    // Lógica para capturar datos leídos del MIPS
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
-            read_data_buffer <= 32'h00000000;
-        end else begin
-            // Capturar datos del registro
-            if (state == READ_REGISTER) begin
-                read_data_buffer <= mips_reg_data;
-            end
-            // Capturar datos de memoria
-            else if (state == READ_MEMORY) begin
-                read_data_buffer <= mips_mem_data;
-            end
-        end
-    end
-    // Lógica de salida
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
-            mips_reset <= 1'b1;
-            mips_inst_write_en <= 1'b0;
-            mips_inst_write_addr <= 32'h00000000;
-            mips_inst_write_data <= 32'h00000000;
-            mips_stall <= 1'b1;  // Iniciar con MIPS en stall
-            mips_reg_addr <= 5'h00;
-            mips_mem_addr <= 32'h00000000;
-            uart_w_data <= 8'h00;
-            uart_wr_uart <= 1'b0;
-            uart_rd_uart <= 1'b0;
-        end else begin
-            // Valores por defecto
-            mips_inst_write_en <= 1'b0;
-            uart_wr_uart <= 1'b0;
-            uart_rd_uart <= 1'b0;
-            mips_stall <= 1'b1;  // Por defecto MIPS en stall
-            
-            // Control de lectura UART
-            if (uart_read_request && uart_rx_available) begin
-                uart_rd_uart <= 1'b1;
+            WAIT_RX: begin
+                uart_rd_uart = 1'b0;
+                uart_wr_uart = 1'b0;
+                uart_w_data = 8'h00;
+                mips_reset = 1'b0;
+                mips_inst_write_en = 1'b0;
+                mips_inst_write_addr = 32'h00000000;
+                mips_inst_write_data = 32'h00000000;
+                mips_stall = 1'b1;
+                mips_reg_addr = 5'b00000;
+                mips_mem_addr = 32'h00000000;
             end
             
-            case (state)
-                IDLE: begin
-                    mips_reset <= 1'b0;
-                end
-                
-                FREE_RUN: begin
-                    mips_stall <= 1'b0;  // Liberar el stall para permitir ejecución
-                end
-                
-                WRITE_INSTRUCTION: begin
-                    mips_inst_write_en <= 1'b1;
-                    mips_inst_write_addr <= instruction_address;
-                    mips_inst_write_data <= instruction_buffer;
-                    // Incrementar la dirección para la próxima instrucción
-                    instruction_address <= instruction_address + 4;
-                end
-                
-                READ_REGISTER: begin
-                    mips_reg_addr <= reg_addr_buffer;
-                end
-                
-                READ_MEMORY: begin
-                    mips_mem_addr <= mem_addr_buffer;
-                end
-                
-                SEND_REG_DATA, SEND_MEM_DATA: begin
-                    if (!tx_done_flag && !uart_tx_full && !uart_tx_in_progress) begin
-                        case (tx_byte_counter)
-                            2'b00: uart_w_data <= read_data_buffer[31:24];  // MSB
-                            2'b01: uart_w_data <= read_data_buffer[23:16];
-                            2'b10: uart_w_data <= read_data_buffer[15:8];
-                            2'b11: uart_w_data <= read_data_buffer[7:0];    // LSB
-                        endcase
-                        uart_wr_uart <= 1'b1;
-                        uart_tx_in_progress <= 1'b1;
-                    end
-                end
-                
-                SEND_ACK: begin
-                    if (!tx_done_flag && !uart_tx_full && !uart_tx_in_progress) begin
-                        uart_w_data <= ACK_CODE;
-                        uart_wr_uart <= 1'b1;
-                        uart_tx_in_progress <= 1'b1;
-                    end
-                end
-                
-                RESET_MIPS: begin
-                    mips_reset <= 1'b1;
-                    // Reiniciar variables internas del debugger
-                    if (reset_counter == 4'h1) begin
-                        instruction_address <= 32'h00000000;
-                    end
-                end
-            endcase
-        end
+            WAIT_TX: begin
+                uart_rd_uart = 1'b0;
+                uart_wr_uart = 1'b0;
+                uart_w_data = 8'h00;
+                mips_reset = 1'b0;
+                mips_inst_write_en = 1'b0;
+                mips_inst_write_addr = 32'h00000000;
+                mips_inst_write_data = 32'h00000000;
+                mips_stall = 1'b1;
+                mips_reg_addr = 5'b00000;
+                mips_mem_addr = 32'h00000000;
+            end
+            
+            default: begin
+                uart_rd_uart = 1'b0;
+                uart_wr_uart = 1'b0;
+                uart_w_data = 8'h00;
+                mips_reset = 1'b0;
+                mips_inst_write_en = 1'b0;
+                mips_inst_write_addr = 32'h00000000;
+                mips_inst_write_data = 32'h00000000;
+                mips_stall = 1'b1;
+                mips_reg_addr = 5'b00000;
+                mips_mem_addr = 32'h00000000;
+            end
+        endcase
     end
+    
+    // ======== Debug State Output ========
+    assign debugger_state = state;
 
 endmodule

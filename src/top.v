@@ -8,9 +8,12 @@ module top(
     input  wire        uart_rx,
     output wire        uart_tx,
     
-    // Optional debug outputs
-    output wire        mips_halt_out,
-    output wire        mips_stall_out
+    // RGB LEDs for MIPS status
+    output wire        led0_r,       // MIPS halt (red)
+    output wire        led1_r,       // MIPS stall (red)
+    
+    // Regular LEDs for debugger state (4 bits)
+    output wire [3:0]  debugger_leds
 );
 
     // ======== Señales de Clock Wizard ========
@@ -46,13 +49,14 @@ module top(
     wire [31:0] mips_reg_data;
     wire [31:0] mips_mem_addr;
     wire [31:0] mips_mem_data;
+    
+    // ======== Señales de debug Debugger ========
+    wire [3:0]  debugger_state;
 
     // ======== Asignaciones de salida ========
-    assign mips_result = mips_result_int;
-    assign mips_halt_out = mips_halt;
-    assign uart_tx_full = uart_tx_full_int;
-    assign uart_rx_empty = uart_rx_empty_int;
-    assign mips_stall_out = mips_stall;      // Conectar wire interno a output
+    assign led0_r = mips_halt;           // RGB LED 0 rojo para halt
+    assign led1_r = mips_stall;          // RGB LED 1 rojo para stall
+    assign debugger_leds = debugger_state; // LEDs normales para estado del debugger
 
     // ======== Instancia del Clock Wizard ========
     // NOTA: Este debe ser generado como IP en Vivado con el nombre 'clk_wiz_0'
@@ -113,7 +117,10 @@ module top(
         .mips_reg_addr(mips_reg_addr),
         .mips_reg_data(mips_reg_data),
         .mips_mem_addr(mips_mem_addr),
-        .mips_mem_data(mips_mem_data)
+        .mips_mem_data(mips_mem_data),
+        
+        // Debugger state output
+        .debugger_state(debugger_state)
     );
 
     // ======== Instancia del módulo MIPS ========
