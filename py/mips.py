@@ -8,12 +8,14 @@ Programa para comunicarse con el debugger MIPS via UART.
 - Carga instrucciones desde archivo .coe
 - Ejecuta el programa
 - Lee y verifica los registros
+- Lee y verifica la memoria de datos
 
 Protocolo UART:
 - 'L' (0x4C): Load Program mode
 - 'R' (0x52): Run mode  
 - 'H' (0x48): Reset MIPS
 - 'G' (0x47): Get register value
+- 'M' (0x4D): Memory read
 - ACK (0x41): Acknowledgment
 
 Author: Assistant
@@ -37,6 +39,7 @@ class MIPSDebugger:
         self.CMD_RUN = 0x52       # 'R' 
         self.CMD_RESET = 0x48     # 'H'
         self.CMD_READ_REG = 0x47  # 'G'
+        self.CMD_READ_MEM = 0x4D  # 'M'
         self.ACK_BYTE = 0x41      # 'A'
         
     def detect_uart_port(self):
@@ -223,6 +226,30 @@ class MIPSDebugger:
         value = (byte3 << 24) | (byte2 << 16) | (byte1 << 8) | byte0
         return value
         
+    def read_memory(self, mem_addr):
+        """Lee el valor de una posición específica de memoria de datos"""
+        if mem_addr < 0 or mem_addr > 0xFFFF:
+            raise Exception(f"Dirección de memoria inválida: {mem_addr}")
+            
+        # Enviar comando READ_MEM
+        self.send_byte(self.CMD_READ_MEM)
+        
+        # Enviar dirección de memoria (2 bytes, big-endian)
+        byte1 = (mem_addr >> 8) & 0xFF
+        byte0 = mem_addr & 0xFF
+        
+        self.send_byte(byte1)
+        self.send_byte(byte0)
+        
+        # Leer 4 bytes del valor (big-endian)
+        byte3 = self.read_byte()
+        byte2 = self.read_byte()
+        byte1 = self.read_byte()
+        byte0 = self.read_byte()
+        
+        value = (byte3 << 24) | (byte2 << 16) | (byte1 << 8) | byte0
+        return value
+        
     def verify_registers(self, expected_values=None):
         """Verifica los valores de los registros"""
         print("🔍 Verificando registros...")
@@ -253,6 +280,42 @@ class MIPSDebugger:
             except Exception as e:
                 print(f"  ❌ Error leyendo registro ${reg_num}: {e}")
                 results[reg_num] = None
+                
+        return results
+
+    def verify_memory(self, expected_values=None):
+        """Verifica los valores de la memoria de datos"""
+        print("🔍 Verificando memoria de datos...")
+        
+        # Si no se especifican valores esperados, usar los del programa de ejemplo
+        # Basado en las instrucciones sw del basic_inst.coe:
+        # sw $1,   0($0)  -> mem[0] = 5
+        # sw $2,   4($0)  -> mem[4] = 10
+        # sw $3,   8($0)  -> mem[8] = 100
+        # sw $4,  12($0)  -> mem[12] = 20
+        # sw $5,  16($0)  -> mem[16] = 15
+        if expected_values is None:
+            expected_values = {
+                0: 5,      # sw $1, 0($0)
+                4: 10,     # sw $2, 4($0)
+                8: 100,    # sw $3, 8($0)
+                12: 20,    # sw $4, 12($0)
+                16: 15     # sw $5, 16($0)
+            }
+            
+        results = {}
+        for mem_addr in sorted(expected_values.keys()):
+            try:
+                value = self.read_memory(mem_addr)
+                results[mem_addr] = value
+                
+                expected = expected_values[mem_addr]
+                status = "✅" if value == expected else "❌"
+                print(f"  mem[{mem_addr:2d}]: {value:8d} (0x{value:08X}) {status} {'✓' if value == expected else f'esperado: {expected}'}")
+                    
+            except Exception as e:
+                print(f"  ❌ Error leyendo memoria[{mem_addr}]: {e}")
+                results[mem_addr] = None
                 
         return results
 
@@ -294,21 +357,45 @@ def main():
             
        # Verificar registros
         time.sleep(0.5)  # Esperar un poco antes de leer registros
-        results = debugger.verify_registers()
+        reg_results = debugger.verify_registers()
+        
+        # Verificar memoria de datos
+        time.sleep(0.5)  # Esperar un poco antes de leer memoria
+        mem_results = debugger.verify_memory()
        
         # Resumen final
         print("\n📊 Resumen de verificación:")
-        success = all(
-            results.get(i) == expected 
+        
+        # Verificar registros
+        reg_success = all(
+            reg_results.get(i) == expected 
             for i, expected in {1: 5, 2: 10, 3: 100, 4: 20, 5: 15}.items()
         )
-       
-        if success:
+        
+        # Verificar memoria
+        mem_success = all(
+            mem_results.get(addr) == expected 
+            for addr, expected in {0: 5, 4: 10, 8: 100, 12: 20, 16: 15}.items()
+        )
+        
+        if reg_success:
             print("🎉 ¡Todos los registros tienen los valores esperados!")
         else:
             print("⚠️  Algunos registros no tienen los valores esperados")
+            
+        if mem_success:
+            print("🎉 ¡Toda la memoria tiene los valores esperados!")
+        else:
+            print("⚠️  Algunos valores de memoria no son los esperados")
+            
+        overall_success = reg_success and mem_success
+        
+        if overall_success:
+            print("🏆 ¡Verificación completa exitosa!")
+        else:
+            print("💡 Revisar los valores que no coinciden")
 
-        return 0 if success else 1
+        return 0 if overall_success else 1
         
     except KeyboardInterrupt:
         print("\n⚡ Interrumpido por el usuario")
