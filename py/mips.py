@@ -1,286 +1,324 @@
+#!/usr/bin/env python3
 """
-Programa para comunicarse con una FPGA a traves de un puerto serial.
+MIPS UART Debugger
+==================
+
+Programa para comunicarse con el debugger MIPS via UART.
+- Detecta automáticamente el puerto serie
+- Carga instrucciones desde archivo .coe
+- Ejecuta el programa
+- Lee y verifica los registros
+
+Protocolo UART:
+- 'L' (0x4C): Load Program mode
+- 'R' (0x52): Run mode  
+- 'H' (0x48): Reset MIPS
+- 'G' (0x47): Get register value
+- ACK (0x41): Acknowledgment
+
+Author: Assistant
+Created: July 2025
 """
 
-import sys
-import time
-import signal
 import serial
 import serial.tools.list_ports
+import time
+import sys
+import os
 
-
-# Obtener una lista de todos los puertos seriales disponibles
-ports = list(serial.tools.list_ports.comports())
-
-if not ports:
-    print("No se encontro ningun puerto serial disponible.")
-    sys.exit(1)
-
-# Buscar automáticamente un puerto USB (probablemente la FPGA)
-selected_port = None
-for port_info in ports:
-    if "USB" in port_info.device or "Digilent" in port_info.description:
-        selected_port = port_info.device
-        print(f"Puerto USB/FPGA detectado: {selected_port}")
-        break
-
-# Si no se encuentra un puerto USB, usar el primero disponible
-if selected_port is None:
-    selected_port = ports[0].device
-    print(f"Usando puerto: {selected_port}")
-
-print(f"Conectando a: {selected_port}")
-
-# Intentar abrir el puerto serial con manejo de errores
-serial_port = None
-try:
-    serial_port = serial.Serial(port=selected_port,
-                                baudrate=19200,
-                                parity=serial.PARITY_NONE,
-                                stopbits=serial.STOPBITS_ONE,
-                                bytesize=serial.EIGHTBITS,
-                                timeout=1)
-    print(f"Conexión exitosa al puerto: {selected_port}")
-except serial.SerialException as e:
-    print(f"Error abriendo el puerto {selected_port}: {e}")
-    print("Posibles soluciones:")
-    print("1. Verificar que el dispositivo esté conectado")
-    print("2. Verificar permisos (agregar usuario al grupo dialout)")
-    print("3. Cerrar otras aplicaciones que puedan usar el puerto")
-    print("4. Intentar con otro puerto de la lista")
-    sys.exit(1)
-except Exception as e:
-    print(f"Error inesperado: {e}")
-    sys.exit(1)
-
-# Códigos de comando del debugger
-CMD_LOAD_INSTRUCTION = 0x01
-CMD_RESET = 0xFF
-CMD_REG = 0x02
-CMD_MEM = 0x03
-CMD_FREE_RUN = 0x04
-ACK_CODE = 0xFF
-
-def send_byte(byte_value):
-    """Envía un byte al puerto serial."""
-    serial_port.write(bytes([byte_value]))
-    time.sleep(0.01)  # Pequeña pausa para dar tiempo al procesamiento
-
-def send_word(word_value):
-    """Envía una palabra de 32 bits (4 bytes) en formato big-endian."""
-    bytes_to_send = [
-        (word_value >> 24) & 0xFF,  # MSB
-        (word_value >> 16) & 0xFF,
-        (word_value >> 8) & 0xFF,
-        word_value & 0xFF           # LSB
-    ]
-    for byte_val in bytes_to_send:
-        send_byte(byte_val)
-
-def wait_for_ack():
-    """Espera por el código de acknowledgment del debugger."""
-    timeout_counter = 0
-    while timeout_counter < 100:  # Timeout de ~1 segundo
-        if serial_port.in_waiting > 0:
-            received = serial_port.read(1)
-            if len(received) > 0 and received[0] == ACK_CODE:
-                print("ACK recibido correctamente")
-                return True
-        time.sleep(0.01)
-        timeout_counter += 1
-    print("Timeout esperando ACK")
-    return False
-
-def read_word():
-    """Lee una palabra de 32 bits del puerto serial."""
-    bytes_received = []
-    timeout_counter = 0
-    
-    while len(bytes_received) < 4 and timeout_counter < 500:
-        if serial_port.in_waiting > 0:
-            byte_data = serial_port.read(1)
-            if len(byte_data) > 0:
-                bytes_received.append(byte_data[0])
-        else:
-            time.sleep(0.01)
-            timeout_counter += 1
-    
-    if len(bytes_received) == 4:
-        # Reconstruir palabra de 32 bits (big-endian)
-        word = (bytes_received[0] << 24) | (bytes_received[1] << 16) | \
-               (bytes_received[2] << 8) | bytes_received[3]
-        return word
-    else:
-        print(f"Error: Solo se recibieron {len(bytes_received)} bytes de 4 esperados")
+class MIPSDebugger:
+    def __init__(self, baudrate=19200, timeout=2):
+        self.ser = None
+        self.baudrate = baudrate
+        self.timeout = timeout
+        
+        # Comandos del protocolo
+        self.CMD_LOAD = 0x4C      # 'L'
+        self.CMD_RUN = 0x52       # 'R' 
+        self.CMD_RESET = 0x48     # 'H'
+        self.CMD_READ_REG = 0x47  # 'G'
+        self.ACK_BYTE = 0x41      # 'A'
+        
+    def detect_uart_port(self):
+        """Detecta automáticamente el puerto UART disponible"""
+        ports = serial.tools.list_ports.comports()
+        
+        if not ports:
+            return None
+            
+        # Intentar conectar automáticamente al primer puerto disponible
+        for port in ports:
+            try:
+                test_ser = serial.Serial(
+                    port=port.device,
+                    baudrate=self.baudrate,
+                    timeout=self.timeout
+                )
+                test_ser.close()
+                return port.device
+            except Exception as e:
+                continue
+                
         return None
-
-def reset_mips():
-    """Envía comando de reset al MIPS."""
-    print("Enviando comando de reset...")
-    send_byte(CMD_RESET)
-    return wait_for_ack()
-
-def load_instruction(instruction_word):
-    """Carga una instrucción de 32 bits en el MIPS."""
-    send_byte(CMD_LOAD_INSTRUCTION)
-    send_word(instruction_word)
-    return wait_for_ack()
-
-def read_register(reg_addr):
-    """Lee un registro del MIPS."""
-    send_byte(CMD_REG)
-    send_byte(reg_addr & 0x1F)  # Solo 5 bits para dirección de registro
-    
-    # Leer los 4 bytes de datos del registro
-    reg_data = read_word()
-    if reg_data is not None:
-        if wait_for_ack():
-            return reg_data
-    return None
-
-def read_memory(mem_addr):
-    """Lee una palabra de memoria del MIPS."""
-    send_byte(CMD_MEM)
-    send_word(mem_addr)
-    
-    # Leer los 4 bytes de datos de memoria
-    mem_data = read_word()
-    if mem_data is not None:
-        if wait_for_ack():
-            return mem_data
-    return None
-
-def free_run():
-    """Ejecuta el MIPS en modo libre hasta halt."""
-    print("Iniciando ejecución libre...")
-    send_byte(CMD_FREE_RUN)
-    return wait_for_ack()
-
-def parse_instruction_line(line):
-    """Parsea una línea del archivo .coe y extrae la instrucción binaria."""
-    # Remover comentarios y espacios
-    instruction_part = line.split('//')[0].strip()
-    if instruction_part:
-        # Convertir de binario a entero
-        return int(instruction_part, 2)
-    return None
-
-def load_instructions_from_file(filename):
-    """Carga todas las instrucciones del archivo .coe."""
-    instructions = []
-    try:
-        with open(filename, 'r') as file:
-            for line_num, line in enumerate(file, 1):
-                line = line.strip()
-                if line and not line.startswith('//'):
-                    instruction = parse_instruction_line(line)
-                    if instruction is not None:
-                        instructions.append(instruction)
-                        print(f"Instrucción {len(instructions)}: 0x{instruction:08X}")
-        print(f"Se cargaron {len(instructions)} instrucciones del archivo")
-        return instructions
-    except FileNotFoundError:
-        print(f"Error: No se pudo encontrar el archivo {filename}")
-        return []
-    except Exception as e:
-        print(f"Error leyendo el archivo: {e}")
-        return []
-
-def main():
-    """Función principal del programa."""
-    if serial_port is None:
-        print("Error: No hay conexión serial disponible")
-        return
         
-    print(f"Conectado al puerto: {serial_port.port}")
-    print("Iniciando comunicación con FPGA...")
-    
-    # Limpiar buffer de entrada
-    serial_port.reset_input_buffer()
-    serial_port.reset_output_buffer()
-    
-    try:
-        # 1. Reset del MIPS
-        if not reset_mips():
-            print("Error en reset inicial")
-            return
+    def connect(self, port=None):
+        """Conecta al puerto UART"""
+        if port is None:
+            port = self.detect_uart_port()
+            if port is None:
+                return False
+                
+        try:
+            self.ser = serial.Serial(
+                port=port,
+                baudrate=self.baudrate,
+                timeout=self.timeout,
+                bytesize=serial.EIGHTBITS,
+                parity=serial.PARITY_NONE,
+                stopbits=serial.STOPBITS_ONE
+            )
+            print(f"✅ Conectado a {port} @ {self.baudrate} baud")
+            time.sleep(0.1)  # Esperar estabilización
+            return True
+        except Exception as e:
+            print(f"❌ Error conectando a {port}: {e}")
+            return False
+            
+    def disconnect(self):
+        """Desconecta del puerto UART"""
+        if self.ser and self.ser.is_open:
+            self.ser.close()
+            print("🔌 Desconectado del puerto UART")
+            
+    def send_byte(self, byte_val):
+        """Envía un byte por UART"""
+        if not self.ser or not self.ser.is_open:
+            raise Exception("Puerto UART no está conectado")
+        self.ser.write(bytes([byte_val]))
         
+    def read_byte(self):
+        """Lee un byte de UART con timeout"""
+        if not self.ser or not self.ser.is_open:
+            raise Exception("Puerto UART no está conectado")
+        data = self.ser.read(1)
+        if len(data) == 0:
+            raise Exception("Timeout esperando respuesta")
+        return data[0]
+        
+    def wait_ack(self):
+        """Espera el ACK del debugger"""
+        ack = self.read_byte()
+        if ack != self.ACK_BYTE:
+            raise Exception(f"ACK esperado (0x{self.ACK_BYTE:02X}), recibido 0x{ack:02X}")
+        return True
+        
+    def reset_mips(self):
+        """Resetea el procesador MIPS"""
+        print("🔄 Reseteando MIPS...")
+        self.send_byte(self.CMD_RESET)
         time.sleep(0.1)
         
-        # 2. Cargar instrucciones desde el archivo
-        instructions = load_instructions_from_file('basic_inst.coe')
-        if not instructions:
-            print("No se pudieron cargar las instrucciones")
-            return
+    def load_instructions_from_coe(self, coe_file):
+        """Carga instrucciones desde archivo .coe"""
+        if not os.path.exists(coe_file):
+            raise Exception(f"Archivo {coe_file} no encontrado")
+            
+        instructions = []
+        print(f"📂 Leyendo instrucciones desde {coe_file}...")
         
-        print(f"\nCargando {len(instructions)} instrucciones...")
+        with open(coe_file, 'r') as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                if not line or line.startswith('//'):
+                    continue
+                    
+                # Extraer la parte binaria (antes del comentario)
+                binary_part = line.split('//')[0].strip()
+                
+                if len(binary_part) != 32:
+                    print(f"⚠️  Línea {line_num}: instrucción de longitud incorrecta ({len(binary_part)} bits)")
+                    continue
+                    
+                try:
+                    # Convertir binario a entero de 32 bits
+                    instruction = int(binary_part, 2)
+                    instructions.append(instruction)
+                    print(f"  📝 Instrucción {len(instructions)}: 0x{instruction:08X} - {line.split('//')[-1].strip() if '//' in line else ''}")
+                except ValueError:
+                    print(f"⚠️  Línea {line_num}: formato binario inválido")
+                    continue
+                    
+        print(f"✅ {len(instructions)} instrucciones cargadas")
+        return instructions
+        
+    def load_program(self, instructions):
+        """Carga programa en memoria de instrucciones"""
+        print(f"📤 Cargando {len(instructions)} instrucciones...")
+        
+        # Enviar comando LOAD
+        self.send_byte(self.CMD_LOAD)
+        time.sleep(0.1)
+        
         for i, instruction in enumerate(instructions):
-            print(f"Cargando instrucción {i+1}//{len(instructions)}: 0x{instruction:08X}")
-            if not load_instruction(instruction):
-                print(f"Error cargando instrucción {i+1}")
-                return
-            time.sleep(0.05)  # Pausa entre instrucciones
+            print(f"  📤 Enviando instrucción {i+1}: 0x{instruction:08X}")
+            
+            # Enviar 4 bytes en formato big-endian
+            byte3 = (instruction >> 24) & 0xFF
+            byte2 = (instruction >> 16) & 0xFF
+            byte1 = (instruction >> 8) & 0xFF
+            byte0 = instruction & 0xFF
+            
+            self.send_byte(byte3)
+            self.send_byte(byte2) 
+            self.send_byte(byte1)
+            self.send_byte(byte0)
+            
+            # Esperar ACK
+            try:
+                self.wait_ack()
+                print(f"    ✅ ACK recibido")
+            except Exception as e:
+                print(f"    ❌ Error: {e}")
+                return False
+                
+        print("✅ Programa cargado exitosamente")
+        return True
         
-        print("\nTodas las instrucciones cargadas exitosamente!")
+    def run_program(self):
+        """Ejecuta el programa cargado"""
+        print("🏃 Ejecutando programa...")
+        self.send_byte(self.CMD_RUN)
         
-        # 3. Ejecutar el programa
-        print("\n" + "="*50)
-        print("EJECUTANDO PROGRAMA")
-        print("="*50)
-        
-        if not free_run():
-            print("Error iniciando ejecución libre")
-            return
-        
-        # Esperar un poco para que se complete la ejecución
-        time.sleep(0.5)
-        
-        # 4. Leer registros involucrados (basado en las instrucciones)
-        print("\n" + "="*50)
-        print("ESTADO DE REGISTROS DESPUÉS DE LA EJECUCIÓN")
-        print("="*50)
-        
-        # Registros usados en basic_inst.coe: $0, $1, $2, $3, $4, $5
-        registers_to_check = [0, 1, 2, 3, 4, 5]
-        
-        for reg_num in registers_to_check:
-            reg_value = read_register(reg_num)
-            if reg_value is not None:
-                print(f"Registro ${reg_num}: 0x{reg_value:08X} ({reg_value})")
+        # Esperar hasta que el programa termine (recibir ACK)
+        try:
+            print("⏳ Esperando que termine la ejecución...")
+            ack = self.read_byte()
+            if ack == self.ACK_BYTE:
+                print("✅ Programa terminado correctamente")
+                return True
             else:
-                print(f"Error leyendo registro ${reg_num}")
-            time.sleep(0.1)
+                print(f"❌ Respuesta inesperada: 0x{ack:02X}")
+                return False
+        except Exception as e:
+            print(f"❌ Error durante ejecución: {e}")
+            return False
+            
+    def read_register(self, reg_num):
+        """Lee el valor de un registro específico"""
+        if reg_num < 0 or reg_num > 31:
+            raise Exception(f"Número de registro inválido: {reg_num}")
+            
+        # Enviar comando READ_REG
+        self.send_byte(self.CMD_READ_REG)
         
-        # 5. Leer direcciones de memoria involucradas
-        print("\n" + "="*50)
-        print("ESTADO DE MEMORIA DESPUÉS DE LA EJECUCIÓN")
-        print("="*50)
+        # Enviar número de registro
+        self.send_byte(reg_num)
         
-        # Direcciones de memoria usadas: 0, 4, 8, 12, 16
-        memory_addresses = [0, 4, 8, 12, 16]
+        # Leer 4 bytes del valor (big-endian)
+        byte3 = self.read_byte()
+        byte2 = self.read_byte()
+        byte1 = self.read_byte()
+        byte0 = self.read_byte()
         
-        for addr in memory_addresses:
-            mem_value = read_memory(addr)
-            if mem_value is not None:
-                print(f"Memoria[{addr:2d}]: 0x{mem_value:08X} ({mem_value})")
-            else:
-                print(f"Error leyendo memoria en dirección {addr}")
-            time.sleep(0.1)
+        value = (byte3 << 24) | (byte2 << 16) | (byte1 << 8) | byte0
+        return value
         
-        print("\n" + "="*50)
-        print("EJECUCIÓN COMPLETADA")
-        print("="*50)
+    def verify_registers(self, expected_values=None):
+        """Verifica los valores de los registros"""
+        print("🔍 Verificando registros...")
+        
+        # Si no se especifican valores esperados, usar los del programa de ejemplo
+        if expected_values is None:
+            expected_values = {
+                1: 5,      # addi $1, $0, 5
+                2: 10,     # addi $2, $0, 10  
+                3: 100,    # addi $3, $0, 100
+                4: 20,     # addi $4, $0, 20
+                5: 15      # addi $5, $0, 15
+            }
+            
+        results = {}
+        for reg_num in range(1, 6):  # Verificar registros $1 a $5
+            try:
+                value = self.read_register(reg_num)
+                results[reg_num] = value
+                
+                if reg_num in expected_values:
+                    expected = expected_values[reg_num]
+                    status = "✅" if value == expected else "❌"
+                    print(f"  ${reg_num}: {value:8d} (0x{value:08X}) {status} {'✓' if value == expected else f'esperado: {expected}'}")
+                else:
+                    print(f"  ${reg_num}: {value:8d} (0x{value:08X})")
+                    
+            except Exception as e:
+                print(f"  ❌ Error leyendo registro ${reg_num}: {e}")
+                results[reg_num] = None
+                
+        return results
+
+
+def main():
+    """Función principal"""
+    print("🚀 MIPS UART Debugger")
+    print("=" * 50)
+    
+    # Crear debugger
+    debugger = MIPSDebugger()
+    
+    try:
+        # Conectar
+        if not debugger.connect():
+            print("❌ No se pudo conectar al puerto UART")
+            return 1
+            
+        # Resetear MIPS
+        debugger.reset_mips()
+        
+        # Cargar instrucciones desde archivo
+        coe_file = os.path.join(os.path.dirname(__file__), 'basic_inst.coe')
+        instructions = debugger.load_instructions_from_coe(coe_file)
+        
+        if not instructions:
+            print("❌ No hay instrucciones para cargar")
+            return 1
+            
+        # Cargar programa
+        if not debugger.load_program(instructions):
+            print("❌ Error cargando programa")
+            return 1
+            
+        # Ejecutar programa
+        if not debugger.run_program():
+            print("❌ Error ejecutando programa")
+            return 1
+            
+       # Verificar registros
+        time.sleep(0.5)  # Esperar un poco antes de leer registros
+        results = debugger.verify_registers()
+       
+        # Resumen final
+        print("\n📊 Resumen de verificación:")
+        success = all(
+            results.get(i) == expected 
+            for i, expected in {1: 5, 2: 10, 3: 100, 4: 20, 5: 15}.items()
+        )
+       
+        if success:
+            print("🎉 ¡Todos los registros tienen los valores esperados!")
+        else:
+            print("⚠️  Algunos registros no tienen los valores esperados")
+
+        return 0 if success else 1
         
     except KeyboardInterrupt:
-        print("\nPrograma interrumpido por el usuario")
+        print("\n⚡ Interrumpido por el usuario")
+        return 1
     except Exception as e:
-        print(f"Error durante la ejecución: {e}")
+        print(f"❌ Error: {e}")
+        return 1
     finally:
-        if serial_port and serial_port.is_open:
-            serial_port.close()
-            print("Puerto serial cerrado")
-        else:
-            print("Puerto serial ya estaba cerrado")
+        debugger.disconnect()
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

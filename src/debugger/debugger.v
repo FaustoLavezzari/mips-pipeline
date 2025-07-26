@@ -15,6 +15,7 @@
 // - 0x4C ('L'): Load Program mode - start receiving instructions
 // - 0x52 ('R'): Run mode - execute loaded program until halt
 // - 0x48 ('H'): Reset MIPS processor
+// - 0x47 ('G'): Get register value - read specific register
 //
 // Protocol:
 // 1. Send 'L' to enter load mode
@@ -22,6 +23,8 @@
 // 3. Receive ACK (0x41) after each complete instruction
 // 4. Send 'R' to start execution
 // 5. Processor runs until halt, then sends result
+// 6. Send 'G' to read register, then send 1 byte (register number 0-31)
+// 7. Receive 4 bytes with register value (big-endian)
 //===========================================
 
 module debugger(
@@ -66,11 +69,14 @@ module debugger(
     localparam MIPS_RESET   = 4'b0110;  // Reseteando MIPS
     localparam WAIT_RX      = 4'b0111;  // Esperando datos UART RX
     localparam WAIT_TX      = 4'b1000;  // Esperando que UART TX esté libre
+    localparam READ_REG     = 4'b1001;  // Leyendo número de registro
+    localparam SEND_REG_VAL = 4'b1010;  // Enviando valor del registro
     
     // ======== Command Codes ========
     localparam CMD_LOAD     = 8'h4C;    // 'L' - Load program
     localparam CMD_RUN      = 8'h52;    // 'R' - Run program
     localparam CMD_RESET    = 8'h48;    // 'H' - Reset (Halt)
+    localparam CMD_READ_REG = 8'h47;    // 'G' - Get register value
     localparam ACK_BYTE     = 8'h41;    // 'A' - Acknowledgment
     localparam HALT_INST    = 32'hFFFFFFFF;   // Halt instruction code
     
@@ -81,6 +87,8 @@ module debugger(
     reg [31:0] instruction_buffer, next_instruction_buffer;
     reg [31:0] inst_addr, next_inst_addr;
     reg [1:0]  result_byte_counter, next_result_byte_counter;
+    reg [4:0]  requested_reg, next_requested_reg;
+    reg [1:0]  reg_byte_counter, next_reg_byte_counter;
     
     // ======== State Register Update ========
     always @(posedge clk) begin
@@ -91,6 +99,8 @@ module debugger(
             instruction_buffer <= 32'h00000000;
             inst_addr <= 32'h00000000;
             result_byte_counter <= 2'b00;
+            requested_reg <= 5'b00000;
+            reg_byte_counter <= 2'b00;
         end else begin
             state <= next_state;
             waiting_state <= next_waiting_state;
@@ -98,6 +108,8 @@ module debugger(
             instruction_buffer <= next_instruction_buffer;
             inst_addr <= next_inst_addr;
             result_byte_counter <= next_result_byte_counter;
+            requested_reg <= next_requested_reg;
+            reg_byte_counter <= next_reg_byte_counter;
         end
     end
     
@@ -110,12 +122,15 @@ module debugger(
         next_instruction_buffer = instruction_buffer;
         next_inst_addr = inst_addr;
         next_result_byte_counter = result_byte_counter;
+        next_requested_reg = requested_reg;
+        next_reg_byte_counter = reg_byte_counter;
         
         case (state)
             IDLE: begin
                 next_inst_addr = 32'h00000000;
                 next_byte_counter = 2'b00;
                 next_result_byte_counter = 2'b00;
+                next_reg_byte_counter = 2'b00;
                 
                 if (!uart_rx_empty) begin
                     // Comando disponible en UART
@@ -125,6 +140,8 @@ module debugger(
                         next_state = RUN;
                     end else if (uart_r_data == CMD_RESET) begin
                         next_state = MIPS_RESET;
+                    end else if (uart_r_data == CMD_READ_REG) begin
+                        next_state = READ_REG;
                     end
                     // Si no es un comando válido, permanece en IDLE
                 end
@@ -179,9 +196,8 @@ module debugger(
             
             RUN: begin
                 if (mips_halt) begin
-                    // Programa terminado, enviar resultado
+                    // Programa terminado, enviar ACK
                     next_state = SEND_RESULT;
-                    next_result_byte_counter = 2'b00;
                 end
                 // Mientras no haya halt, seguir ejecutando
             end
@@ -191,13 +207,8 @@ module debugger(
                     next_state = WAIT_TX;
                     next_waiting_state = SEND_RESULT;
                 end else begin
-                    next_result_byte_counter = result_byte_counter + 1;
-                    
-                    if (result_byte_counter == 2'b11) begin
-                        // Resultado completo enviado
-                        next_state = IDLE;
-                        next_result_byte_counter = 2'b00;
-                    end
+                    // ACK enviado, volver a IDLE
+                    next_state = IDLE;
                 end
             end
             
@@ -214,6 +225,33 @@ module debugger(
             WAIT_TX: begin
                 if (!uart_tx_full) begin
                     next_state = waiting_state;
+                end
+            end
+            
+            READ_REG: begin
+                if (uart_rx_empty) begin
+                    next_state = WAIT_RX;
+                    next_waiting_state = READ_REG;
+                end else begin
+                    // Recibir número de registro (solo 5 bits válidos)
+                    next_requested_reg = uart_r_data[4:0];
+                    next_state = SEND_REG_VAL;
+                    next_reg_byte_counter = 2'b00;
+                end
+            end
+            
+            SEND_REG_VAL: begin
+                if (uart_tx_full) begin
+                    next_state = WAIT_TX;
+                    next_waiting_state = SEND_REG_VAL;
+                end else begin
+                    next_reg_byte_counter = reg_byte_counter + 1;
+                    
+                    if (reg_byte_counter == 2'b11) begin
+                        // Valor del registro completo enviado
+                        next_state = IDLE;
+                        next_reg_byte_counter = 2'b00;
+                    end
                 end
             end
             
@@ -294,21 +332,14 @@ module debugger(
             SEND_RESULT: begin
                 uart_rd_uart = 1'b0;
                 uart_wr_uart = !uart_tx_full;
+                uart_w_data = ACK_BYTE;  // Enviar ACK simple
                 mips_reset = 1'b0;
                 mips_inst_write_en = 1'b0;
                 mips_inst_write_addr = 32'h00000000;
                 mips_inst_write_data = 32'h00000000;
                 mips_stall = 1'b1;
-                mips_reg_addr = 5'b00010;  // Registro $v0 (resultado)
+                mips_reg_addr = 5'b00000;
                 mips_mem_addr = 32'h00000000;
-                
-                // Enviar resultado en big-endian
-                case (result_byte_counter)
-                    2'b00: uart_w_data = mips_reg_data[31:24];
-                    2'b01: uart_w_data = mips_reg_data[23:16];
-                    2'b10: uart_w_data = mips_reg_data[15:8];
-                    2'b11: uart_w_data = mips_reg_data[7:0];
-                endcase
             end
             
             MIPS_RESET: begin
@@ -348,6 +379,39 @@ module debugger(
                 mips_stall = 1'b1;
                 mips_reg_addr = 5'b00000;
                 mips_mem_addr = 32'h00000000;
+            end
+            
+            READ_REG: begin
+                uart_rd_uart = !uart_rx_empty;
+                uart_wr_uart = 1'b0;
+                uart_w_data = 8'h00;
+                mips_reset = 1'b0;
+                mips_inst_write_en = 1'b0;
+                mips_inst_write_addr = 32'h00000000;
+                mips_inst_write_data = 32'h00000000;
+                mips_stall = 1'b1;
+                mips_reg_addr = 5'b00000;
+                mips_mem_addr = 32'h00000000;
+            end
+            
+            SEND_REG_VAL: begin
+                uart_rd_uart = 1'b0;
+                uart_wr_uart = !uart_tx_full;
+                mips_reset = 1'b0;
+                mips_inst_write_en = 1'b0;
+                mips_inst_write_addr = 32'h00000000;
+                mips_inst_write_data = 32'h00000000;
+                mips_stall = 1'b1;
+                mips_reg_addr = requested_reg;  // Usar el registro solicitado
+                mips_mem_addr = 32'h00000000;
+                
+                // Enviar valor del registro en big-endian
+                case (reg_byte_counter)
+                    2'b00: uart_w_data = mips_reg_data[31:24];
+                    2'b01: uart_w_data = mips_reg_data[23:16];
+                    2'b10: uart_w_data = mips_reg_data[15:8];
+                    2'b11: uart_w_data = mips_reg_data[7:0];
+                endcase
             end
             
             default: begin
