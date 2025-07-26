@@ -1,37 +1,5 @@
 `timescale 1ns / 1ps
 
-//===========================================
-// Module: debugger
-//
-// Description:
-//    Simple debugger for MIPS pipeline processor.
-//    Handles instruction loading via UART and free-run execution.
-//    Sends ACK after each instruction write and final result after halt.
-//
-// Author: Assistant based on reference design
-// Created: 2025
-//
-// Commands (1 byte):
-// - 0x4C ('L'): Load Program mode - start receiving instructions
-// - 0x52 ('R'): Run mode - execute loaded program until halt
-// - 0x48 ('H'): Reset MIPS processor
-// - 0x47 ('G'): Get register value - read specific register
-// - 0x4D ('M'): Memory read - read data memory value
-// - 0x53 ('S'): Step mode - execute one clock cycle
-//
-// Protocol:
-// 1. Send 'L' to enter load mode
-// 2. Send 4 bytes per instruction (big-endian: [31:24][23:16][15:8][7:0])
-// 3. Receive ACK (0x41) after each complete instruction
-// 4. Send 'R' to start execution
-// 5. Processor runs until halt, then sends result
-// 6. Send 'G' to read register, then send 1 byte (register number 0-31)
-// 7. Receive 4 bytes with register value (big-endian)
-// 8. Send 'M' to read memory, then send 2 bytes (memory address, big-endian)
-// 9. Receive 4 bytes with memory value (big-endian)
-// 10. Send 'S' to execute one clock cycle, then receive ACK
-//===========================================
-
 module debugger(
     // Clock and reset
     input  wire        clk,
@@ -81,14 +49,14 @@ module debugger(
     localparam STEP         = 4'b1101;  // Ejecutando un solo ciclo
     
     // ======== Command Codes ========
-    localparam CMD_LOAD     = 8'h4C;    // 'L' - Load program
-    localparam CMD_RUN      = 8'h52;    // 'R' - Run program
-    localparam CMD_RESET    = 8'h48;    // 'H' - Reset (Halt)
-    localparam CMD_READ_REG = 8'h47;    // 'G' - Get register value
-    localparam CMD_READ_MEM = 8'h4D;    // 'M' - Memory read
-    localparam CMD_STEP     = 8'h53;    // 'S' - Step one cycle
-    localparam ACK_BYTE     = 8'h41;    // 'A' - Acknowledgment
-    localparam HALT_INST    = 32'hFFFFFFFF;   // Halt instruction code
+    localparam CMD_LOAD     = 8'h4C;        // 'L' - Load program
+    localparam CMD_RUN      = 8'h52;        // 'R' - Run program
+    localparam CMD_RESET    = 8'h48;        // 'H' - Reset (Halt)
+    localparam CMD_READ_REG = 8'h47;        // 'G' - Get register value
+    localparam CMD_READ_MEM = 8'h4D;        // 'M' - Memory read
+    localparam CMD_STEP     = 8'h53;        // 'S' - Step one cycle
+    localparam ACK_BYTE     = 8'h41;        // 'A' - Acknowledgment
+    localparam HALT_INST    = 32'hFFFFFFFF; // Halt instruction code
     
     // ======== State Machine Registers ========
     reg [3:0]  state, next_state;
