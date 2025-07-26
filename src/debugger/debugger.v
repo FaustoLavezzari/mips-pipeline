@@ -17,6 +17,7 @@
 // - 0x48 ('H'): Reset MIPS processor
 // - 0x47 ('G'): Get register value - read specific register
 // - 0x4D ('M'): Memory read - read data memory value
+// - 0x53 ('S'): Step mode - execute one clock cycle
 //
 // Protocol:
 // 1. Send 'L' to enter load mode
@@ -28,6 +29,7 @@
 // 7. Receive 4 bytes with register value (big-endian)
 // 8. Send 'M' to read memory, then send 2 bytes (memory address, big-endian)
 // 9. Receive 4 bytes with memory value (big-endian)
+// 10. Send 'S' to execute one clock cycle, then receive ACK
 //===========================================
 
 module debugger(
@@ -76,6 +78,7 @@ module debugger(
     localparam SEND_REG_VAL = 4'b1010;  // Enviando valor del registro
     localparam READ_MEM     = 4'b1011;  // Leyendo dirección de memoria
     localparam SEND_MEM_VAL = 4'b1100;  // Enviando valor de memoria
+    localparam STEP         = 4'b1101;  // Ejecutando un solo ciclo
     
     // ======== Command Codes ========
     localparam CMD_LOAD     = 8'h4C;    // 'L' - Load program
@@ -83,6 +86,7 @@ module debugger(
     localparam CMD_RESET    = 8'h48;    // 'H' - Reset (Halt)
     localparam CMD_READ_REG = 8'h47;    // 'G' - Get register value
     localparam CMD_READ_MEM = 8'h4D;    // 'M' - Memory read
+    localparam CMD_STEP     = 8'h53;    // 'S' - Step one cycle
     localparam ACK_BYTE     = 8'h41;    // 'A' - Acknowledgment
     localparam HALT_INST    = 32'hFFFFFFFF;   // Halt instruction code
     
@@ -98,6 +102,7 @@ module debugger(
     reg [15:0] requested_mem_addr, next_requested_mem_addr;
     reg [1:0]  mem_addr_byte_counter, next_mem_addr_byte_counter;
     reg [1:0]  mem_byte_counter, next_mem_byte_counter;
+    reg        step_cycle_done, next_step_cycle_done;
     
     // ======== State Register Update ========
     always @(posedge clk) begin
@@ -113,6 +118,7 @@ module debugger(
             requested_mem_addr <= 16'h0000;
             mem_addr_byte_counter <= 2'b00;
             mem_byte_counter <= 2'b00;
+            step_cycle_done <= 1'b0;
         end else begin
             state <= next_state;
             waiting_state <= next_waiting_state;
@@ -125,6 +131,7 @@ module debugger(
             requested_mem_addr <= next_requested_mem_addr;
             mem_addr_byte_counter <= next_mem_addr_byte_counter;
             mem_byte_counter <= next_mem_byte_counter;
+            step_cycle_done <= next_step_cycle_done;
         end
     end
     
@@ -142,6 +149,7 @@ module debugger(
         next_requested_mem_addr = requested_mem_addr;
         next_mem_addr_byte_counter = mem_addr_byte_counter;
         next_mem_byte_counter = mem_byte_counter;
+        next_step_cycle_done = step_cycle_done;
         
         case (state)
             IDLE: begin
@@ -151,6 +159,7 @@ module debugger(
                 next_reg_byte_counter = 2'b00;
                 next_mem_addr_byte_counter = 2'b00;
                 next_mem_byte_counter = 2'b00;
+                next_step_cycle_done = 1'b0;
                 
                 if (!uart_rx_empty) begin
                     // Comando disponible en UART
@@ -164,6 +173,8 @@ module debugger(
                         next_state = READ_REG;
                     end else if (uart_r_data == CMD_READ_MEM) begin
                         next_state = READ_MEM;
+                    end else if (uart_r_data == CMD_STEP) begin
+                        next_state = STEP;
                     end
                     // Si no es un comando válido, permanece en IDLE
                 end
@@ -311,6 +322,18 @@ module debugger(
                         next_state = IDLE;
                         next_mem_byte_counter = 2'b00;
                     end
+                end
+            end
+            
+            STEP: begin
+                if (!step_cycle_done) begin
+                    // Primer ciclo: ejecutar y marcar como hecho
+                    next_step_cycle_done = 1'b1;
+                end else begin
+                    // Segundo ciclo: enviar ACK y volver a IDLE
+                    next_step_cycle_done = 1'b0;
+                    next_state = SEND_ACK;
+                    next_waiting_state = IDLE;
                 end
             end
             
@@ -504,6 +527,19 @@ module debugger(
                     2'b10: uart_w_data = mips_mem_data[15:8];
                     2'b11: uart_w_data = mips_mem_data[7:0];
                 endcase
+            end
+            
+            STEP: begin
+                uart_rd_uart = 1'b0;
+                uart_wr_uart = 1'b0;
+                uart_w_data = 8'h00;
+                mips_reset = 1'b0;
+                mips_inst_write_en = 1'b0;
+                mips_inst_write_addr = 32'h00000000;
+                mips_inst_write_data = 32'h00000000;
+                mips_stall = step_cycle_done;  // Solo NO stall en el primer ciclo
+                mips_reg_addr = 5'b00000;
+                mips_mem_addr = 32'h00000000;
             end
             
             default: begin

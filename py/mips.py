@@ -16,6 +16,7 @@ Protocolo UART:
 - 'H' (0x48): Reset MIPS
 - 'G' (0x47): Get register value
 - 'M' (0x4D): Memory read
+- 'S' (0x53): Step mode
 - ACK (0x41): Acknowledgment
 
 Author: Assistant
@@ -40,6 +41,7 @@ class MIPSDebugger:
         self.CMD_RESET = 0x48     # 'H'
         self.CMD_READ_REG = 0x47  # 'G'
         self.CMD_READ_MEM = 0x4D  # 'M'
+        self.CMD_STEP = 0x53      # 'S'
         self.ACK_BYTE = 0x41      # 'A'
         
     def detect_uart_port(self):
@@ -249,6 +251,19 @@ class MIPSDebugger:
         
         value = (byte3 << 24) | (byte2 << 16) | (byte1 << 8) | byte0
         return value
+        
+    def step(self):
+        """Ejecuta un solo ciclo del MIPS"""
+        # Enviar comando STEP
+        self.send_byte(self.CMD_STEP)
+        
+        # Esperar ACK
+        try:
+            self.wait_ack()
+            return True
+        except Exception as e:
+            print(f"❌ Error durante step: {e}")
+            return False
         
     def verify_registers(self, expected_values=None):
         """Verifica los valores de los registros"""
