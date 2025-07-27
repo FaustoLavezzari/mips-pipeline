@@ -126,7 +126,7 @@ class MIPSDebugger:
         time.sleep(0.1)
         
     def load_instructions_from_coe(self, coe_file):
-        """Carga instrucciones desde archivo .coe"""
+        """Carga instrucciones desde archivo .coe en formato Vivado"""
         if not os.path.exists(coe_file):
             raise Exception(f"Archivo {coe_file} no encontrado")
             
@@ -134,26 +134,75 @@ class MIPSDebugger:
         print(f"📂 Leyendo instrucciones desde {coe_file}...")
         
         with open(coe_file, 'r') as f:
+            parsing_vector = False
+            
             for line_num, line in enumerate(f, 1):
                 line = line.strip()
-                if not line or line.startswith('//'):
-                    continue
-                    
-                # Extraer la parte binaria (antes del comentario)
-                binary_part = line.split('//')[0].strip()
                 
-                if len(binary_part) != 32:
-                    print(f"⚠️  Línea {line_num}: instrucción de longitud incorrecta ({len(binary_part)} bits)")
+                # Saltar líneas vacías y comentarios
+                if not line or line.startswith(';'):
+                    continue
+                
+                # Detectar configuración de radix
+                if line.startswith('memory_initialization_radix='):
+                    continue
+                
+                # Detectar inicio del vector de inicialización
+                if line.startswith('memory_initialization_vector='):
+                    parsing_vector = True
+                    # Verificar si hay datos en la misma línea después del =
+                    remaining = line.split('=', 1)[1].strip()
+                    if remaining:
+                        line = remaining
+                    else:
+                        continue
+                
+                # Si no estamos parseando el vector, continuar
+                if not parsing_vector:
+                    continue
+                
+                # Procesar línea con instrucciones
+                # Remover el punto y coma final si existe
+                if line.endswith(';'):
+                    line = line[:-1]
+                
+                # Remover la coma final si existe
+                if line.endswith(','):
+                    line = line[:-1]
+                
+                # Extraer solo la parte hexadecimal (antes del comentario //)
+                hex_part = line.split('//')[0].strip()
+                
+                # Remover comas y espacios
+                hex_part = hex_part.replace(',', '').replace(' ', '')
+                
+                # Verificar que solo contenga caracteres hexadecimales
+                hex_clean = ''.join(c for c in hex_part if c in '0123456789ABCDEFabcdef')
+                
+                if not hex_clean:
+                    continue
+                
+                # Verificar longitud (debe ser 8 caracteres hex para 32 bits)
+                if len(hex_clean) != 8:
+                    print(f"⚠️  Línea {line_num}: longitud incorrecta ({len(hex_clean)} caracteres, esperados 8): {hex_clean}")
                     continue
                     
                 try:
-                    # Convertir binario a entero de 32 bits
-                    instruction = int(binary_part, 2)
+                    # Convertir hexadecimal a entero de 32 bits
+                    instruction = int(hex_clean, 16)
                     instructions.append(instruction)
-                    print(f"  📝 Instrucción {len(instructions)}: 0x{instruction:08X} - {line.split('//')[-1].strip() if '//' in line else ''}")
+                    
+                    # Extraer comentario si existe
+                    comment = line.split('//')[-1].strip() if '//' in line else ''
+                    print(f"  📝 Instrucción {len(instructions)}: 0x{instruction:08X} - {comment}")
+                    
                 except ValueError:
-                    print(f"⚠️  Línea {line_num}: formato binario inválido")
+                    print(f"⚠️  Línea {line_num}: formato hexadecimal inválido: {hex_clean}")
                     continue
+                    
+                # Si encontramos el punto y coma final, terminamos
+                if ';' in line:
+                    break
                     
         print(f"✅ {len(instructions)} instrucciones cargadas")
         return instructions
@@ -180,10 +229,9 @@ class MIPSDebugger:
             self.send_byte(byte1)
             self.send_byte(byte0)
             
-            # Esperar ACK
+            # Esperar ACK (sin mostrar mensaje)
             try:
                 self.wait_ack()
-                print(f"    ✅ ACK recibido")
             except Exception as e:
                 print(f"    ❌ Error: {e}")
                 return False
@@ -357,163 +405,4 @@ class MIPSDebugger:
         self.wait_ack()
         
         return data
-        
-    def verify_registers(self, expected_values=None):
-        """Verifica los valores de los registros"""
-        print("🔍 Verificando registros...")
-        
-        # Si no se especifican valores esperados, usar los del programa de ejemplo
-        if expected_values is None:
-            expected_values = {
-                1: 5,      # addi $1, $0, 5
-                2: 10,     # addi $2, $0, 10  
-                3: 100,    # addi $3, $0, 100
-                4: 20,     # addi $4, $0, 20
-                5: 15      # addi $5, $0, 15
-            }
-            
-        results = {}
-        for reg_num in range(1, 6):  # Verificar registros $1 a $5
-            try:
-                value = self.read_register(reg_num)
-                results[reg_num] = value
-                
-                if reg_num in expected_values:
-                    expected = expected_values[reg_num]
-                    status = "✅" if value == expected else "❌"
-                    print(f"  ${reg_num}: {value:8d} (0x{value:08X}) {status} {'✓' if value == expected else f'esperado: {expected}'}")
-                else:
-                    print(f"  ${reg_num}: {value:8d} (0x{value:08X})")
-                    
-            except Exception as e:
-                print(f"  ❌ Error leyendo registro ${reg_num}: {e}")
-                results[reg_num] = None
-                
-        return results
 
-    def verify_memory(self, expected_values=None):
-        """Verifica los valores de la memoria de datos"""
-        print("🔍 Verificando memoria de datos...")
-        
-        # Si no se especifican valores esperados, usar los del programa de ejemplo
-        # Basado en las instrucciones sw del basic_inst.coe:
-        # sw $1,   0($0)  -> mem[0] = 5
-        # sw $2,   4($0)  -> mem[4] = 10
-        # sw $3,   8($0)  -> mem[8] = 100
-        # sw $4,  12($0)  -> mem[12] = 20
-        # sw $5,  16($0)  -> mem[16] = 15
-        if expected_values is None:
-            expected_values = {
-                0: 5,      # sw $1, 0($0)
-                4: 10,     # sw $2, 4($0)
-                8: 100,    # sw $3, 8($0)
-                12: 20,    # sw $4, 12($0)
-                16: 15     # sw $5, 16($0)
-            }
-            
-        results = {}
-        for mem_addr in sorted(expected_values.keys()):
-            try:
-                value = self.read_memory(mem_addr)
-                results[mem_addr] = value
-                
-                expected = expected_values[mem_addr]
-                status = "✅" if value == expected else "❌"
-                print(f"  mem[{mem_addr:2d}]: {value:8d} (0x{value:08X}) {status} {'✓' if value == expected else f'esperado: {expected}'}")
-                    
-            except Exception as e:
-                print(f"  ❌ Error leyendo memoria[{mem_addr}]: {e}")
-                results[mem_addr] = None
-                
-        return results
-
-
-def main():
-    """Función principal"""
-    print("🚀 MIPS UART Debugger")
-    print("=" * 50)
-    
-    # Crear debugger
-    debugger = MIPSDebugger()
-    
-    try:
-        # Conectar
-        if not debugger.connect():
-            print("❌ No se pudo conectar al puerto UART")
-            return 1
-            
-        # Resetear MIPS
-        debugger.reset_mips()
-        
-        # Cargar instrucciones desde archivo
-        coe_file = os.path.join(os.path.dirname(__file__), 'basic_inst.coe')
-        instructions = debugger.load_instructions_from_coe(coe_file)
-        
-        if not instructions:
-            print("❌ No hay instrucciones para cargar")
-            return 1
-            
-        # Cargar programa
-        if not debugger.load_program(instructions):
-            print("❌ Error cargando programa")
-            return 1
-            
-        # Ejecutar programa
-        if not debugger.run_program():
-            print("❌ Error ejecutando programa")
-            return 1
-            
-       # Verificar registros
-        time.sleep(0.5)  # Esperar un poco antes de leer registros
-        reg_results = debugger.verify_registers()
-        
-        # Verificar memoria de datos
-        time.sleep(0.5)  # Esperar un poco antes de leer memoria
-        mem_results = debugger.verify_memory()
-       
-        # Resumen final
-        print("\n📊 Resumen de verificación:")
-        
-        # Verificar registros
-        reg_success = all(
-            reg_results.get(i) == expected 
-            for i, expected in {1: 5, 2: 10, 3: 100, 4: 20, 5: 15}.items()
-        )
-        
-        # Verificar memoria
-        mem_success = all(
-            mem_results.get(addr) == expected 
-            for addr, expected in {0: 5, 4: 10, 8: 100, 12: 20, 16: 15}.items()
-        )
-        
-        if reg_success:
-            print("🎉 ¡Todos los registros tienen los valores esperados!")
-        else:
-            print("⚠️  Algunos registros no tienen los valores esperados")
-            
-        if mem_success:
-            print("🎉 ¡Toda la memoria tiene los valores esperados!")
-        else:
-            print("⚠️  Algunos valores de memoria no son los esperados")
-            
-        overall_success = reg_success and mem_success
-        
-        if overall_success:
-            print("🏆 ¡Verificación completa exitosa!")
-        else:
-            print("💡 Revisar los valores que no coinciden")
-
-        return 0 if overall_success else 1
-        
-    except KeyboardInterrupt:
-        print("\n⚡ Interrumpido por el usuario")
-        return 1
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        return 1
-    finally:
-        debugger.disconnect()
-
-
-if __name__ == "__main__":
-    sys.exit(main())
