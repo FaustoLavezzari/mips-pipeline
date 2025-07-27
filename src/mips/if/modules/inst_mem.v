@@ -16,8 +16,8 @@ module instr_mem(
   output wire [31:0] instr            // Instrucción leída
 );
 
-  // Memoria de instrucciones (1024 bytes = 256 instrucciones de 32 bits)
-  reg [7:0] memory [0:1023];
+  // Memoria de instrucciones (512 bytes = 128 instrucciones de 32 bits)
+  reg [7:0] memory [0:511];
   
   // Direcciones base para acceso a memoria
   wire [31:0] read_base_addr = read_addr;
@@ -29,7 +29,7 @@ module instr_mem(
   // Escritura en memoria (síncrona) con reset
   always @(posedge clk) begin
     if (reset) begin
-      for (i = 0; i < 1024; i = i + 1) begin
+      for (i = 0; i < 512; i = i + 1) begin
         memory[i] <= 8'b0;
       end
     end

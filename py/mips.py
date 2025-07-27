@@ -19,8 +19,6 @@ Protocolo UART:
 - 'S' (0x53): Step mode
 - ACK (0x41): Acknowledgment
 
-Author: Assistant
-Created: July 2025
 """
 
 import serial
@@ -42,6 +40,10 @@ class MIPSDebugger:
         self.CMD_READ_REG = 0x47  # 'G'
         self.CMD_READ_MEM = 0x4D  # 'M'
         self.CMD_STEP = 0x53      # 'S'
+        self.CMD_LATCH_IFID = 0x31   # '1' - Get IF/ID latch values
+        self.CMD_LATCH_IDEX = 0x32   # '2' - Get ID/EX latch values
+        self.CMD_LATCH_EXMEM = 0x33  # '3' - Get EX/MEM latch values
+        self.CMD_LATCH_MEMWB = 0x34  # '4' - Get MEM/WB latch values
         self.ACK_BYTE = 0x41      # 'A'
         
     def detect_uart_port(self):
@@ -264,6 +266,97 @@ class MIPSDebugger:
         except Exception as e:
             print(f"❌ Error durante step: {e}")
             return False
+    
+    def read_latch_ifid(self):
+        """Lee los datos del latch IF/ID"""
+        # Enviar comando LATCH_IFID
+        self.send_byte(self.CMD_LATCH_IFID)
+        
+        # Leer datos del latch (2 valores de 32 bits cada uno)
+        # 1. debug_if_id_instr (32 bits)
+        instr_bytes = [self.read_byte() for _ in range(4)]
+        instr = (instr_bytes[0] << 24) | (instr_bytes[1] << 16) | (instr_bytes[2] << 8) | instr_bytes[3]
+        
+        # 2. debug_if_id_next_pc (32 bits)
+        next_pc_bytes = [self.read_byte() for _ in range(4)]
+        next_pc = (next_pc_bytes[0] << 24) | (next_pc_bytes[1] << 16) | (next_pc_bytes[2] << 8) | next_pc_bytes[3]
+        
+        # Esperar ACK final
+        self.wait_ack()
+        
+        return {
+            'instruction': instr,
+            'next_pc': next_pc
+        }
+    
+    def read_latch_idex(self):
+        """Lee los datos del latch ID/EX"""
+        # Enviar comando LATCH_IDEX
+        self.send_byte(self.CMD_LATCH_IDEX)
+        
+        # Leer datos del latch (19 valores de 32 bits cada uno)
+        data = {}
+        field_names = [
+            'read_data1', 'read_data2', 'sign_ext_imm', 'rs', 'rt', 'rd', 
+            'shamt', 'next_pc', 'reg_dst', 'alu_src_b', 'alu_src_a', 
+            'alu_control', 'mem_read', 'mem_write', 'reg_write', 
+            'mem_to_reg', 'is_halt', 'byte_mask', 'is_signed_load'
+        ]
+        
+        for field in field_names:
+            field_bytes = [self.read_byte() for _ in range(4)]
+            value = (field_bytes[0] << 24) | (field_bytes[1] << 16) | (field_bytes[2] << 8) | field_bytes[3]
+            data[field] = value
+        
+        # Esperar ACK final
+        self.wait_ack()
+        
+        return data
+    
+    def read_latch_exmem(self):
+        """Lee los datos del latch EX/MEM"""
+        # Enviar comando LATCH_EXMEM
+        self.send_byte(self.CMD_LATCH_EXMEM)
+        
+        # Leer datos del latch (10 valores de 32 bits cada uno)
+        data = {}
+        field_names = [
+            'alu_result', 'write_data', 'write_reg', 'reg_write', 
+            'mem_read', 'mem_write', 'mem_to_reg', 'is_halt', 
+            'byte_mask', 'is_signed_load'
+        ]
+        
+        for field in field_names:
+            field_bytes = [self.read_byte() for _ in range(4)]
+            value = (field_bytes[0] << 24) | (field_bytes[1] << 16) | (field_bytes[2] << 8) | field_bytes[3]
+            data[field] = value
+        
+        # Esperar ACK final
+        self.wait_ack()
+        
+        return data
+    
+    def read_latch_memwb(self):
+        """Lee los datos del latch MEM/WB"""
+        # Enviar comando LATCH_MEMWB
+        self.send_byte(self.CMD_LATCH_MEMWB)
+        
+        # Leer datos del latch (6 valores de 32 bits cada uno)
+        data = {}
+        field_names = [
+            'alu_result', 'read_data', 'write_reg', 'reg_write', 
+            'mem_to_reg', 'is_halt'
+        ]
+        
+        for field in field_names:
+            field_bytes = [self.read_byte() for _ in range(4)]
+            value = (field_bytes[0] << 24) | (field_bytes[1] << 16) | (field_bytes[2] << 8) | field_bytes[3]
+            data[field] = value
+        
+        # Esperar ACK final
+        self.wait_ack()
+        
+        return data
         
     def verify_registers(self, expected_values=None):
         """Verifica los valores de los registros"""
