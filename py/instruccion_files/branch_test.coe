@@ -1,0 +1,76 @@
+memory_initialization_radix=16;
+memory_initialization_vector=
+// Preparar datos para comparaciones
+20010005,  // addi $1, $0, 5        // $1 = 5
+20020005,  // addi $2, $0, 5        // $2 = 5 (igual a $1)
+20030008,  // addi $3, $0, 8        // $3 = 8 (diferente a $1)
+
+// === TEST BEQ (Branch if Equal) ===
+// BEQ tomado: $1 == $2 (5 == 5) -> SALTA
+10220003,  // beq $1, $2, +3        // Si $1 == $2, salta 3 instrucciones adelante
+
+// Estas instrucciones NO se ejecutan (salto tomado)
+20040BAD,  // addi $4, $0, 0xBAD    // $4 = 0xBAD (NO ejecutado)
+20050BAD,  // addi $5, $0, 0xBAD    // $5 = 0xBAD (NO ejecutado)
+20060BAD,  // addi $6, $0, 0xBAD    // $6 = 0xBAD (NO ejecutado)
+
+// Destino del salto BEQ tomado
+200700A1,  // addi $7, $0, 0xA1     // $7 = 0xA1 (marca: BEQ funcionó)
+
+// BEQ no tomado: $1 != $3 (5 != 8) -> NO SALTA
+10230003,  // beq $1, $3, +3        // Si $1 == $3, salta (NO salta porque son diferentes)
+
+// Estas instrucciones SÍ se ejecutan (salto no tomado)
+20080010,  // addi $8, $0, 16       // $8 = 16 (SÍ ejecutado)
+20090020,  // addi $9, $0, 32       // $9 = 32 (SÍ ejecutado)
+200A0030,  // addi $10, $0, 48      // $10 = 48 (SÍ ejecutado)
+
+// === TEST BNE (Branch if Not Equal) ===
+// BNE tomado: $1 != $3 (5 != 8) -> SALTA
+14230003,  // bne $1, $3, +3        // Si $1 != $3, salta 3 instrucciones adelante
+
+// Estas instrucciones NO se ejecutan (salto tomado)
+200B0BAD,  // addi $11, $0, 0xBAD   // $11 = 0xBAD (NO ejecutado)
+200C0BAD,  // addi $12, $0, 0xBAD   // $12 = 0xBAD (NO ejecutado) 
+200D0BAD,  // addi $13, $0, 0xBAD   // $13 = 0xBAD (NO ejecutado)
+
+// Destino del salto BNE tomado
+200E00B1,  // addi $14, $0, 0xB1    // $14 = 0xB1 (marca: BNE funcionó)
+
+// BNE no tomado: $1 == $2 (5 == 5) -> NO SALTA
+14220003,  // bne $1, $2, +3        // Si $1 != $2, salta (NO salta porque son iguales)
+
+// Estas instrucciones SÍ se ejecutan (salto no tomado)
+200F0040,  // addi $15, $0, 64      // $15 = 64 (SÍ ejecutado)
+20100050,  // addi $16, $0, 80      // $16 = 80 (SÍ ejecutado)
+20110060,  // addi $17, $0, 96      // $17 = 96 (SÍ ejecutado)
+
+FFFFFFFF;  // HALT
+
+// RESULTADOS ESPERADOS en registros:
+// === DATOS DE ENTRADA ===
+// $1 = 0x00000005 (valor para comparar)
+// $2 = 0x00000005 (igual a $1)
+// $3 = 0x00000008 (diferente a $1)
+
+// === RESULTADOS DE BEQ ===
+// $4 = 0x00000000 (NO ejecutado - salto tomado)
+// $5 = 0x00000000 (NO ejecutado - salto tomado)
+// $6 = 0x00000000 (NO ejecutado - salto tomado)
+// $7 = 0x000000A1 (SÍ ejecutado - destino BEQ tomado)
+// $8 = 0x00000010 (SÍ ejecutado - BEQ no tomado)
+// $9 = 0x00000020 (SÍ ejecutado - BEQ no tomado)
+// $10 = 0x00000030 (SÍ ejecutado - BEQ no tomado)
+
+// === RESULTADOS DE BNE ===
+// $11 = 0x00000000 (NO ejecutado - salto tomado)
+// $12 = 0x00000000 (NO ejecutado - salto tomado)
+// $13 = 0x00000000 (NO ejecutado - salto tomado)
+// $14 = 0x000000B1 (SÍ ejecutado - destino BNE tomado)
+// $15 = 0x00000040 (SÍ ejecutado - BNE no tomado)
+// $16 = 0x00000050 (SÍ ejecutado - BNE no tomado)
+// $17 = 0x00000060 (SÍ ejecutado - BNE no tomado)
+
+// VERIFICACIÓN:
+// Si BEQ funciona: $7 = 0xA1 y $4,$5,$6 = 0
+// Si BNE funciona: $14 = 0xB1 y $11,$12,$13 = 0

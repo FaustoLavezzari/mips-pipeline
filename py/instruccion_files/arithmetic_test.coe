@@ -1,0 +1,69 @@
+memory_initialization_radix=16;
+memory_initialization_vector=
+// Cargar valores iniciales en registros
+20010008,  // addi $1, $0, 8      // $1 = 8
+20020004,  // addi $2, $0, 4      // $2 = 4
+20030002,  // addi $3, $0, 2      // $3 = 2
+2004FFFF,  // addi $4, $0, -1     // $4 = 0xFFFFFFFF
+20050010,  // addi $5, $0, 16     // $5 = 16
+
+// Instrucciones de desplazamiento
+00014080,  // sll $8, $1, 2       // $8 = $1 << 2 = 8 << 2 = 32
+00014882,  // srl $9, $1, 2       // $9 = $1 >> 2 = 8 >> 2 = 2
+00045083,  // sra $10, $4, 2      // $10 = $4 >> 2 (aritmetico) = -1 >> 2 = -1
+00435804,  // sllv $11, $3, $2    // $11 = $3 << $2 = 2 << 4 = 32
+00436006,  // srlv $12, $3, $2    // $12 = $3 >> $2 = 2 >> 4 = 0
+00446807,  // srav $13, $4, $2    // $13 = $4 >> $2 (aritmetico) = -1 >> 4 = -1
+
+// Instrucciones aritmeticas
+00227021,  // addu $14, $1, $2    // $14 = $1 + $2 = 8 + 4 = 12
+00227823,  // subu $15, $1, $2    // $15 = $1 - $2 = 8 - 4 = 4
+
+// Instrucciones logicas
+00228024,  // and $16, $1, $2     // $16 = $1 & $2 = 8 & 4 = 0
+00228825,  // or $17, $1, $2      // $17 = $1 | $2 = 8 | 4 = 12
+00229026,  // xor $18, $1, $2     // $18 = $1 ^ $2 = 8 ^ 4 = 12
+00229827,  // nor $19, $1, $2     // $19 = ~($1 | $2) = ~12 = 0xFFFFFFF3
+
+// Instrucciones de comparacion
+0022A02A,  // slt $20, $1, $2     // $20 = ($1 < $2) ? 1 : 0 = (8 < 4) ? 1 : 0 = 0
+0024A82B,  // sltu $21, $1, $4    // $21 = ($1 < $4) unsigned = (8 < 0xFFFFFFFF) ? 1 : 0 = 1
+
+// Instrucciones inmediatas
+201D000F,  // addi $29, $0, 15    // $29 = 15
+24160014,  // addiu $22, $0, 20   // $22 = 20
+3017000F,  // andi $23, $0, 15    // $23 = 0 & 15 = 0 (nota: $0 siempre es 0)
+34180014,  // ori $24, $0, 20     // $24 = 0 | 20 = 20
+3819000F,  // xori $25, $0, 15    // $25 = 0 ^ 15 = 15
+3C1A0001,  // lui $26, 1          // $26 = 1 << 16 = 0x00010000
+
+// Mas comparaciones inmediatas
+2A1B000A,  // slti $27, $0, 10    // $27 = (0 < 10) ? 1 : 0 = 1
+2E1C000A,  // sltiu $28, $0, 10   // $28 = (0 < 10) unsigned ? 1 : 0 = 1
+FFFFFFFF;  // HALT
+
+
+// TODOS los resultados quedan en registros para verificacion:
+// $8  = SLL   resultado = 32 = 0x00000020
+// $9  = SRL   resultado = 2  = 0x00000002
+// $10 = SRA   resultado = -1 = 0xFFFFFFFF
+// $11 = SLLV  resultado = 32 = 0x00000020
+// $12 = SRLV  resultado = 0  = 0x00000000
+// $13 = SRAV  resultado = -1 = 0xFFFFFFFF
+// $14 = ADDU  resultado = 12 = 0x0000000C
+// $15 = SUBU  resultado = 4  = 0x00000004
+// $16 = AND   resultado = 0  = 0x00000000
+// $17 = OR    resultado = 12 = 0x0000000C
+// $18 = XOR   resultado = 12 = 0x0000000C
+// $19 = NOR   resultado      = 0xFFFFFFF3
+// $20 = SLT   resultado = 0  = 0x00000000
+// $21 = SLTU  resultado = 1  = 0x00000001
+// $22 = ADDIU resultado = 20 = 0x00000014
+// $23 = ANDI  resultado = 0  = 0x00000000
+// $24 = ORI   resultado = 20 = 0x00000014
+// $25 = XORI  resultado = 15 = 0x0000000F
+// $26 = LUI   resultado      = 0x00010000
+// $27 = SLTI  resultado = 1  = 0x00000001
+// $28 = SLTIU resultado = 1  = 0x00000001
+// $29 = ADDI  resultado = 15 = 0x0000000F
+

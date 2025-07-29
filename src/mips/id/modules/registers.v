@@ -49,7 +49,6 @@ module registers_bank
   assign o_read_data_2 = (i_write_enable && (i_read_register_2 == i_write_register) && (i_read_register_2 != 0)) ? 
                           i_write_data : registers[i_read_register_2];
 
-  assign o_debug_reg_value = (i_write_enable && (i_debug_reg == i_write_register)) ? 
-                          i_write_data : registers[i_debug_reg];
+  assign o_debug_reg_value = registers[i_debug_reg];
 
 endmodule

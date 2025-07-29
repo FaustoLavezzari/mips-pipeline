@@ -1,0 +1,124 @@
+memory_initialization_radix=16;
+memory_initialization_vector=
+// Preparar datos de ejemplo en registros
+20010012,  // addi $1, $0, 18       // $1 = 18 = 0x12 (un byte)
+2002FF80,  // addi $2, $0, -128     // $2 = -128 = 0xFF80 (byte con signo negativo)
+20034567,  // addi $3, $0, 17767    // $3 = 17767 = 0x4567 (halfword positivo)
+2004ABCD,  // addi $4, $0, -21555   // $4 = -21555 = 0xABCD (halfword con signo negativo)
+3C051234,  // lui $5, 0x1234        // $5 = 0x12340000
+34A55678,  // ori $5, $5, 0x5678    // $5 = 0x12345678 (word completa)
+
+// === INSTRUCCIONES STORE ===
+// Guardar diferentes tamaños de datos en memoria (direcciones alineadas)
+
+// Store Byte (SB)
+A0010000,  // sb $1, 0($0)          // mem[0] byte 0 = 0x12
+A0020001,  // sb $2, 1($0)          // mem[0] byte 1 = 0x80
+A0030002,  // sb $3, 2($0)          // mem[0] byte 2 = 0x67
+A0040003,  // sb $4, 3($0)          // mem[0] byte 3 = 0xCD
+
+// Store Halfword (SH) - Guarda 2 bytes (16 bits)
+A4030004,  // sh $3, 4($0)          // mem[4] halfword bajo = 0x4567
+A4040006,  // sh $4, 6($0)          // mem[4] halfword alto = 0xABCD
+
+// Store Word (SW) - Guarda 4 bytes (32 bits)
+AC050008,  // sw $5, 8($0)          // mem[8] = 0x12345678 (word completa)
+
+// === PREPARAR MEMORIA CON DATOS CONOCIDOS ===
+// Usar direcciones alineadas para fácil visualización
+
+// Preparar mem[12] con patrón conocido para LB/LBU
+20060012,  // addi $6, $0, 18       // $6 = 0x12
+A006000C,  // sb $6, 12($0)         // mem[12] byte 0 = 0x12
+
+200600FF,  // addi $6, $0, 255      // $6 = 0xFF
+A006000D,  // sb $6, 13($0)         // mem[12] byte 1 = 0xFF
+
+20060034,  // addi $6, $0, 52       // $6 = 0x34
+A006000E,  // sb $6, 14($0)         // mem[12] byte 2 = 0x34
+
+20060056,  // addi $6, $0, 86       // $6 = 0x56
+A006000F,  // sb $6, 15($0)         // mem[12] byte 3 = 0x56
+
+// Preparar mem[16] con patrón para LH/LHU
+20064567,  // addi $6, $0, 17767    // $6 = 0x4567
+A4060010,  // sh $6, 16($0)         // mem[16] halfword bajo = 0x4567
+
+2006ABCD,  // addi $6, $0, -21555   // $6 = 0xABCD
+A4060012,  // sh $6, 18($0)         // mem[16] halfword alto = 0xABCD
+
+// Preparar mem[20] para LW/LWU
+3C061234,  // lui $6, 0x1234        // $6 = 0x12340000
+34C65678,  // ori $6, $6, 0x5678    // $6 = 0x12345678
+AC060014,  // sw $6, 20($0)         // mem[20] = 0x12345678
+
+// === INSTRUCCIONES LOAD ===
+// Cargar datos de diferentes tamaños desde memoria
+
+// Load Byte (LB) - Carga 1 byte con extensión de signo
+8007000C,  // lb $7, 12($0)         // $7 = sign_ext(mem[12] byte 0) = 0x00000012
+8008000D,  // lb $8, 13($0)         // $8 = sign_ext(mem[12] byte 1) = 0xFFFFFFFF
+
+// Load Byte Unsigned (LBU) - Carga 1 byte sin extensión de signo
+9009000C,  // lbu $9, 12($0)        // $9 = zero_ext(mem[12] byte 0) = 0x00000012
+900A000D,  // lbu $10, 13($0)       // $10 = zero_ext(mem[12] byte 1) = 0x000000FF
+
+// Load Halfword (LH) - Carga 2 bytes con extensión de signo
+840B0010,  // lh $11, 16($0)        // $11 = sign_ext(mem[16] halfword bajo) = 0x00004567
+840C0012,  // lh $12, 18($0)        // $12 = sign_ext(mem[16] halfword alto) = 0xFFFFABCD
+
+// Load Halfword Unsigned (LHU) - Carga 2 bytes sin extensión de signo
+940D0010,  // lhu $13, 16($0)       // $13 = zero_ext(mem[16] halfword bajo) = 0x00004567
+940E0012,  // lhu $14, 18($0)       // $14 = zero_ext(mem[16] halfword alto) = 0x0000ABCD
+
+// Load Word (LW) - Carga 4 bytes completos
+8C0F0014,  // lw $15, 20($0)        // $15 = mem[20] = 0x12345678
+
+// Load Word Unsigned (LWU) - Carga 4 bytes (mismo que LW en 32-bit)
+9C100014,  // lwu $16, 20($0)       // $16 = mem[20] = 0x12345678 (igual que LW)
+
+// === VERIFICACIÓN: LOAD desde direcciones STORE originales ===
+// Verificar que los stores funcionaron correctamente
+
+90110000,  // lbu $17, 0($0)        // $17 = mem[0] byte 0 = 0x00000012
+90120001,  // lbu $18, 1($0)        // $18 = mem[0] byte 1 = 0x00000080
+94130004,  // lhu $19, 4($0)        // $19 = mem[4] halfword bajo = 0x00004567
+94140006,  // lhu $20, 6($0)        // $20 = mem[4] halfword alto = 0x0000ABCD
+8C150008,  // lw $21, 8($0)         // $21 = mem[8] = 0x12345678
+
+FFFFFFFF;  // HALT
+
+// TODOS los resultados quedan en registros para verificacion:
+// === DATOS ORIGINALES ===
+// $1 = 0x00000012 (dato original para SB)
+// $2 = 0xFFFFFF80 (dato original para SB - byte negativo)
+// $3 = 0x00004567 (dato original para SH)
+// $4 = 0xFFFFABCD (dato original para SH - halfword negativo)
+// $5 = 0x12345678 (dato original para SW)
+
+// === MEMORIA ESPERADA (direcciones alineadas de 4 bytes) ===
+// mem[0]  = 0xCD670812 (bytes: 3=0xCD, 2=0x67, 1=0x08, 0=0x12)
+// mem[4]  = 0xABCD4567 (halfwords: alto=0xABCD, bajo=0x4567)
+// mem[8]  = 0x12345678 (word completa)
+// mem[12] = 0x5634FF12 (bytes: 3=0x56, 2=0x34, 1=0xFF, 0=0x12)
+// mem[16] = 0xABCD4567 (halfwords: alto=0xABCD, bajo=0x4567)
+// mem[20] = 0x12345678 (word completa)
+
+// === RESULTADOS DE LOAD ===
+// $7  = LB  resultado = 0x00000012 (byte 0 de mem[12] con signo)
+// $8  = LB  resultado = 0xFFFFFFFF (byte 1 de mem[12] con signo: 0xFF->-1)
+// $9  = LBU resultado = 0x00000012 (byte 0 de mem[12] sin signo)
+// $10 = LBU resultado = 0x000000FF (byte 1 de mem[12] sin signo)
+// $11 = LH  resultado = 0x00004567 (halfword bajo de mem[16] con signo)
+// $12 = LH  resultado = 0xFFFFABCD (halfword alto de mem[16] con signo)
+// $13 = LHU resultado = 0x00004567 (halfword bajo de mem[16] sin signo)
+// $14 = LHU resultado = 0x0000ABCD (halfword alto de mem[16] sin signo)
+// $15 = LW  resultado = 0x12345678 (word completa de mem[20])
+// $16 = LWU resultado = 0x12345678 (word de mem[20], igual que LW)
+
+// === VERIFICACIÓN DE STORE/LOAD ===
+// $17 = LBU desde mem[0] byte 0 = 0x00000012 (verifica SB funcionó)
+// $18 = LBU desde mem[0] byte 1 = 0x00000080 (verifica SB funcionó)
+// $19 = LHU desde mem[4] halfword bajo = 0x00004567 (verifica SH funcionó)
+// $20 = LHU desde mem[4] halfword alto = 0x0000ABCD (verifica SH funcionó)
+// $21 = LW  desde mem[8] = 0x12345678 (verifica SW funcionó)

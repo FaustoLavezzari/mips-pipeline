@@ -9,7 +9,6 @@ module mips_rtype_tb_sm();
   reg inst_write_en;        // Señal para escritura de instrucciones
   reg [31:0] inst_write_addr;   // Dirección de escritura
   reg [31:0] inst_write_data;   // Datos de escritura
-  wire [`DATA_WIDTH-1:0] result;
   wire halt;  // Señal de halt
   
   // Señal de stall para control del pipeline
@@ -67,9 +66,9 @@ module mips_rtype_tb_sm();
   wire ex_mem_reg_write, ex_mem_mem_read, ex_mem_mem_write, ex_mem_mem_to_reg;
   wire ex_mem_is_halt, ex_mem_is_signed_load;
   wire [3:0] ex_mem_byte_mask;
-  wire [31:0] mem_wb_alu_result, mem_wb_read_data;
+  wire [31:0] mem_wb_write_data;
   wire [4:0] mem_wb_write_reg;
-  wire mem_wb_reg_write, mem_wb_mem_to_reg, mem_wb_is_halt;
+  wire mem_wb_reg_write, mem_wb_is_halt;
 
   // Instancia del módulo MIPS
   mips dut (
@@ -78,7 +77,6 @@ module mips_rtype_tb_sm();
     .inst_write_en  (inst_write_en),
     .inst_write_addr(inst_write_addr),
     .inst_write_data(inst_write_data),
-    .result         (result),
     .halt           (halt),
     .stall          (stall),
     .reg_addr       (reg_addr),
@@ -121,11 +119,9 @@ module mips_rtype_tb_sm();
     .debug_ex_mem_byte_mask   (ex_mem_byte_mask),
     .debug_ex_mem_is_signed_load (ex_mem_is_signed_load),
     
-    .debug_mem_wb_alu_result  (mem_wb_alu_result),
-    .debug_mem_wb_read_data   (mem_wb_read_data),
+    .debug_mem_wb_write_data  (mem_wb_write_data),
     .debug_mem_wb_write_reg   (mem_wb_write_reg),
     .debug_mem_wb_reg_write   (mem_wb_reg_write),
-    .debug_mem_wb_mem_to_reg  (mem_wb_mem_to_reg),
     .debug_mem_wb_is_halt     (mem_wb_is_halt)
   );
   
@@ -415,10 +411,10 @@ module mips_rtype_tb_sm();
         
         // Etapa MEM/WB
         $display("\nMEM/WB:");
-        $display("  ALUResult=%0d, ReadData=%0d, WriteReg=%0d", 
-                mem_wb_alu_result, mem_wb_read_data, mem_wb_write_reg);
-        $display("  WB: RegWrite=%0b, MemToReg=%0b, IsHalt=%0b", 
-                mem_wb_reg_write, mem_wb_mem_to_reg, mem_wb_is_halt);
+        $display("  WriteData=%0d, WriteReg=%0d", 
+                mem_wb_write_data, mem_wb_write_reg);
+        $display("  WB: RegWrite=%0b, IsHalt=%0b", 
+                mem_wb_reg_write, mem_wb_is_halt);
         
         // Resumen de registros de destino en cada etapa
         $display("\nPipeline Registers:");

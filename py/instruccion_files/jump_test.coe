@@ -1,0 +1,42 @@
+memory_initialization_radix=16;
+memory_initialization_vector=
+// === DEMO: SALTOS EN MIPS ===
+// beq, jal, jalr, j
+// Alterna entre dos funciones según flag
+
+// === INICIALIZACIÓN ===
+20010002,  // addi $1, $0, 2        // $1 = 2 (límite del bucle)
+20020000,  // addi $2, $0, 0        // $2 = 0 (contador)
+20060044,  // addi $6, $0, 0x54     // $6 = dirección FUNC1
+2007004C,  // addi $7, $0, 0x60     // $7 = dirección FUNC2
+20080000,  // addi $8, $0, 0        // $8 = 0 (flag alternador)
+
+// === BUCLE PRINCIPAL ===
+1022000F,  // beq $1, $2, HALT      // Si $1 == $2, salta a HALT (offset +13)
+0C000009,  // jal INCR              // Llama a INCR, guarda retorno en $ra
+0060F809,  // jalr $3               // Salta a la función que apunte $3
+08000005,  // j LOOP                // Vuelve al inicio del bucle
+
+// === FUNCIÓN INCR (alternador de funciones) ===
+20420001,  // addi $2, $2, 1        // $2++
+10800003,  // beq $8, $0, USE_FUNC1 // Si flag == 0, salta a USE_FUNC1
+00E01820,  // add $3, $7, $0        // $3 = dirección FUNC2
+20080000,  // addi $8, $0, 0        // flag = 0
+03E00008,  // jr $ra                // Retorna
+
+// === USE_FUNC1: prepara dirección de FUNC1 y alterna flag ===
+00C01820,  // add $3, $6, $0        // $3 = dirección FUNC1
+21080001,  // addi $8, $8, 1        // flag++
+03E00008,  // jr $ra                // Retorna
+
+// === FUNC1: pone 1 en $4 y retorna ===
+20040001,  // addi $4, $0, 1        // $4 = 1
+03E00008,  // jr $ra                // Retorna
+
+// === FUNC2: pone 1 en $5 y retorna ===
+20050001,  // addi $5, $0, 1        // $5 = 1
+03E00008,  // jr $ra                // Retorna
+
+// === FIN DEL PROGRAMA ===
+FFFFFFFF   // halt                  // HALT ficticio (no es MIPS real)
+;

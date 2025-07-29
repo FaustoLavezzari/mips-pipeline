@@ -39,7 +39,6 @@ module debugger_load_instr_tb();
     wire [31:0] mips_mem_data;
     
     // MIPS outputs for verification
-    wire [31:0] mips_result;
     wire        mips_halt;
     
     // Clock generation
@@ -92,7 +91,6 @@ module debugger_load_instr_tb();
         .inst_write_en(mips_inst_write_en),
         .inst_write_addr(mips_inst_write_addr),
         .inst_write_data(mips_inst_write_data),
-        .result(mips_result),
         .halt(mips_halt),
         .reg_addr(mips_reg_addr),
         .reg_data(mips_reg_data),
@@ -129,11 +127,9 @@ module debugger_load_instr_tb();
         .debug_ex_mem_is_halt(),
         .debug_ex_mem_byte_mask(),
         .debug_ex_mem_is_signed_load(),
-        .debug_mem_wb_alu_result(),
-        .debug_mem_wb_read_data(),
+        .debug_mem_wb_write_data(),
         .debug_mem_wb_write_reg(),
         .debug_mem_wb_reg_write(),
-        .debug_mem_wb_mem_to_reg(),
         .debug_mem_wb_is_halt()
     );
     

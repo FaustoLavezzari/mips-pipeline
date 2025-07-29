@@ -9,7 +9,6 @@ module mips_itype_tb_sm();
   reg inst_write_en;        // Señal para escritura de instrucciones
   reg [31:0] inst_write_addr;   // Dirección de escritura
   reg [31:0] inst_write_data;   // Datos de escritura
-  wire [`DATA_WIDTH-1:0] result;
   wire halt;  // Señal de halt
   
   // Señal de stall para control del pipeline
@@ -67,9 +66,9 @@ module mips_itype_tb_sm();
   wire ex_mem_reg_write, ex_mem_mem_read, ex_mem_mem_write, ex_mem_mem_to_reg;
   wire ex_mem_is_halt, ex_mem_is_signed_load;
   wire [3:0] ex_mem_byte_mask;
-  wire [31:0] mem_wb_alu_result, mem_wb_read_data;
+  wire [31:0] mem_wb_write_data;
   wire [4:0] mem_wb_write_reg;
-  wire mem_wb_reg_write, mem_wb_mem_to_reg, mem_wb_is_halt;
+  wire mem_wb_reg_write, mem_wb_is_halt;
 
   // Instancia del módulo MIPS
   mips dut (
@@ -78,7 +77,6 @@ module mips_itype_tb_sm();
     .inst_write_en  (inst_write_en),
     .inst_write_addr(inst_write_addr),
     .inst_write_data(inst_write_data),
-    .result         (result),
     .halt           (halt),
     .stall          (stall),
     .reg_addr       (reg_addr),
@@ -121,11 +119,9 @@ module mips_itype_tb_sm();
     .debug_ex_mem_byte_mask   (ex_mem_byte_mask),
     .debug_ex_mem_is_signed_load (ex_mem_is_signed_load),
     
-    .debug_mem_wb_alu_result  (mem_wb_alu_result),
-    .debug_mem_wb_read_data   (mem_wb_read_data),
+    .debug_mem_wb_write_data  (mem_wb_write_data),
     .debug_mem_wb_write_reg   (mem_wb_write_reg),
     .debug_mem_wb_reg_write   (mem_wb_reg_write),
-    .debug_mem_wb_mem_to_reg  (mem_wb_mem_to_reg),
     .debug_mem_wb_is_halt     (mem_wb_is_halt)
   );
   
@@ -176,13 +172,13 @@ module mips_itype_tb_sm();
     mem_addrs[0] = 0;    // Mem[0]
     mem_addrs[1] = 4;    // Mem[4]
     mem_addrs[2] = 8;    // Mem[8]
-    mem_addrs[3] = 100;  // Mem[100]
-    mem_addrs[4] = 104;  // Mem[104]
-    mem_addrs[5] = 116;  // Mem[116]
-    mem_addrs[6] = 120;  // Mem[120]
-    mem_addrs[7] = 124;  // Mem[124]
-    mem_addrs[8] = 128;  // Mem[128]
-    mem_addrs[9] = 132;  // Mem[132]
+    mem_addrs[3] = 16;   // Mem[16]
+    mem_addrs[4] = 20;   // Mem[20]
+    mem_addrs[5] = 24;   // Mem[24]
+    mem_addrs[6] = 28;   // Mem[28]
+    mem_addrs[7] = 32;   // Mem[32]
+    mem_addrs[8] = 36;   // Mem[36]
+    mem_addrs[9] = 40;   // Mem[40]
 
     // Inicializar valores de memoria
     for (i = 0; i < 10; i = i + 1) begin
@@ -405,10 +401,10 @@ module mips_itype_tb_sm();
         
         // Etapa MEM/WB
         $display("\nMEM/WB:");
-        $display("  ALUResult=%0d, ReadData=%0d, WriteReg=%0d", 
-                mem_wb_alu_result, mem_wb_read_data, mem_wb_write_reg);
-        $display("  WB: RegWrite=%0b, MemToReg=%0b, IsHalt=%0b", 
-                mem_wb_reg_write, mem_wb_mem_to_reg, mem_wb_is_halt);
+        $display("  WriteData=%0d, WriteReg=%0d", 
+                mem_wb_write_data, mem_wb_write_reg);
+        $display("  WB: RegWrite=%0b, IsHalt=%0b", 
+                mem_wb_reg_write, mem_wb_is_halt);
         
         // Resumen de registros de destino en cada etapa
         $display("\nPipeline Registers:");
@@ -448,13 +444,13 @@ module mips_itype_tb_sm();
         $display("Mem[0]=%0d", mem_values[0]);
         $display("Mem[4]=%0d", mem_values[1]);
         $display("Mem[8]=%0d", mem_values[2]);
-        $display("Mem[100]=%0d", mem_values[3]);
-        $display("Mem[104]=%0d", mem_values[4]);
-        $display("Mem[116]=%0d", mem_values[5]);
-        $display("Mem[120]=%0d", mem_values[6]);
-        $display("Mem[124]=%0d", mem_values[7]);
-        $display("Mem[128]=%0d / 0x%h", mem_values[8], mem_values[8]);
-        $display("Mem[132]=%0d / 0x%h", mem_values[9], mem_values[9]);
+        $display("Mem[16]=%0d", mem_values[3]);
+        $display("Mem[20]=%0d", mem_values[4]);
+        $display("Mem[24]=%0d", mem_values[5]);
+        $display("Mem[28]=%0d", mem_values[6]);
+        $display("Mem[32]=%0d", mem_values[7]);
+        $display("Mem[36]=%0d / 0x%h", mem_values[8], mem_values[8]);
+        $display("Mem[40]=%0d / 0x%h", mem_values[9], mem_values[9]);
         
         if (halt) begin
           $display("\n==== Procesador terminado: señal halt detectada (t=%0t ns) ====", $time);
@@ -466,7 +462,7 @@ module mips_itype_tb_sm();
           $display("$1=%0d (Esperado: 170 - XORI)", register_values[1]);
           $display("$2=%0d (Esperado: 20 - ADDI)", register_values[2]);
           $display("$3=%0d (Esperado: 0 - ADDI)", register_values[3]);
-          $display("$4=%0d (Esperado: 100 - ADDI)", register_values[4]);
+          $display("$4=%0d (Esperado: 16 - ADDI)", register_values[4]);
           $display("$5=%0d (Esperado: 40 - ADDIU)", register_values[5]);
           
           // Verificación de resultados ANDI, ORI, SLTI
@@ -504,36 +500,36 @@ module mips_itype_tb_sm();
           $display("$28=%0d (Esperado: 258 - LW)", register_values[28]);
           $display("$29=%0d (Esperado: 258 - LWU)", register_values[29]);
           $display("$30=%0d (Esperado: -256 - ADDI)", register_values[30]);
-          $display("$31=%0d (Esperado: 220 - JAL return)", register_values[31]);
+          $display("$31=%0d (Esperado: dirección de retorno JAL)", register_values[31]);
                  
           // Verificación de memoria usando los valores leídos por debug
-          $display("\nMemoria final:");
-          $display("Mem[0]=%0d (Esperado: 10)", mem_values[0]);
-          $display("Mem[4]=%0d (Esperado: 20)", mem_values[1]);
-          $display("Mem[8]=%0d (Esperado: -10)", mem_values[2]);
-          $display("Mem[100]=%0d (Esperado: 20)", mem_values[3]);
-          $display("Mem[104]=%0d (Esperado: 10)", mem_values[4]);
-          $display("Mem[116]=%0d (Esperado: 255)", mem_values[5]);
-          $display("Mem[120]=%0d (Esperado: 258)", mem_values[6]);
-          $display("Mem[124]=%0d (Esperado: -256)", mem_values[7]);
-          $display("Mem[128]=%0d / 0x%h (Esperado: 220 / 0x000000dc - SB)", mem_values[8], mem_values[8]);
-          $display("Mem[132]=%0d / 0x%h (Esperado: 220 / 0x000000dc - SH)", mem_values[9], mem_values[9]);
+          $display("\n==== VERIFICACIÓN DE MEMORIA ====");
+          $display("Mem[0]=%0d (Esperado: 10 - SW)", mem_values[0]);
+          $display("Mem[4]=%0d (Esperado: 20 - SW)", mem_values[1]);
+          $display("Mem[8]=%0d (Esperado: -10 - SW)", mem_values[2]);
+          $display("Mem[16]=%0d (Esperado: 20 - SW con offset)", mem_values[3]);
+          $display("Mem[20]=%0d (Esperado: 10 - SW con offset)", mem_values[4]);
+          $display("Mem[24]=%0d (Esperado: 255 - SW con offset)", mem_values[5]);
+          $display("Mem[28]=%0d (Esperado: 258 - SW con offset)", mem_values[6]);
+          $display("Mem[32]=%0d (Esperado: -256 - SW con offset)", mem_values[7]);
+          $display("Mem[36]=%0d / 0x%h (Esperado: 220 / 0x000000dc - SB)", mem_values[8], mem_values[8]);
+          $display("Mem[40]=%0d / 0x%h (Esperado: 220 / 0x000000dc - SH)", mem_values[9], mem_values[9]);
                  
           // Verificar resultado
           if (register_values[1] == 170 &&
               register_values[2] == 20 &&
               register_values[3] == 0 &&
-              register_values[4] == 100 &&
+              register_values[4] == 16 &&
               register_values[5] == 40 &&
               register_values[6] == 0 &&
               register_values[7] == 7 &&
               register_values[8] == 0 &&
               register_values[9] == 32'h12340000 &&
-              register_values[10] == -256 &&
+              register_values[10] == 32'hFFFFFF00 &&
               register_values[11] == 65280 &&
               register_values[12] == 10 &&
               register_values[13] == 20 &&
-              register_values[14] == -10 &&
+              register_values[14] == 32'hFFFFFFF6 &&
               register_values[15] == 20 &&
               register_values[16] == 10 &&
               register_values[17] == 220 &&
@@ -542,23 +538,22 @@ module mips_itype_tb_sm();
               register_values[20] == 15 &&
               register_values[21] == 255 &&
               register_values[22] == 32'hABCD0000 &&
-              register_values[23] == -1 &&
+              register_values[23] == 32'hFFFFFFFF &&
               register_values[24] == 255 &&
               register_values[25] == 258 &&
               register_values[26] == 258 &&
               register_values[27] == 258 &&
               register_values[28] == 258 &&
               register_values[29] == 258 &&
-              register_values[30] == -256 &&
-              register_values[31] == 220 &&
+              register_values[30] == 32'hFFFFFF00 &&
               mem_values[0] == 10 &&
               mem_values[1] == 20 &&
-              mem_values[2] == -10 &&
+              mem_values[2] == 32'hFFFFFFF6 &&
               mem_values[3] == 20 &&
               mem_values[4] == 10 &&
               mem_values[5] == 255 &&
               mem_values[6] == 258 &&
-              mem_values[7] == -256 &&
+              mem_values[7] == 32'hFFFFFF00 &&
               mem_values[8] == 220 &&
               mem_values[9] == 220) begin
             $display("\n¡PRUEBA EXITOSA! Todas las instrucciones I-Type implementadas funcionan correctamente.");

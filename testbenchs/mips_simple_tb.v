@@ -9,7 +9,6 @@ module mips_simple_tb();
   reg inst_write_en;        // Nueva señal para escritura de instrucciones
   reg [31:0] inst_write_addr;   // Nueva señal para dirección de escritura
   reg [31:0] inst_write_data;   // Nueva señal para datos de escritura
-  wire [`DATA_WIDTH-1:0] result;
   wire halt;  // Agregamos un wire para la señal de halt
   
   // Señal de stall para cargar instrucciones
@@ -22,7 +21,6 @@ module mips_simple_tb();
     .inst_write_en  (inst_write_en),     // Conectamos los nuevos puertos
     .inst_write_addr(inst_write_addr),
     .inst_write_data(inst_write_data),
-    .result         (result),
     .halt           (halt),  // Conectamos la señal de halt para detectar fin de ejecución
     .stall          (stall)  // Usamos stall para cargar instrucciones
   );
@@ -269,6 +267,10 @@ module mips_simple_tb();
                  dut.wb_write_register_out,
                  dut.wb_write_data,
                  dut.wb_reg_write_out);
+                 
+        // Mostrar el valor actual del registro 5
+        $display("REGISTRO $5: Valor actual = %0d", 
+                 dut.id_stage_inst.reg_bank.registers[1]);
     end
   end
   

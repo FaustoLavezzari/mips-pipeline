@@ -66,11 +66,9 @@ module debugger(
     input  wire        debug_ex_mem_is_signed_load,
     
     // Debug latch signals - MEM/WB
-    input  wire [31:0] debug_mem_wb_alu_result,
-    input  wire [31:0] debug_mem_wb_read_data,
+    input  wire [31:0] debug_mem_wb_write_data,
     input  wire [4:0]  debug_mem_wb_write_reg,
     input  wire        debug_mem_wb_reg_write,
-    input  wire        debug_mem_wb_mem_to_reg,
     input  wire        debug_mem_wb_is_halt,
     
     // Debugger state output for LEDs
@@ -152,13 +150,11 @@ module debugger(
     9. debug_ex_mem_byte_mask (32 bits, extended from 4 bits)
     10. debug_ex_mem_is_signed_load (32 bits, extended from 1 bit)
     
-    CMD_LATCH_MEMWB ('4'): MEM/WB Latch - 6 values (24 bytes total + ACK)
-    1. debug_mem_wb_alu_result (32 bits)
-    2. debug_mem_wb_read_data (32 bits)
-    3. debug_mem_wb_write_reg (32 bits, extended from 5 bits)
-    4. debug_mem_wb_reg_write (32 bits, extended from 1 bit)
-    5. debug_mem_wb_mem_to_reg (32 bits, extended from 1 bit)
-    6. debug_mem_wb_is_halt (32 bits, extended from 1 bit)
+    CMD_LATCH_MEMWB ('4'): MEM/WB Latch - 4 values (16 bytes total + ACK)
+    1. debug_mem_wb_write_data (32 bits)
+    2. debug_mem_wb_write_reg (32 bits, extended from 5 bits)
+    3. debug_mem_wb_reg_write (32 bits, extended from 1 bit)
+    4. debug_mem_wb_is_halt (32 bits, extended from 1 bit)
     */
     
     // ======== State Machine Registers ========
@@ -465,8 +461,8 @@ module debugger(
                                     next_state = LATCH_ACK;
                                 end
                             end
-                            2'b11: begin // MEM/WB - 6 fields
-                                if (latch_data_index == 5'd5) begin
+                            2'b11: begin // MEM/WB - 4 fields
+                                if (latch_data_index == 5'd3) begin
                                     next_state = LATCH_ACK;
                                 end
                             end
@@ -542,12 +538,10 @@ module debugger(
             end
             2'b11: begin // MEM/WB
                 case (latch_data_index)
-                    5'd0: selected_latch_data = debug_mem_wb_alu_result;
-                    5'd1: selected_latch_data = debug_mem_wb_read_data;
-                    5'd2: selected_latch_data = {27'b0, debug_mem_wb_write_reg};
-                    5'd3: selected_latch_data = {31'b0, debug_mem_wb_reg_write};
-                    5'd4: selected_latch_data = {31'b0, debug_mem_wb_mem_to_reg};
-                    5'd5: selected_latch_data = {31'b0, debug_mem_wb_is_halt};
+                    5'd0: selected_latch_data = debug_mem_wb_write_data;
+                    5'd1: selected_latch_data = {27'b0, debug_mem_wb_write_reg};
+                    5'd2: selected_latch_data = {31'b0, debug_mem_wb_reg_write};
+                    5'd3: selected_latch_data = {31'b0, debug_mem_wb_is_halt};
                     default: selected_latch_data = 32'h00000000;
                 endcase
             end

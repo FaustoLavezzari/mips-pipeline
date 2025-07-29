@@ -57,11 +57,9 @@ module mips(
   output wire        debug_ex_mem_is_signed_load,
   
   // Debug latch signals - MEM/WB
-  output wire [31:0] debug_mem_wb_alu_result,
-  output wire [31:0] debug_mem_wb_read_data,
+  output wire [31:0] debug_mem_wb_write_data,
   output wire [4:0]  debug_mem_wb_write_reg,
   output wire        debug_mem_wb_reg_write,
-  output wire        debug_mem_wb_mem_to_reg,
   output wire        debug_mem_wb_is_halt
 );
 
@@ -139,7 +137,7 @@ module mips(
     .i_ex_alu_result  (ex_alu_result),
     .i_mem_rd         (mem_write_register),
     .i_mem_reg_write  (mem_reg_write),
-    .i_mem_alu_result (mem_alu_result),
+    .i_mem_write_data (mem_write_data_out),
     .i_wb_rd          (wb_write_register_out),
     .i_wb_reg_write   (wb_reg_write_out),
     .i_wb_write_data  (wb_write_data),
@@ -380,7 +378,7 @@ module mips(
   );
 
   // ======== Etapa MEM y señales de salida ========
-  wire [31:0] mem_read_data;
+  wire [31:0] mem_write_data_out;
   wire [31:0] mem_alu_result_out;
   wire [4:0]  mem_write_register_out;
   wire        mem_reg_write_out;
@@ -402,37 +400,29 @@ module mips(
     .is_signed_load_in(mem_is_signed_load),
     .i_debug_addr     (mem_debug_addr),
     .o_debug_data     (mem_debug_data),
-    .read_data_out    (mem_read_data),
-    .alu_result_out   (mem_alu_result_out),
+    .write_data_out   (mem_write_data_out),
     .write_register_out(mem_write_register_out),
     .reg_write_out    (mem_reg_write_out),
-    .mem_to_reg_out   (mem_mem_to_reg_out),
     .is_halt_out      (mem_is_halt_out)
   );
 
   // ======== Latch MEM/WB y señales ========
-  wire [31:0] wb_alu_result;
-  wire [31:0] wb_read_data;
+  wire [31:0] wb_write_data_i;
   wire [4:0]  wb_write_register;
   wire        wb_reg_write;
-  wire        wb_mem_to_reg;
   wire        wb_is_halt;
 
   mem_wb mem_wb_latch(
     .clk                 (clk),
     .reset               (reset),
     .stall               (stall_second_half),
-    .alu_result_in       (mem_alu_result_out),
-    .read_data_in        (mem_read_data),
     .write_register_in   (mem_write_register_out),
     .is_halt_in          (mem_is_halt_out),
     .reg_write_in        (mem_reg_write_out),
-    .mem_to_reg_in       (mem_mem_to_reg_out),
-    .alu_result_out      (wb_alu_result),
-    .read_data_out       (wb_read_data),
+    .write_data_in       (mem_write_data_out),
+    .write_data_out      (wb_write_data),
     .write_register_out  (wb_write_register),
     .reg_write_out       (wb_reg_write),
-    .mem_to_reg_out      (wb_mem_to_reg),
     .is_halt_out         (wb_is_halt)
   );
 
@@ -444,12 +434,10 @@ module mips(
   wb_stage wb_stage_inst(
     .clk              (clk),
     .reset            (reset),
-    .i_alu_result     (wb_alu_result),
-    .i_read_data      (wb_read_data),
+    .i_write_data     (wb_write_data_i),
     .i_write_register (wb_write_register),
     .i_reg_write      (wb_reg_write),
-    .i_mem_to_reg     (wb_mem_to_reg),
-    .i_is_halt        (wb_is_halt),    // Conectamos la señal de halt desde el latch MEM/WB
+    .i_is_halt        (wb_is_halt),
     .o_write_data     (wb_write_data),
     .o_write_register (wb_write_register_out),
     .o_reg_write      (wb_reg_write_out),
@@ -461,48 +449,46 @@ module mips(
   
   // ======== Conexión de señales de debug para los latches ========
   // IF/ID
-  assign debug_if_id_instr = id_instr;
-  assign debug_if_id_next_pc = id_next_pc;
+  assign debug_if_id_instr   = if_instr;   // id_instr
+  assign debug_if_id_next_pc = if_next_pc; // id_next_pc
   
   // ID/EX
-  assign debug_id_ex_read_data1 = ex_read_data_1;
-  assign debug_id_ex_read_data2 = ex_read_data_2;
-  assign debug_id_ex_sign_ext_imm = ex_sign_extended_imm;
-  assign debug_id_ex_rs = ex_rs;
-  assign debug_id_ex_rt = ex_rt;
-  assign debug_id_ex_rd = ex_rd;
-  assign debug_id_ex_shamt = ex_shamt;
-  assign debug_id_ex_next_pc = ex_next_pc;
-  assign debug_id_ex_reg_dst = i_ex_reg_dst;
-  assign debug_id_ex_alu_src_b = i_ex_alu_src_b;
-  assign debug_id_ex_alu_src_a = i_ex_alu_src_a;
-  assign debug_id_ex_alu_control = ex_alu_control;
-  assign debug_id_ex_mem_read = i_ex_mem_read;
-  assign debug_id_ex_mem_write = i_ex_mem_write;
-  assign debug_id_ex_reg_write = i_ex_reg_write;
-  assign debug_id_ex_mem_to_reg = i_ex_mem_to_reg;
-  assign debug_id_ex_is_halt = i_ex_is_halt;
-  assign debug_id_ex_byte_mask = i_ex_byte_mask;
-  assign debug_id_ex_is_signed_load = i_ex_is_signed_load;
-  
+  assign debug_id_ex_read_data1     = id_read_data_1;       // ex_read_data_1
+  assign debug_id_ex_read_data2     = id_read_data_2;       // ex_read_data_2
+  assign debug_id_ex_sign_ext_imm   = id_sign_extended_imm; // ex_sign_extended_imm
+  assign debug_id_ex_rs             = id_rs;                // ex_rs
+  assign debug_id_ex_rt             = id_rt;                // ex_rt
+  assign debug_id_ex_rd             = id_rd;                // ex_rd
+  assign debug_id_ex_shamt          = id_shamt;             // ex_shamt
+  assign debug_id_ex_next_pc        = id_next_pc;           // ex_next_pc
+  assign debug_id_ex_reg_dst        = id_reg_dst;           // i_ex_reg_dst
+  assign debug_id_ex_alu_src_b      = id_alu_src_b;         // i_ex_alu_src_b
+  assign debug_id_ex_alu_src_a      = id_alu_src_a;         // i_ex_alu_src_a
+  assign debug_id_ex_alu_control    = id_alu_control;       // ex_alu_control
+  assign debug_id_ex_mem_read       = id_mem_read;          // i_ex_mem_read
+  assign debug_id_ex_mem_write      = id_mem_write;         // i_ex_mem_write
+  assign debug_id_ex_reg_write      = id_reg_write;         // i_ex_reg_write
+  assign debug_id_ex_mem_to_reg     = id_mem_to_reg;        // i_ex_mem_to_reg
+  assign debug_id_ex_is_halt        = halt_detected;        // i_ex_is_halt
+  assign debug_id_ex_byte_mask      = id_byte_mask;         // i_ex_byte_mask
+  assign debug_id_ex_is_signed_load = id_is_signed_load;    // i_ex_is_signed_load
+
   // EX/MEM
-  assign debug_ex_mem_alu_result = mem_alu_result;
-  assign debug_ex_mem_write_data = mem_write_data;
-  assign debug_ex_mem_write_reg = mem_write_register;
-  assign debug_ex_mem_reg_write = mem_reg_write;
-  assign debug_ex_mem_mem_read = mem_mem_read;
-  assign debug_ex_mem_mem_write = mem_mem_write;
-  assign debug_ex_mem_mem_to_reg = mem_mem_to_reg;
-  assign debug_ex_mem_is_halt = mem_is_halt;
-  assign debug_ex_mem_byte_mask = mem_byte_mask;
-  assign debug_ex_mem_is_signed_load = mem_is_signed_load;
+  assign debug_ex_mem_alu_result     = ex_alu_result;     // mem_alu_result
+  assign debug_ex_mem_write_data     = ex_write_data;     // mem_write_data
+  assign debug_ex_mem_write_reg      = ex_write_register; // mem_write_register
+  assign debug_ex_mem_reg_write      = ex_reg_write;      // mem_reg_write
+  assign debug_ex_mem_mem_read       = ex_mem_read;       // mem_mem_read
+  assign debug_ex_mem_mem_write      = ex_mem_write;      // mem_mem_write
+  assign debug_ex_mem_mem_to_reg     = ex_mem_to_reg;     // mem_mem_to_reg
+  assign debug_ex_mem_is_halt        = ex_is_halt;        // mem_is_halt
+  assign debug_ex_mem_byte_mask      = ex_byte_mask;      // mem_byte_mask
+  assign debug_ex_mem_is_signed_load = ex_is_signed_load; // mem_is_signed_load
   
   // MEM/WB
-  assign debug_mem_wb_alu_result = wb_alu_result;
-  assign debug_mem_wb_read_data = wb_read_data;
-  assign debug_mem_wb_write_reg = wb_write_register;
-  assign debug_mem_wb_reg_write = wb_reg_write;
-  assign debug_mem_wb_mem_to_reg = wb_mem_to_reg;
-  assign debug_mem_wb_is_halt = wb_is_halt;
+  assign debug_mem_wb_write_data = mem_write_data_out;     // wb_write_data
+  assign debug_mem_wb_write_reg  = mem_write_register_out; // wb_write_register
+  assign debug_mem_wb_reg_write  = mem_reg_write_out;      // wb_reg_write
+  assign debug_mem_wb_is_halt    = mem_is_halt_out;        // wb_is_halt
 
 endmodule

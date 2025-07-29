@@ -9,7 +9,6 @@ module mips_load_store_tb();
   reg inst_write_en;        // Nueva señal para escritura de instrucciones
   reg [31:0] inst_write_addr;   // Nueva señal para dirección de escritura
   reg [31:0] inst_write_data;   // Nueva señal para datos de escritura
-  wire [`DATA_WIDTH-1:0] result;
   wire halt;  // Agregamos un wire para la señal de halt
   
   // Señal de stall para cargar instrucciones
@@ -22,7 +21,6 @@ module mips_load_store_tb();
     .inst_write_en  (inst_write_en),     // Conectamos los nuevos puertos
     .inst_write_addr(inst_write_addr),
     .inst_write_data(inst_write_data),
-    .result         (result),
     .halt           (halt),
     .stall          (stall)   
   );
@@ -274,9 +272,8 @@ module mips_load_store_tb();
                 dut.mem_alu_result,
                 dut.mem_write_data);
       if (dut.mem_mem_read)
-        $display("MEM: Load from mem[%0h] = 0x%h", 
-                dut.mem_alu_result,
-                dut.mem_read_data);
+        $display("MEM: Write Data[%0h]", 
+                dut.mem_write_data_out);
 
       $display("Halt: %0b", halt);
     end

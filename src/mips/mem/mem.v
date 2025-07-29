@@ -20,11 +20,9 @@ module mem_stage(
   input  wire [31:0] i_debug_addr,      // Dirección de depuración
   output wire [31:0] o_debug_data,      // Dato leído de depuración
   // Salidas
-  output wire [31:0] read_data_out,      // Dato leído de memoria (para LW)
-  output wire [31:0] alu_result_out,     // Pasar el resultado de la ALU a WB
+  output wire [31:0] write_data_out,     // Valor a escribir en registro
   output wire [4:0]  write_register_out, // Registro destino para WB
   output wire        reg_write_out,      // Señal de escritura en registros
-  output wire        mem_to_reg_out,     // Selección ALU/MEM para WB
   output wire        is_halt_out         // Señal de HALT para la siguiente etapa
 );
 
@@ -53,9 +51,10 @@ module mem_stage(
   
   // Datos filtrados antes de extensión de signo
   wire [31:0] filtered_data = {byte3, byte2, byte1, byte0};
+  wire [31:0] read_mem_data;
   
   // Aplicar extensión de signo según la máscara y la señal is_signed_load_in
-  assign read_data_out = 
+  assign read_mem_data = 
     // Para LB: extender desde bit 7 si es carga con signo y solo se leen 8 bits
     (is_signed_load_in && byte_mask_in == 4'b0001) ? 
       {{24{filtered_data[7]}}, filtered_data[7:0]} :
@@ -64,12 +63,10 @@ module mem_stage(
       {{16{filtered_data[15]}}, filtered_data[15:0]} :
     // Para todos los demás casos, usar los datos sin modificar
     filtered_data;
-  
-  // Propagar señales de control y datos
-  assign alu_result_out = alu_result_in;
+
+  assign write_data_out = mem_to_reg_in ? read_mem_data : alu_result_in;
   assign write_register_out = write_register_in;
   assign reg_write_out = reg_write_in;
-  assign mem_to_reg_out = mem_to_reg_in;
   assign is_halt_out = is_halt_in;
 
 endmodule

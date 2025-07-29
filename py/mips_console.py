@@ -216,12 +216,8 @@ class MIPSConsole:
         
     def step_by_step_mode(self):
         """Modo de ejecución paso a paso"""
-        # Recargar el programa antes de comenzar step-by-step
-        if not self.reload_program():
-            return
             
         while True:
-            self.clear_screen()
             self.print_header()
             
             print(f"🔧 Modo Step-by-Step - Paso: {self.step_count}")
@@ -252,6 +248,8 @@ class MIPSConsole:
                         time.sleep(1)
                 elif choice == '4':
                     break
+                elif choice == '5':
+                    self.show_current_state() 
                 else:
                     self.show_error("Opción inválida")
                     
@@ -273,6 +271,7 @@ class MIPSConsole:
                 return False
                 
             self.step_count = 0
+            time.sleep(1)
             return True
             
         except Exception as e:
@@ -433,18 +432,14 @@ class MIPSConsole:
                 else:
                     mem_str = ""
 
-                # MEM/WB (6 campos total)
+                # MEM/WB (4 campos total)
                 if row == 0:
-                    memwb_str = f"ALU:0x{memwb_data['alu_result']:08X}"
+                    memwb_str = f"WDat:0x{memwb_data['write_data']:08X}"
                 elif row == 1:
-                    memwb_str = f"RDat:0x{memwb_data['read_data']:08X}"
-                elif row == 2:
                     memwb_str = f"WReg: ${memwb_data['write_reg']:2d}"
-                elif row == 3:
+                elif row == 2:
                     memwb_str = f"RegW: {memwb_data['reg_write']:d}"
-                elif row == 4:
-                    memwb_str = f"M2R:  {memwb_data['mem_to_reg']:d}"
-                elif row == 5:
+                elif row == 3:
                     memwb_str = f"Halt: {memwb_data['is_halt']:d}"
                 else:
                     memwb_str = ""
@@ -475,10 +470,7 @@ class MIPSConsole:
                 value1 = self.debugger.read_register(reg1_idx)
                 value2 = self.debugger.read_register(reg2_idx)
                 
-                if reg1_idx == 0:
-                    print(f"  ${reg1_idx:2d}: {value1:8d} (0x{value1:08X})    ${reg2_idx:2d}: {value2:8d} (0x{value2:08X})")
-                else:
-                    print(f"  ${reg1_idx:2d}: {value1:8d} (0x{value1:08X})    ${reg2_idx:2d}: {value2:8d} (0x{value2:08X})")
+                print(f"  ${reg1_idx:2d}: 0x{value1:08X}    ${reg2_idx:2d}: 0x{value2:08X}")
 
             # Mostrar todas las palabras de memoria (32 palabras)
             print("\n💾 Estado de las 32 Palabras de Memoria:")
@@ -498,9 +490,9 @@ class MIPSConsole:
                     value2 = self.debugger.read_memory(addr2)
                 except:
                     value2 = 0
-                
-                print(f"  mem[{addr1:3d}]: {value1:8d} (0x{value1:08X})        mem[{addr2:3d}]: {value2:8d} (0x{value2:08X})")
-            
+
+                print(f"  mem[{addr1:3d}]:  0x{value1:08X}        mem[{addr2:3d}]:  0x{value2:08X}")
+
             print("=" * 80)
                     
         except Exception as e:

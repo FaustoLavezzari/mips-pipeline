@@ -389,11 +389,10 @@ class MIPSDebugger:
         # Enviar comando LATCH_MEMWB
         self.send_byte(self.CMD_LATCH_MEMWB)
         
-        # Leer datos del latch (6 valores de 32 bits cada uno)
+        # Leer datos del latch (4 valores de 32 bits cada uno)
         data = {}
         field_names = [
-            'alu_result', 'read_data', 'write_reg', 'reg_write', 
-            'mem_to_reg', 'is_halt'
+            'write_data', 'write_reg', 'reg_write', 'is_halt'
         ]
         
         for field in field_names:

@@ -8,7 +8,6 @@ module mips_jr_tb;
   reg inst_write_en;        // Nueva señal para escritura de instrucciones
   reg [31:0] inst_write_addr;   // Nueva señal para dirección de escritura
   reg [31:0] inst_write_data;   // Nueva señal para datos de escritura
-  wire [31:0] result;
   wire halt;
   
   // Señal de stall para cargar instrucciones
@@ -21,7 +20,6 @@ module mips_jr_tb;
     .inst_write_en(inst_write_en),     // Conectamos los nuevos puertos
     .inst_write_addr(inst_write_addr),
     .inst_write_data(inst_write_data),
-    .result(result),
     .halt(halt),
     .stall(stall)
   );

@@ -17,7 +17,7 @@ Latch Debug Commands:
 - '1' (0x31): Get IF/ID latch values (2 fields, 8 bytes + ACK)
 - '2' (0x32): Get ID/EX latch values (19 fields, 76 bytes + ACK)  
 - '3' (0x33): Get EX/MEM latch values (10 fields, 40 bytes + ACK)
-- '4' (0x34): Get MEM/WB latch values (6 fields, 24 bytes + ACK)
+- '4' (0x34): Get MEM/WB latch values (4 fields, 16 bytes + ACK)
 
 All latch data is sent as 32-bit big-endian values.
 See debugger.v for detailed field transmission order.
@@ -111,11 +111,9 @@ module top(
     wire        debug_ex_mem_is_signed_load;
     
     // Debug latch signals - MEM/WB
-    wire [31:0] debug_mem_wb_alu_result;
-    wire [31:0] debug_mem_wb_read_data;
+    wire [31:0] debug_mem_wb_write_data;
     wire [4:0]  debug_mem_wb_write_reg;
     wire        debug_mem_wb_reg_write;
-    wire        debug_mem_wb_mem_to_reg;
     wire        debug_mem_wb_is_halt;
     
     // ======== Señales de debug Debugger ========
@@ -225,11 +223,9 @@ module top(
         .debug_ex_mem_is_signed_load(debug_ex_mem_is_signed_load),
         
         // Debug latch signals - MEM/WB
-        .debug_mem_wb_alu_result(debug_mem_wb_alu_result),
-        .debug_mem_wb_read_data(debug_mem_wb_read_data),
+        .debug_mem_wb_write_data(debug_mem_wb_write_data),
         .debug_mem_wb_write_reg(debug_mem_wb_write_reg),
         .debug_mem_wb_reg_write(debug_mem_wb_reg_write),
-        .debug_mem_wb_mem_to_reg(debug_mem_wb_mem_to_reg),
         .debug_mem_wb_is_halt(debug_mem_wb_is_halt),
         
         // Debugger state output
@@ -294,11 +290,9 @@ module top(
         .debug_ex_mem_is_signed_load(debug_ex_mem_is_signed_load),
         
         // Debug latch signals - MEM/WB
-        .debug_mem_wb_alu_result(debug_mem_wb_alu_result),
-        .debug_mem_wb_read_data(debug_mem_wb_read_data),
+        .debug_mem_wb_write_data(debug_mem_wb_write_data),
         .debug_mem_wb_write_reg(debug_mem_wb_write_reg),
         .debug_mem_wb_reg_write(debug_mem_wb_reg_write),
-        .debug_mem_wb_mem_to_reg(debug_mem_wb_mem_to_reg),
         .debug_mem_wb_is_halt(debug_mem_wb_is_halt)
     );
 
