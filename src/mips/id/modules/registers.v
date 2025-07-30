@@ -3,7 +3,6 @@
 
 module registers_bank
   #(
-    // Número de registros y ancho de cada uno
     parameter REGISTERS_BANK_SIZE = 32,
     parameter REGISTERS_SIZE      = `DATA_WIDTH
   )
@@ -31,9 +30,7 @@ module registers_bank
         registers[i] <= {{REGISTERS_SIZE{1'b0}}};
     end
     else if (i_write_enable) begin
-      // Escritura condicionada y protección del registro 0
       if (i_write_register != 0) begin
-        //$display("REGISTRO: Escritura en $%0d = %0d", i_write_register, i_write_data);
         registers[i_write_register] <= i_write_data;
       end else begin
         registers[i_write_register] <= {{REGISTERS_SIZE{1'b0}}};
@@ -41,14 +38,8 @@ module registers_bank
     end
   end
 
-  // Implementación de bypassing: si estamos leyendo el mismo registro que estamos escribiendo
-  // en el mismo ciclo, se entrega el nuevo valor directamente (forwarding interno)
-  assign o_read_data_1 = (i_write_enable && (i_read_register_1 == i_write_register) && (i_read_register_1 != 0)) ? 
-                          i_write_data : registers[i_read_register_1];
-  
-  assign o_read_data_2 = (i_write_enable && (i_read_register_2 == i_write_register) && (i_read_register_2 != 0)) ? 
-                          i_write_data : registers[i_read_register_2];
-
+  assign o_read_data_1 = registers[i_read_register_1];
+  assign o_read_data_2 = registers[i_read_register_2];
   assign o_debug_reg_value = registers[i_debug_reg];
 
 endmodule
