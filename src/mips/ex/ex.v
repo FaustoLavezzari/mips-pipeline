@@ -16,12 +16,6 @@ module ex_stage(
   input  wire [31:0] i_shamt,             // Campo shamt ya extendido a 32 bits
   input  wire [31:0] i_next_pc,           // PC+4 para JAL/JALR
   
-  // Entradas para forwarding
-  input  wire [31:0] i_forwarded_value_a, // Valor forwardeado para RS
-  input  wire [31:0] i_forwarded_value_b, // Valor forwardeado para RT
-  input  wire        i_use_forwarded_a,   // Control de forwarding para RS
-  input  wire        i_use_forwarded_b,   // Control de forwarding para RT
-
   // Señales de control
   input  wire        i_alu_src_b,         // Selección entre rt o inmediato
   input  wire [1:0]  i_alu_src_a,         // Selección entre rs o PC+4 o shamt
@@ -48,32 +42,33 @@ module ex_stage(
   output wire        o_is_signed_load     // Indica si es una carga con extensión de signo
 );
 
+  wire [31:0] alu_input_a;
+  wire [31:0] alu_input_b;
+
   //----------------------------------------------------------------------
-  // 1. LÓGICA DE FORWARDING Y VALORES DE OPERANDOS
+  // 1. OPERANDOS DE LA ALU
   //----------------------------------------------------------------------
   
-  wire [31:0] updated_rs = i_use_forwarded_a ? i_forwarded_value_a : i_read_data_1;
-  wire [31:0] updated_rt = i_use_forwarded_b ? i_forwarded_value_b : i_read_data_2;
-
-  reg [31:0] alu_input_a;
-  always @(*) begin
-    case(i_alu_src_a)
-      `CTRL_ALU_SRC_A_REG:   alu_input_a = updated_rs;
-      `CTRL_ALU_SRC_A_PC:    alu_input_a = i_next_pc;
-      `CTRL_ALU_SRC_A_SHAMT: alu_input_a = i_shamt;
-      default:               alu_input_a = updated_rs;  
-    endcase
-  end
-
-  reg [31:0] alu_input_b;
-  always @(*) begin
-    case(i_alu_src_b)
-      `CTRL_ALU_SRC_B_REG: alu_input_b = updated_rt;
-      `CTRL_ALU_SRC_B_IMM: alu_input_b = i_sign_extended_imm;
-      default:             alu_input_b = 32'b0;
-    endcase
-  end
-
+  // Mux para selección del operando A de la ALU
+  mux #(
+    .CHANNELS(3),
+    .BUS_SIZE(32)
+  ) alu_src_a_mux (
+    .selector(i_alu_src_a),
+    .data_in({i_shamt, i_next_pc, i_read_data_1}),  
+    .data_out(alu_input_a)
+  );
+  
+  // Mux para selección del operando B de la ALU
+  mux #(
+    .CHANNELS(2),
+    .BUS_SIZE(32)
+  ) alu_src_b_mux (
+    .selector(i_alu_src_b),
+    .data_in({i_sign_extended_imm, i_read_data_2}),
+    .data_out(alu_input_b)
+  );
+  
   //----------------------------------------------------------------------
   // 2. EJECUCIÓN DE LA ALU
   //----------------------------------------------------------------------
@@ -88,12 +83,19 @@ module ex_stage(
   //----------------------------------------------------------------------
   // 3. SELECCIÓN DE REGISTRO Y SEÑALES DE CONTROL
   //----------------------------------------------------------------------
-  // Selección del registro destino
-  assign o_write_register = i_reg_dst ? i_rd : i_rt;
+  // Mux para selección del registro destino
+  mux #(
+    .CHANNELS(2),
+    .BUS_SIZE(5)
+  ) reg_dst_mux (
+    .selector(i_reg_dst),
+    .data_in({i_rd, i_rt}),
+    .data_out(o_write_register)
+  );
   
   // Valor rt para instrucciones store
-  assign o_read_data_2 = updated_rt;
-  
+  assign o_read_data_2 = i_read_data_2;
+
   // Paso de señales de control a la siguiente etapa
   assign o_reg_write = i_reg_write;
   assign o_mem_read = i_mem_read;

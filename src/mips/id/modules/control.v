@@ -3,6 +3,7 @@
 module control(
   input  wire [5:0] opcode,       // Campo opcode de la instrucción
   input  wire [5:0] funct,        // Campo funct de la instrucción (para detectar JR/JALR)
+  input  wire       i_is_equal,   // Condición de igualdad para BEQ/BNE
   output reg        reg_dst,      // Selección del registro destino
   output reg        alu_src_b,    // Selección del segundo operando de la ALU
   output reg  [1:0] alu_src_a,    // Selección del primer operando de la ALU
@@ -12,29 +13,39 @@ module control(
   output reg        reg_write,    // Habilitación de escritura en banco de registros
   output reg  [3:0] byte_mask,    // Máscara de bytes para operaciones de memoria
   output reg        is_signed_load, // Indica si es una carga con extensión de signo
-  output reg  [2:0] o_branch_type, // Tipo de instrucción de salto:
+  output reg  [1:0] o_target_addr,  // Selector para dirección de destino del salto
+  output reg        o_take_branch,  // Señal de control de salto
+  output reg        o_is_jal,       // Indica si es JAL o JALR (para seleccionar rd = $31)
   output reg  [3:0] alu_control   // Señal de control para la ALU (nueva)
 );
 
+  // Variable local para tipo de branch
+  reg [2:0] branch_type;
+
   always @(*) begin
     // Valores por defecto
-    reg_dst    = `CTRL_REG_DST_RT;     // Por defecto usa rt como registro destino
-    alu_src_a  = `CTRL_ALU_SRC_A_REG;  // Por defecto usa rs
-    alu_src_b  = `CTRL_ALU_SRC_B_REG;  // Por defecto usa el registro rt
-    mem_read   = 1'b0;                 // Por defecto no lee memoria
-    mem_write  = 1'b0;                 // Por defecto no escribe memoria
-    mem_to_reg = `CTRL_MEM_TO_REG_ALU; // Por defecto usa resultado de ALU
-    reg_write  = `CTRL_REG_WRITE_DIS;  // Por defecto no escribe en registros
-    byte_mask  = 4'b0000;              // Por defecto no accede a ningún byte
-    is_signed_load = 1'b0;             // Por defecto no es una carga con extensión de signo
-    o_branch_type = `BRANCH_TYPE_NONE; // Por defecto no es un salto
-    alu_control = `ALU_BYPASS_A;       // Por defecto usa operando A directamente
+    reg_dst      = `CTRL_REG_DST_RT;     // Por defecto usa rt como registro destino
+    alu_src_a    = `CTRL_ALU_SRC_A_REG;  // Por defecto usa rs
+    alu_src_b    = `CTRL_ALU_SRC_B_REG;  // Por defecto usa el registro rt
+    mem_read     = 1'b0;                 // Por defecto no lee memoria
+    mem_write    = 1'b0;                 // Por defecto no escribe memoria
+    mem_to_reg   = `CTRL_MEM_TO_REG_ALU; // Por defecto usa resultado de ALU
+    reg_write    = `CTRL_REG_WRITE_DIS;  // Por defecto no escribe en registros
+    byte_mask    = 4'b0000;              // Por defecto no accede a ningún byte
+    is_signed_load = 1'b0;               // Por defecto no es una carga con extensión de signo
+    alu_control  = `ALU_BYPASS_A;        // Por defecto usa operando A directamente
+    o_target_addr = `TARGET_BRANCH;      // Por defecto usa dirección de branch
+    o_take_branch = 1'b0;                // Por defecto no salta
+    o_is_jal     = 1'b0;                 // Por defecto no es JAL/JALR
+    branch_type  = `BRANCH_TYPE_NONE;    // Por defecto no es un salto
     
     case(opcode)
       `OPCODE_R_TYPE: begin
         case(funct)
           `FUNC_JR: begin
-            o_branch_type = `BRANCH_TYPE_JR;
+            branch_type = `BRANCH_TYPE_JR;
+            o_target_addr = `TARGET_JR;
+            o_take_branch = 1'b1;
             alu_control = `ALU_BYPASS_A;     // JR - No se usa ALU
           end
           
@@ -42,7 +53,10 @@ module control(
             reg_dst       = `CTRL_REG_DST_RD;      // Ya forzamos rd = $31 en la etapa ID
             alu_src_a     = `CTRL_ALU_SRC_A_PC;    // Usa el PC+4
             reg_write     = `CTRL_REG_WRITE_EN;    // Escribe en $31 (ra) o el registro rd
-            o_branch_type = `BRANCH_TYPE_JALR;
+            branch_type   = `BRANCH_TYPE_JALR;
+            o_target_addr = `TARGET_JR;
+            o_take_branch = 1'b1;
+            o_is_jal      = 1'b1;                  // Es una instrucción JAL
             alu_control   = `ALU_BYPASS_A;         // JALR - Usa PC+4 para guardar en rd
           end
 
@@ -282,26 +296,35 @@ module control(
       
       // Instrucciones de salto
       `OPCODE_BEQ: begin
-        o_branch_type = `BRANCH_TYPE_BEQ;
-        alu_control = `ALU_BYPASS_A;        // No se usa ALU en BEQ
+        branch_type = `BRANCH_TYPE_BEQ;
+        o_target_addr = `TARGET_BRANCH;
+        o_take_branch = i_is_equal;           // Salta solo si rs == rt
+        alu_control = `ALU_BYPASS_A;          // No se usa ALU en BEQ
       end
       
       `OPCODE_BNE: begin
-        o_branch_type = `BRANCH_TYPE_BNE;
-        alu_control = `ALU_BYPASS_A;        // No se usa ALU en BNE
+        branch_type = `BRANCH_TYPE_BNE;
+        o_target_addr = `TARGET_BRANCH;
+        o_take_branch = !i_is_equal;          // Salta solo si rs != rt
+        alu_control = `ALU_BYPASS_A;          // No se usa ALU en BNE
       end
       
       `OPCODE_J: begin
-        o_branch_type = `BRANCH_TYPE_J;
-        alu_control = `ALU_BYPASS_A;        // No se usa ALU en J    
+        branch_type = `BRANCH_TYPE_J;
+        o_target_addr = `TARGET_JUMP;
+        o_take_branch = 1'b1;                 // Siempre salta
+        alu_control = `ALU_BYPASS_A;          // No se usa ALU en J    
       end
       
       `OPCODE_JAL: begin
-        reg_dst    = `CTRL_REG_DST_RD;      // Forzamos rd = $31 en la etapa ID
-        alu_src_a  = `CTRL_ALU_SRC_A_PC;    // Usa el PC+4  
-        reg_write  = `CTRL_REG_WRITE_EN;    // Escribe en $31 (ra)
-        o_branch_type = `BRANCH_TYPE_JAL;
-        alu_control = `ALU_BYPASS_A;        // JAL - usar PC+4 como operando A
+        reg_dst    = `CTRL_REG_DST_RD;        // Forzamos rd = $31 en la etapa ID
+        alu_src_a  = `CTRL_ALU_SRC_A_PC;      // Usa el PC+4  
+        reg_write  = `CTRL_REG_WRITE_EN;      // Escribe en $31 (ra)
+        branch_type = `BRANCH_TYPE_JAL;
+        o_target_addr = `TARGET_JUMP;
+        o_take_branch = 1'b1;                 // Siempre salta
+        o_is_jal   = 1'b1;                    // Es una instrucción JAL
+        alu_control = `ALU_BYPASS_A;          // JAL - usar PC+4 como operando A
       end
       
       default: alu_control = `ALU_ADD;      // Por defecto, suma

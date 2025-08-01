@@ -35,13 +35,13 @@ module id_forwarding (
   // 11: Forwarding desde etapa WB
   
   // Señales de control para forwarding - mejorado para permitir mejor detección de dependencias
-  wire forward_ex_rs = (i_ex_rd == i_id_rs && i_id_rs != 0 && i_ex_reg_write);
+  wire forward_ex_rs  = (i_ex_rd  == i_id_rs && i_id_rs != 0 && i_ex_reg_write );
   wire forward_mem_rs = (i_mem_rd == i_id_rs && i_id_rs != 0 && i_mem_reg_write);
-  wire forward_wb_rs = (i_wb_rd == i_id_rs && i_id_rs != 0 && i_wb_reg_write);
+  wire forward_wb_rs  = (i_wb_rd  == i_id_rs && i_id_rs != 0 && i_wb_reg_write );
   
-  wire forward_ex_rt = (i_ex_rd == i_id_rt && i_id_rt != 0 && i_ex_reg_write);
+  wire forward_ex_rt  = (i_ex_rd  == i_id_rt && i_id_rt != 0 && i_ex_reg_write );
   wire forward_mem_rt = (i_mem_rd == i_id_rt && i_id_rt != 0 && i_mem_reg_write);
-  wire forward_wb_rt = (i_wb_rd == i_id_rt && i_id_rt != 0 && i_wb_reg_write);
+  wire forward_wb_rt  = (i_wb_rd  == i_id_rt && i_id_rt != 0 && i_wb_reg_write );
   
   // Determinar si es necesario usar forwardeo para cada operando
   assign o_use_forwarded_a = forward_ex_rs || forward_mem_rs || forward_wb_rs;
@@ -49,14 +49,14 @@ module id_forwarding (
   
   // Selección de los valores forwardeados con prioridad correcta: EX > MEM > WB
   // Esto es crucial para branches que necesitan valores actualizados
-  assign o_forwarded_value_a = forward_ex_rs ? i_ex_alu_result :
-                              forward_mem_rs ? i_mem_write_data :
-                              forward_wb_rs ? i_wb_write_data :
-                              32'b0; // Este valor no se usará cuando o_use_forwarded_a sea 0
+  assign o_forwarded_value_a = forward_ex_rs  ? i_ex_alu_result  :
+                               forward_mem_rs ? i_mem_write_data :
+                               forward_wb_rs  ? i_wb_write_data  :
+                               32'b0; // Este valor no se usará cuando o_use_forwarded_a sea 0
                               
-  assign o_forwarded_value_b = forward_ex_rt ? i_ex_alu_result :
-                              forward_mem_rt ? i_mem_write_data :
-                              forward_wb_rt ? i_wb_write_data :
-                              32'b0; // Este valor no se usará cuando o_use_forwarded_b sea 0
+  assign o_forwarded_value_b = forward_ex_rt  ? i_ex_alu_result  :
+                               forward_mem_rt ? i_mem_write_data :
+                               forward_wb_rt  ? i_wb_write_data  :
+                               32'b0; // Este valor no se usará cuando o_use_forwarded_b sea 0
 
 endmodule

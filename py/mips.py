@@ -28,7 +28,7 @@ import sys
 import os
 
 class MIPSDebugger:
-    def __init__(self, baudrate=19200, timeout=2):
+    def __init__(self, baudrate=19200, timeout=5):
         self.ser = None
         self.baudrate = baudrate
         self.timeout = timeout

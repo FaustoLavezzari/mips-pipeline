@@ -24,17 +24,28 @@ module if_stage(
   wire [31:0]   pc;
   wire [31:0]   pc_next; 
   wire [31:0]   instr;
+  wire [31:0] next_pc_selected;
 
-  // Calcular PC+4
-  add4 add4_inst (
-    .in   (pc), 
-    .out  (pc_next)
+
+  // Calcular PC+4 
+  adder #(
+    .WIDTH(32)
+  ) pc_adder_inst (
+    .a(pc),
+    .b(32'd4),
+    .sum(pc_next)
   );
     
   // Seleccionar la dirección de destino
-  wire [31:0] next_pc_selected = i_take_branch ? i_branch_target_addr : pc_next;
+  mux #(
+    .CHANNELS(2),
+    .BUS_SIZE(32)
+  ) pc_mux_inst (
+    .selector(i_take_branch),  
+    .data_in({i_branch_target_addr, pc_next}),
+    .data_out(next_pc_selected)
+  );
 
-  // Actualizar el PC con el valor seleccionado
   PC pc_inst(
     .clk           (clk),    
     .reset         (reset),
@@ -43,19 +54,18 @@ module if_stage(
     .pc            (pc)
   );
 
-  // Leer la instrucción de memoria - ahora con señales de escritura y lectura separadas
+  
   instr_mem imem_inst ( 
     .clk       (clk),
     .reset     (reset),
     .write_en  (i_inst_write_en),
     .read_en   (1'b1),                
-    .read_addr (pc),                  // Leer desde el PC actual
-    .write_addr(i_inst_write_addr),   // Dirección de escritura separada
+    .read_addr (pc),                  
+    .write_addr(i_inst_write_addr),  
     .write_data(i_inst_write_data),
     .instr     (o_instr)
   );
 
-  // Enviar PC+4 a la siguiente etapa
   assign o_next_pc = pc_next;
 
 endmodule

@@ -53,38 +53,58 @@ module id_stage(
 );
 
   //----------------------------------------------------------------------
-  // 1. EXTRACCIÓN DE CAMPOS DE LA INSTRUCCIÓN
+  // DECLARACIONES DE SEÑALES INTERNAS
   //----------------------------------------------------------------------
-  wire [5:0] opcode = i_instruction[31:26];
-  wire [4:0] rs     = i_instruction[25:21];
-  wire [4:0] rt     = i_instruction[20:16];
-  wire [4:0] rd     = i_instruction[15:11];
-  wire [4:0] shamt  = i_instruction[10:6];
-  wire [15:0] immediate = i_instruction[15:0];
-  wire [25:0] target = i_instruction[25:0];
-  wire [5:0]  funct  = i_instruction[5:0];
+  // Señales decodificadas de instrucción (salidas del instruction_decoder)
+  wire [5:0]  opcode;
+  wire [4:0]  rd;
+  wire [5:0]  funct;
+  wire [25:0] target;
+  
+  // Señales del banco de registros (salidas del registers_bank)
+  wire [31:0] reg_data_1;
+  wire [31:0] reg_data_2;
+  
+  // Señales de control
+  wire        is_equal = (o_read_data_2 == o_read_data_1);
+  wire [1:0]  target_addr_sel;
+  wire        is_jal;
+  
+  // Señales de direcciones de salto
+  wire [31:0] shifted_imm = o_sign_extended_imm << 2;              // Desplazamiento para branch
+  wire [31:0] branch_target;                                       // Salida del adder
+  wire [31:0] jump_target = {i_next_pc[31:28], target, 2'b00};     // Jump target para J/JAL
+  wire [31:0] jr_target = o_read_data_1;                           // Target para JR/JALR (contenido de rs)
 
-  // Asignar el opcode como salida
+  //----------------------------------------------------------------------
+  // 1. DECODIFICACIÓN DE LA INSTRUCCIÓN
+  //----------------------------------------------------------------------
+  // Instancia del decodificador de instrucciones
+  instruction_decoder inst_decoder (
+    .i_instruction       (i_instruction),
+    .o_opcode            (opcode),
+    .o_rs                (o_rs),
+    .o_rt                (o_rt),
+    .o_rd                (rd),
+    .o_funct             (funct),
+    .o_shamt             (o_shamt),
+    .o_sign_extended_imm (o_sign_extended_imm),
+    .o_target            (target)
+  );
+  
+  // Asignar opcode como salida
   assign o_opcode = opcode;
 
   //----------------------------------------------------------------------
   // 2. BANCO DE REGISTROS Y FORWARDING
   //----------------------------------------------------------------------
-  // Valores leídos del banco de registros
-  wire [31:0] reg_data_1;
-  wire [31:0] reg_data_2;
-  
-  // Valores después del forwarding
-  reg [31:0] forwarded_data_1;
-  reg [31:0] forwarded_data_2;
-
   // Instancia del banco de registros
   registers_bank reg_bank(
     .i_clk            (clk),
     .i_reset          (reset),
     .i_write_enable   (i_reg_write),
-    .i_read_register_1(rs),
-    .i_read_register_2(rt),
+    .i_read_register_1(o_rs),
+    .i_read_register_2(o_rt),
     .i_write_register (i_write_register),
     .i_write_data     (i_write_data),
     .o_read_data_1    (reg_data_1),
@@ -93,29 +113,33 @@ module id_stage(
     .o_debug_reg_value(o_debug_reg_value)
   );
   
-  // Lógica de forwarding para operando A (RS), incluye caso especial JAL/JALR
-  always @(*) begin
-      forwarded_data_1 = i_use_forwarded_a ? i_forwarded_value_a : reg_data_1;
-  end
+  // Mux para forwarding del operando A (RS)
+  mux #(
+    .CHANNELS(2),
+    .BUS_SIZE(32)
+  ) forwarding_mux_a (
+    .selector(i_use_forwarded_a),
+    .data_in({i_forwarded_value_a, reg_data_1}),
+    .data_out(o_read_data_1)
+  );
   
-  // Lógica de forwarding para operando B (RT)
-  always @(*) begin
-    forwarded_data_2 = i_use_forwarded_b ? i_forwarded_value_b : reg_data_2;
-  end
-
-  // Datos de los registros con forwarding aplicado
-  assign o_read_data_1 = forwarded_data_1; 
-  assign o_read_data_2 = forwarded_data_2;
+  // Mux para forwarding del operando B (RT) 
+  mux #(
+    .CHANNELS(2),
+    .BUS_SIZE(32)
+  ) forwarding_mux_b (
+    .selector(i_use_forwarded_b),
+    .data_in({i_forwarded_value_b, reg_data_2}),
+    .data_out(o_read_data_2)
+  );
 
   //----------------------------------------------------------------------
   // 3. UNIDAD DE CONTROL Y SEÑALES DERIVADAS
   //----------------------------------------------------------------------
-  wire [2:0] branch_type;
-  
-  // Instancia de la unidad de control
   control control_inst (
-    .opcode       (opcode),
-    .funct        (funct), 
+    .opcode       (o_opcode),
+    .funct        (funct),
+    .i_is_equal   (is_equal),
     .reg_dst      (o_reg_dst),
     .reg_write    (o_reg_write),
     .alu_src_b    (o_alu_src_b),
@@ -125,43 +149,39 @@ module id_stage(
     .mem_to_reg   (o_mem_to_reg),
     .byte_mask    (o_byte_mask),
     .is_signed_load(o_is_signed_load),
-    .o_branch_type(branch_type),
+    .o_target_addr(target_addr_sel),
+    .o_take_branch(o_take_branch),
+    .o_is_jal     (is_jal),
     .alu_control  (o_alu_control)
   );
-
-  // Extensión de signo del inmediato
-  assign o_sign_extended_imm = {{16{immediate[15]}}, immediate};
-
-  // Valores de salida para la etapa EX
-  assign o_rs = rs;
-  assign o_rt = rt;
-  assign o_rd = (branch_type == `BRANCH_TYPE_JAL) ? 5'b11111 : rd;  // JAL: rd = $31
-  assign o_shamt = {27'b0, shamt};
-  assign o_opcode = opcode;
-
-  //----------------------------------------------------------------------
-  // 4. LÓGICA DE CONTROL DE SALTOS
-  //----------------------------------------------------------------------
-  // Cálculo de direcciones de salto
-  wire [31:0] shifted_imm = o_sign_extended_imm << 2; // Desplazamiento para branch
-  wire [31:0] branch_target = i_next_pc + shifted_imm; // PC+4 + (imm<<2) para BEQ/BNE
-  wire [31:0] jump_target = {i_next_pc[31:28], target, 2'b00}; // Jump target para J/JAL
-  wire [31:0] jr_target = forwarded_data_1; // Target para JR/JALR (contenido de rs)
   
-  // Condición de igualdad para BEQ/BNE
-  wire is_equal = (forwarded_data_1 == forwarded_data_2);
+  // Mux para selección de registro destino (rd vs $31 para JAL/JALR)
+  mux #(
+    .CHANNELS(2),
+    .BUS_SIZE(5)
+  ) rd_select_mux (
+    .selector(is_jal),
+    .data_in({5'b11111, rd}),  // {$31, rd}
+    .data_out(o_rd)
+  );
+
+  // Calcular branch target: PC+4 + (imm<<2)
+  adder #(
+    .WIDTH(32)
+  ) branch_adder (
+    .a(i_next_pc),
+    .b(shifted_imm),
+    .sum(branch_target)
+  );
   
-  // Lógica de selección de salto
-  assign o_take_branch = 
-      ((branch_type == `BRANCH_TYPE_BEQ) && is_equal) ||         // BEQ y rs=rt
-      ((branch_type == `BRANCH_TYPE_BNE) && !is_equal) ||        // BNE y rs≠rt
-      (branch_type >= `BRANCH_TYPE_J);                           // Cualquier jump
-  
-  // Selección de dirección de destino
-  assign o_branch_target_addr = 
-      (branch_type == `BRANCH_TYPE_BEQ || branch_type == `BRANCH_TYPE_BNE) ? branch_target :
-      (branch_type == `BRANCH_TYPE_J || branch_type == `BRANCH_TYPE_JAL) ? jump_target :
-      (branch_type == `BRANCH_TYPE_JR || branch_type == `BRANCH_TYPE_JALR) ? jr_target :
-      32'b1; // Valor por defecto (no debería ocurrir)
+  // Mux para selección de dirección de destino del salto
+  mux #(
+    .CHANNELS(3),
+    .BUS_SIZE(32)
+  ) branch_target_mux (
+    .selector(target_addr_sel),
+    .data_in({jr_target, jump_target, branch_target}),
+    .data_out(o_branch_target_addr)
+  );
       
 endmodule

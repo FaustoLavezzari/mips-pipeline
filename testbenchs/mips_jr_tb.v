@@ -224,7 +224,7 @@ module mips_jr_tb;
       $display("Branch Control: Take Branch=%0b, Target Address=0x%0h, Branch Type=%0b, PC+4=0x%h", 
          dut.id_take_branch,
          dut.id_branch_target_addr,
-         dut.id_stage_inst.branch_type,
+         dut.id_stage_inst.control_inst.branch_type,
          dut.id_next_pc);
 
       $display("EX: ALUinputA=%0d, ALUinputB=%0d, ALUControl=%0d, ALUResult=%0d, RD=%0d, RegWrite=%0b",

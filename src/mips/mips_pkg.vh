@@ -73,7 +73,7 @@
 `define CTRL_ALU_SRC_B_IMM  1'b1
 `define CTRL_ALU_SRC_A_REG   2'b00
 `define CTRL_ALU_SRC_A_PC    2'b01
-`define CTRL_ALU_SRC_A_SHAMT 2'b11
+`define CTRL_ALU_SRC_A_SHAMT 2'b10
 `define CTRL_MEM_READ_EN    1'b1
 `define CTRL_MEM_WRITE_EN   1'b1
 `define CTRL_MEM_TO_REG_ALU 1'b0
@@ -91,3 +91,8 @@
 `define BRANCH_TYPE_JAL   3'b100  // Jump and Link
 `define BRANCH_TYPE_JR    3'b101  // Jump Register
 `define BRANCH_TYPE_JALR  3'b110  // Jump and Link Register
+
+// Selectores para target address
+`define TARGET_BRANCH     2'b00   // PC+4 + (imm<<2) para BEQ/BNE
+`define TARGET_JUMP       2'b01   // {PC[31:28], target, 2'b00} para J/JAL
+`define TARGET_JR         2'b10   // Contenido de rs para JR/JALR

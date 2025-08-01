@@ -27,9 +27,9 @@ module mem_stage(
 );
 
   // Señales internas
-  wire [31:0] raw_read_data; // Datos sin filtrar de la memoria
+  wire [31:0] filtered_read_data; // Datos ya filtrados desde la memoria
   
-  // Instanciar el módulo de memoria de datos con la nueva interfaz
+  // Instanciar el módulo de memoria de datos con filtrado integrado
   data_memory data_mem (
     .clk(clk),
     .reset(reset),
@@ -38,31 +38,21 @@ module mem_stage(
     .mem_write_in(mem_write_in),
     .mem_read_in(mem_read_in),
     .byte_mask(byte_mask_in),
-    .read_data_out(raw_read_data),
+    .read_data_out(filtered_read_data),
     .i_debug_addr(i_debug_addr),
     .o_debug_data(o_debug_data)
   );
   
-  // Filtrar los datos leídos según la máscara de bytes
-  wire [7:0] byte0 = byte_mask_in[0] ? raw_read_data[7:0]   : 8'b0;
-  wire [7:0] byte1 = byte_mask_in[1] ? raw_read_data[15:8]  : 8'b0;
-  wire [7:0] byte2 = byte_mask_in[2] ? raw_read_data[23:16] : 8'b0;
-  wire [7:0] byte3 = byte_mask_in[3] ? raw_read_data[31:24] : 8'b0;
-  
-  // Datos filtrados antes de extensión de signo
-  wire [31:0] filtered_data = {byte3, byte2, byte1, byte0};
+  // Señal intermedia para el procesamiento de extensión de signo
   wire [31:0] read_mem_data;
   
-  // Aplicar extensión de signo según la máscara y la señal is_signed_load_in
-  assign read_mem_data = 
-    // Para LB: extender desde bit 7 si es carga con signo y solo se leen 8 bits
-    (is_signed_load_in && byte_mask_in == 4'b0001) ? 
-      {{24{filtered_data[7]}}, filtered_data[7:0]} :
-    // Para LH: extender desde bit 15 si es carga con signo y solo se leen 16 bits
-    (is_signed_load_in && byte_mask_in == 4'b0011) ? 
-      {{16{filtered_data[15]}}, filtered_data[15:0]} :
-    // Para todos los demás casos, usar los datos sin modificar
-    filtered_data;
+  // Instanciar el módulo de extensión de signo condicional
+  conditional_sign_extend sign_extend_inst (
+    .data_in(filtered_read_data),
+    .byte_mask(byte_mask_in),
+    .is_signed_load(is_signed_load_in),
+    .data_out(read_mem_data)
+  );
 
   assign write_data_out = mem_to_reg_in ? read_mem_data : alu_result_in;
   assign write_register_out = write_register_in;

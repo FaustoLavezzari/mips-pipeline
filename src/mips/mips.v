@@ -5,10 +5,9 @@ module mips(
   input  wire        clk,
   input  wire        reset,
   input  wire        stall,
-  // Nuevos puertos para escritura de instrucciones
-  input  wire        inst_write_en,        // Habilitar escritura de instrucción
-  input  wire [31:0] inst_write_addr,      // Dirección a escribir
-  input  wire [31:0] inst_write_data,      // Datos a escribir (instrucción)
+  input  wire        inst_write_en,        
+  input  wire [31:0] inst_write_addr,     
+  input  wire [31:0] inst_write_data,      
 
   output wire        halt,
 
@@ -81,9 +80,9 @@ module mips(
     .i_take_branch       (id_take_branch),
     .i_branch_target_addr(id_branch_target_addr),
     .i_stall             (stall_first_half),
-    .i_inst_write_en     (inst_write_en),      // Pasar señal de escritura
-    .i_inst_write_addr   (inst_write_addr),    // Pasar dirección de escritura
-    .i_inst_write_data   (inst_write_data),    // Pasar datos a escribir
+    .i_inst_write_en     (inst_write_en),      
+    .i_inst_write_addr   (inst_write_addr),    
+    .i_inst_write_data   (inst_write_data), 
     .o_next_pc           (if_next_pc),
     .o_instr             (if_instr)
   );
@@ -268,26 +267,6 @@ module mips(
     .is_signed_load_out   (i_ex_is_signed_load)
   );
 
-  // ======== EX Forwarding y señales ========
-  wire        ex_use_forwarded_a;
-  wire        ex_use_forwarded_b;
-  wire [31:0] ex_forwarded_value_a;
-  wire [31:0] ex_forwarded_value_b;
-  
-  forwarding_unit forwarding_ex_inst(
-    .i_ex_rs          (ex_rs),
-    .i_ex_rt          (ex_rt),
-    .i_mem_rd         (mem_write_register),
-    .i_mem_reg_write  (mem_reg_write),
-    .i_mem_result     (mem_alu_result),
-    .i_wb_rd          (wb_write_register_out),
-    .i_wb_reg_write   (wb_reg_write_out),
-    .i_wb_result      (wb_write_data),
-    .o_use_forwarded_a(ex_use_forwarded_a),
-    .o_use_forwarded_b(ex_use_forwarded_b),
-    .o_forwarded_value_a(ex_forwarded_value_a),
-    .o_forwarded_value_b(ex_forwarded_value_b)
-  );
 
   // ======== Etapa EX y señales de salida ========
   wire [31:0] ex_alu_result;
@@ -311,10 +290,6 @@ module mips(
     .i_rd                (ex_rd),
     .i_shamt             (ex_shamt),
     .i_next_pc           (ex_next_pc),
-    .i_forwarded_value_a (ex_forwarded_value_a),
-    .i_forwarded_value_b (ex_forwarded_value_b),
-    .i_use_forwarded_a   (ex_use_forwarded_a),
-    .i_use_forwarded_b   (ex_use_forwarded_b),
     .i_alu_src_b         (i_ex_alu_src_b),
     .i_alu_src_a         (i_ex_alu_src_a),
     .i_reg_dst           (i_ex_reg_dst),

@@ -48,9 +48,18 @@ module data_memory(
 
   // Lectura de memoria - controlada por mem_read_in
   // Combina 4 bytes consecutivos para formar una palabra de 32 bits
-  assign read_data_out = mem_read_in ? 
-                        {memory[base_addr+3], memory[base_addr+2], memory[base_addr+1], memory[base_addr]} : 
-                        32'b0;
+  wire [31:0] raw_read_data = {memory[base_addr+3], memory[base_addr+2], memory[base_addr+1], memory[base_addr]};
+  wire [31:0] filtered_read_data;
+  
+  // Instanciar el módulo de filtrado de bytes para la lectura
+  byte_filter read_filter (
+    .data_in(raw_read_data),
+    .byte_mask(byte_mask),
+    .data_out(filtered_read_data)
+  );
+  
+  // Salida final controlada por mem_read_in
+  assign read_data_out = mem_read_in ? filtered_read_data : 32'b0;
 
   // Debug read: siempre disponible, sin control de mem_read_in
   assign o_debug_data = {memory[i_debug_addr+3], memory[i_debug_addr+2], memory[i_debug_addr+1], memory[i_debug_addr]};

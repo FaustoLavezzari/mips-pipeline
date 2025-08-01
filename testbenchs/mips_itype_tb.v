@@ -197,7 +197,7 @@ module mips_itype_tb();
                dut.ex_write_register,
                dut.ex_reg_write);
       
-      // Mostrar información de la unidad de forwarding de ID y EX
+      // Mostrar información de la unidad de forwarding de ID (EX forwarding eliminado)
       begin
         $display("ID_FORWARDING: UseForwardedA=%0b, UseForwardedB=%0b, RS=%0d, RT=%0d", 
                  dut.id_use_forwarded_a,
@@ -208,10 +208,6 @@ module mips_itype_tb();
         $display("ID_BRANCH_CONTROL: take_branch=%0b, target=0x%h", 
                  dut.id_take_branch,
                  dut.id_branch_target_addr);
-                 
-        $display("EX_FORWARDING: UseForwardedA=%0b, UseForwardedB=%0b", 
-                 dut.ex_use_forwarded_a,
-                 dut.ex_use_forwarded_b);
         
         // Mostrar también los registros de origen y destino relevantes
         $display("REGS: Rs=%0d, Rt=%0d, MEM_Rd=%0d, WB_Rd=%0d", 
