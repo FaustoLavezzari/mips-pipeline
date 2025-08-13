@@ -14,6 +14,7 @@ module fifo
     );
 
     //signal declaration
+    (* ram_style = "registers" *)   
     reg [B-1: 0] array_reg   [2**W-1:0]; // register array
     // La FIFO podrá almacenar hasta 2^W palabras de B bits
     reg [W-1: 0] w_ptr_reg,  w_ptr_next, w_ptr_succ;

@@ -40,12 +40,12 @@ module top(
 );
 
     // ======== Señales de Clock Wizard ========
-    wire        clk_50mhz;          // Reloj de 50MHz generado por Clock Wizard
+    wire        sys_clk;          // Reloj de 50MHz generado por Clock Wizard
 
     // ======== Parámetros UART ========
     localparam DBIT       = 8;     // data bits
     localparam SB_TICK    = 16;    // ticks for stop bits
-    localparam DVSR       = 163;   // baud rate divisor (19200 baud @ 50MHz)
+    localparam DVSR       = 163;   // baud rate divisor (19200 baud)
     localparam DVSR_BITS  = 9;     // number of bits in divisor
     localparam FIFO_W     = 2;     // FIFO width (4 words)
 
@@ -128,12 +128,9 @@ module top(
     // NOTA: Este debe ser generado como IP en Vivado con el nombre 'clk_wiz_0'
     clk_wiz_0 u_clk_wiz_0 (
         // Clock out ports
-        .clk_out1(clk_50mhz),      // Salida de 50MHz
-        // Status and control signals  
-        .reset(reset),              // Reset de entrada
-        .locked(),                  // Señal locked (no usada por ahora)
+        .clk_out1(sys_clk), 
         // Clock in ports
-        .clk_in1(clk)              // Entrada de reloj del board
+        .clk_in1(clk)
     );
 
     // ======== Instancia del módulo UART ========
@@ -144,7 +141,7 @@ module top(
         .DVSR_BITS(DVSR_BITS),
         .FIFO_W(FIFO_W)
     ) uart_inst (
-        .clk(clk_50mhz),            // Usar reloj de 50MHz del Clock Wizard
+        .clk(sys_clk), 
         .reset(reset),
         .rd_uart(uart_rd_uart),
         .wr_uart(uart_wr_uart),
@@ -159,7 +156,7 @@ module top(
 
     // ======== Instancia del módulo Debugger ========
     debugger debugger_inst (
-        .clk(clk_50mhz),            // Usar reloj de 50MHz del Clock Wizard
+        .clk(sys_clk),            
         .reset(reset),
         
         // UART interface
@@ -234,7 +231,7 @@ module top(
 
     // ======== Instancia del módulo MIPS ========
     mips mips_inst (
-        .clk(clk_50mhz),            // Usar reloj de 50MHz del Clock Wizard
+        .clk(sys_clk),
         .reset(mips_reset),
         .stall(mips_stall),    
         // Instruction memory write interface
