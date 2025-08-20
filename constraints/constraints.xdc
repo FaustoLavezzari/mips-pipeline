@@ -5,7 +5,30 @@
 
 ## Clock Signal
 set_property -dict { PACKAGE_PIN E3    IOSTANDARD LVCMOS33 } [get_ports { clk }]; #IO_L12P_T1_MRCC_35 Sch=gclk[100]
-create_clock -add -name sys_clk_pin -period 10.00 -waveform {0 5} [get_ports { clk }];
+
+set_clock_groups -asynchronous -group [get_clocks -of_objects [get_ports clk]] -group [get_clocks -of_objects [get_pins u_clk_wiz_0/clk_out1]]
+
+## Input/Output Delay Constraints
+# Input delays - assuming inputs arrive relative to the generated sys_clk domain (50MHz from Clock Wizard)
+set_input_delay -clock [get_clocks -of_objects [get_pins u_clk_wiz_0/clk_out1]] -min 1.0 [get_ports uart_rx]
+set_input_delay -clock [get_clocks -of_objects [get_pins u_clk_wiz_0/clk_out1]] -max 3.0 [get_ports uart_rx]
+set_input_delay -clock [get_clocks -of_objects [get_pins u_clk_wiz_0/clk_out1]] -min 1.0 [get_ports reset]
+set_input_delay -clock [get_clocks -of_objects [get_pins u_clk_wiz_0/clk_out1]] -max 3.0 [get_ports reset]
+
+# Output delays - assuming outputs need to be stable relative to the generated sys_clk
+set_output_delay -clock [get_clocks -of_objects [get_pins u_clk_wiz_0/clk_out1]] -min -1.0 [get_ports uart_tx]
+set_output_delay -clock [get_clocks -of_objects [get_pins u_clk_wiz_0/clk_out1]] -max 2.0 [get_ports uart_tx]
+set_output_delay -clock [get_clocks -of_objects [get_pins u_clk_wiz_0/clk_out1]] -min -0.5 [get_ports {led0_r led1_r}]
+set_output_delay -clock [get_clocks -of_objects [get_pins u_clk_wiz_0/clk_out1]] -max 1.0 [get_ports {led0_r led1_r}]
+set_output_delay -clock [get_clocks -of_objects [get_pins u_clk_wiz_0/clk_out1]] -min -0.5 [get_ports debugger_leds[*]]
+set_output_delay -clock [get_clocks -of_objects [get_pins u_clk_wiz_0/clk_out1]] -max 1.0 [get_ports debugger_leds[*]]
+
+# False paths for asynchronous inputs (reset is typically asynchronous)
+set_false_path -from [get_ports reset]
+
+# False paths for LEDs (they don't have strict timing requirements)
+set_false_path -to [get_ports {led0_r led1_r}]
+set_false_path -to [get_ports debugger_leds[*]]
 
 ## Switches
 #set_property -dict { PACKAGE_PIN A8    IOSTANDARD LVCMOS33 } [get_ports { reset }]; #IO_L12N_T1_MRCC_16 Sch=sw[0]
